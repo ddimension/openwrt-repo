@@ -5,13 +5,13 @@ PKG_VERSION:=0.34.0
 PKG_RELEASE=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL=https://github.com/badaix/snapcast.git
-PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
+PKG_SOURCE_URL:=https://github.com/badaix/snapcast.git
 PKG_SOURCE_VERSION:=v0.34.0
+PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net
 PKG_MIRROR_HASH:=c037e4337abf36c85e4cd8082ed636e5da182d2c02d17360f0ba4160b0e5df1f
-# PKG_MIRROR_MD5SUM:=
+
+PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
 # CMAKE_INSTALL:=1
 
 PKG_LICENSE:=GPL-2.0
