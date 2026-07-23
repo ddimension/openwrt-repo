@@ -1,0 +1,117 @@
+# Build the feed for every release branch × package architecture and publish
+# the binary package repositories to GitHub Pages (gh-pages branch), one
+# directory per <release>/<arch>.
+#
+# Efficiency: a new push to main cancels the still-running previous build
+# (concurrency group), .md-only changes don't trigger at all, artifacts are
+# kept for 2 days only, and gh-pages history is collapsed to a single commit
+# per deploy (force_orphan) so the branch never grows.
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # Release branches to build. Add future OpenWrt releases here as they
+        # appear (the value doubles as the directory name on the site;
+        # 'snapshot' builds against master).
+        release:
+          - snapshot
+          - openwrt-25.12
+        arch:
+          - aarch64_cortex-a53
+          - aarch64_cortex-a72
+          - arm_cortex-a15_neon-vfpv4
+          - arm_cortex-a7_neon-vfpv4
+          - mips_24kc
+          - mipsel_24kc
+          - x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build packages
+        uses: openwrt/gh-action-sdk@v11
+        env:
+          ARCH: ${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
+          FEEDNAME: wwand
+          PACKAGES: apman homesync luacurl lua-mosquitto luci-app-wwand luci-proto-wwand qfirehose qlog snapcast usb-relay-hid wwand wwand-lpac
+          INDEX: 1
+          # usign key for opkg-based releases (<= 24.10), apk key for
+          # snapshot/25.12+. Empty secrets simply leave the index unsigned.
+          KEY_BUILD: ${{ secrets.KEY_BUILD }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Collect repository
+        run: |
+          mkdir -p "public/${{ matrix.release }}/${{ matrix.arch }}"
+          cp -a "bin/packages/${{ matrix.arch }}/wwand/." \
+                "public/${{ matrix.release }}/${{ matrix.arch }}/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repo-${{ matrix.release }}-${{ matrix.arch }}
+          path: public
+          retention-days: 2
+
+  publish:
+    # publish whatever succeeded even if some matrix legs failed — the seed
+    # from the current gh-pages below keeps their previous state alive
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # seed with the currently published site so <release>/<arch> dirs that
+      # were not (re)built in this run survive the deploy
+      - uses: actions/checkout@v4
+        continue-on-error: true # first run: gh-pages doesn't exist yet
+        with:
+          ref: gh-pages
+          path: public
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: repo-*
+          path: fresh
+          merge-multiple: true
+
+      - name: Merge fresh build into site
+        run: |
+          mkdir -p public fresh
+          rm -rf public/.git
+          # replace (not overlay) every dir that was rebuilt, so outdated
+          # package versions don't accumulate
+          for archdir in fresh/*/*/; do
+            [ -d "$archdir" ] || continue
+            dest="public/${archdir#fresh/}"
+            rm -rf "$dest"
+            mkdir -p "$(dirname "$dest")"
+            mv "$archdir" "$dest"
+          done
+          # public signing keys (committed under keys/) at the site root
+          if [ -d keys ]; then cp -a keys public/; fi
+          find public -maxdepth 2 -type d | sort
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: public
+          force_orphan: true
+          commit_message: 'packages @ ${{ github.sha }}'
