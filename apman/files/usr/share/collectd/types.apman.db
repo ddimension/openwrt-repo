@@ -1,0 +1,3 @@
+wifi_airtime		time:GAUGE:0:U, time_busy:GAUGE:0:U, utilization:GAUGE:0:255
+wifi_dfs		cac_seconds:GAUGE:0:U, cac_senconds_left:GAUGE:0:U, cac_active:GAUGE:0:1
+wifi_channel		channel:GAUGE:0:300, frequency:GAUGE:0:9999, status:GAUGE:0:1

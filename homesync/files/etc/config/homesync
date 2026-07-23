@@ -1,0 +1,8 @@
+
+config instance 'main'
+	option server '192.168.203.4'
+	option port '8554'
+	option url 'rtsp://192.168.203.4:8554/stream1'
+	option device ''
+	option disabled 1
+

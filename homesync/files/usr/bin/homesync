@@ -1,0 +1,40 @@
+#!/bin/sh
+
+SERVER="$1"
+PORT="$2"
+URL="$3"
+DEVICE="$4"
+
+# trap call
+function cleanup() {
+	if [ -n "$GSTPID" ]; then
+		echo "Killing client"
+		kill $GSTPID 2>/dev/null
+		sleep 2
+		kill -9 $GSTPID 2>/dev/null
+	fi
+	exit
+}
+
+
+# inistialize with defaults
+alsactl init
+# try CMEDIA USB 2 Port stick
+amixer sset PCM 95%
+amixer sset Master 95%
+
+trap cleanup SIGINT SIGQUIT SIGTERM
+
+while ! echo -n "" | timeout 2 nc ${SERVER} ${PORT} >/dev/null 2>&1; do
+  echo "Server ${SERVER} ${PORT} not reachable, waiting"
+  sleep 10
+done
+echo "Server ${SERVER} ${PORT} reachable"
+
+while true; do
+	IFACE=$(ip -o ro get ${SERVER} |head -n1 | sed 's/.*dev //'|cut -d' ' -f1)
+	gst-launch-1.0  rtspsrc location=${URL} rfc7273-sync=true mode=4 multicast-iface=$IFACE ! rtpL16depay ! audioconvert ! alsasink &
+	GSTPID=$!
+	wait
+	sleep 1
+done

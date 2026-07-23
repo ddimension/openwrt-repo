@@ -1,0 +1,183 @@
+#!/usr/bin/env lua
+
+--[[
+  A demo of ubus subscriber binding. Should be run after publisher.lua
+--]]
+
+require "ubus"
+require "uloop"
+require "luci.jsonc"
+local curl = require("lcurl")
+local socket = require("socket")
+
+function starts_with(str, start)
+	return str:sub(1, #start) == start
+end
+
+function getFile(file)
+	local f = io.open (file)
+	local output = f:read("*a") or ""
+	f:close()
+	return output
+end
+
+function getOutput(cmd)
+	local f = io.popen (cmd)
+	local output = f:read("*a") or ""
+	f:close()
+	return output
+end
+
+function postMessage(url, data)
+	ch:setopt(curl.OPT_URL, url)
+	ch:setopt(curl.OPT_POSTFIELDS, luci.jsonc.stringify(data))
+	ch:setopt_writefunction(function(str)
+		print('Result calling '..url..': '..str)
+		return true
+	end)
+	local ok, err = pcall(function() ch:perform() end)
+	if not ok then
+		print('Failed to call url '..url)
+	end
+end
+
+function genSub(instance, url, hostname) 
+	return {
+		notify = function( msg, method )
+			ch:setopt(curl.OPT_TIMEOUT_MS, 2000)
+			postMessage(url, { 
+				message = msg, 
+				hostname = hostname,
+				instance = instance,
+				method = method
+			})
+		end
+	}
+end
+
+function timercb()
+	local c2 = 0
+	objects = conn:objects()
+	for key, value in pairs(objects) do
+		if starts_with(value, "hostapd.") then
+			c2 = c2 + 1
+		end
+	end
+	if count ~= c2 then
+		reconnect()
+	end
+	timer:set(1000)
+end
+
+function statuscb()
+	local data = {}
+	data['board'] = conn:call("system", "board", {})
+	local devices = conn:call("iwinfo", "devices", {})
+	data['devices'] = {}
+	for key, value in pairs(devices['devices']) do
+		data['devices'][value] = {}
+		data['devices'][value]['info'] = conn:call("iwinfo", "info", { device = value })
+		data['devices'][value]['clients'] = conn:call("hostapd."..value, "get_clients", {})
+		data['devices'][value]['assoclist'] = conn:call("iwinfo", "assoclist", { device = value })
+		data['devices'][value]['stations'] = getOutput("iw dev "..value.." station dump")
+	end
+	ch:setopt(curl.OPT_TIMEOUT_MS, 2000)
+	postMessage(statusurl, { 
+		message = data, 
+		hostname = hostname
+	})
+	timer_status:set(10000)
+end
+
+function reconnect()
+	conn:close()
+	conn = ubus.connect()
+	if not conn then
+		error("Failed to connect to ubus")
+	end
+
+	count = 0
+	while count<1 do
+		objects = conn:objects()
+		for key, value in pairs(objects) do
+			if starts_with(value, "hostapd.") then
+				print("Subscribing to: ",value)
+				conn:subscribe(value, genSub(value, eventurl, hostname) )
+				count = count + 1
+			end
+		end
+		socket.sleep(1)	
+	end
+end
+
+function getCurlHandle()
+	local c = curl.easy()
+--	c:setopt(curl.OPT_VERBOSE, true)
+	c:setopt(curl.OPT_SSL_VERIFYPEER, false)
+	c:setopt(curl.OPT_FOLLOWLOCATION, true)
+	c:setopt(curl.OPT_CONNECTTIMEOUT_MS, 1000)
+	c:setopt(curl.OPT_TIMEOUT_MS, 20000)
+	c:setopt(curl.OPT_FAILONERROR, false)
+	c:setopt(curl.OPT_NOSIGNAL, true)
+	c:setopt(curl.OPT_FORBID_REUSE, false)
+--	c:setopt(curl.OPT_HEADER, true)
+	c:setopt(curl.OPT_HTTPHEADER, {
+		'Connection: Keep-Alive',
+		'Content-Type: application/json; charset=UTF-8'
+	})
+	return c
+end
+
+local enabled = string.gsub(getOutput('uci get apman.main.enabled'), "\n", "")
+if enabled ~= "1" then
+	print("apman is not enabled")
+	os.exit(1)
+end
+
+-- config
+hostname = string.gsub(getFile('/proc/sys/kernel/hostname'), "\n", "")
+eventurl = string.gsub(getOutput('uci get apman.main.url_event'), "\n", "")
+statusurl = string.gsub(getOutput('uci get apman.main.url_status'), "\n", "")
+
+if not eventurl or not statusurl then
+	print("Config missing")
+	os.exit(1)
+end
+
+-- initiate curl
+ch = getCurlHandle()
+
+-- start loop
+uloop.init()
+
+conn = ubus.connect()
+if not conn then
+	error("Failed to connect to ubus")
+end
+
+count = 0
+while count<1 do
+	objects = conn:objects()
+	for key, value in pairs(objects) do
+		if starts_with(value, "hostapd.") then
+			print("Subscribing to: ",value)
+			conn:subscribe(value, genSub(value, eventurl, hostname) )
+			count = count + 1
+		end
+	end
+	socket.sleep(1)	
+end
+
+timer = uloop.timer(timercb)
+timer:set(1000)
+
+-- inform about boot up
+ch:setopt(curl.OPT_TIMEOUT_MS, 120000)
+postMessage(statusurl, { 
+	message = {booted = true}, 
+	hostname = hostname
+})
+timer_status = uloop.timer(statuscb)
+statuscb()
+
+uloop.run()

@@ -1,0 +1,4 @@
+#!/usr/bin/env lua
+
+apman = require "apman"
+apman.init()

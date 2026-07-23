@@ -1,0 +1,10 @@
+--- snapcast-0.25.0/common/message/message.hpp	2022-12-17 02:33:43.565248313 +0100
++++ snapcast-0.25.0/common/message/message.hpp	2022-12-17 02:33:55.769209498 +0100
+@@ -25,6 +25,7 @@
+ #include <cstring>
+ #include <iostream>
+ #include <streambuf>
++#include <memory>
+ #ifndef WINDOWS
+ #include <sys/time.h>
+ #endif

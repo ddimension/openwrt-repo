@@ -1,0 +1,45 @@
+menu "Configuration"
+
+config SNAPCAST_WITH_PULSE 
+	bool
+	default n
+	select pulseaudio-daemon-avahi
+	prompt "Enable pulseaudio supports (with avahi)"
+
+config SNAPCAST_WITH_FLAC
+	bool
+	default n
+	select libflac
+	prompt "Enable FLAC support"
+
+config SNAPCAST_WITH_VORBIS
+	bool
+	default n
+	select libvorbis
+	select libvorbisidec
+	prompt "Enable Vorbis support"
+
+config SNAPCAST_WITH_TREMOR
+	bool
+	default n
+	prompt "Enable Tremor support (integrated)"
+
+config SNAPCAST_WITH_OPUS
+	bool
+	default n
+	select libopus
+	prompt "Enable OPUS support"
+
+config SNAPCAST_WITH_AVAHI
+	bool
+	default n
+	select libavahi-client
+	prompt "Enable avahi support"
+
+config SNAPCAST_WITH_EXPAT
+	bool
+	default n
+	select expat
+	prompt "Enable expat support"
+
+endmenu
