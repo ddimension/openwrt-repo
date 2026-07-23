@@ -93,4 +93,7 @@ The LuCI packages need the standard `luci` feed to be present (they include
 
 The source repos are pinned via `PKG_SOURCE_VERSION`. To release a new
 version, bump `PKG_SOURCE_VERSION` (and `PKG_SOURCE_DATE`) in the package's
-Makefile and increment `PKG_RELEASE`.
+Makefile, update `PKG_MIRROR_HASH` and increment `PKG_RELEASE`. The correct
+mirror hash for a new source commit is printed by the failing CI check
+("PKG_MIRROR_HASH does not match, set to <hash>"), or locally via
+`make package/<name>/download package/<name>/check V=s` in an SDK.

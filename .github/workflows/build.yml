@@ -49,6 +49,11 @@ jobs:
           FEEDNAME: wwand
           PACKAGES: apman homesync luacurl lua-mosquitto luci-app-wwand luci-proto-wwand qfirehose qlog snapcast usb-relay-hid wwand wwand-lpac
           INDEX: 1
+          # these packages are not staged for openwrt.org upstream — skip the
+          # upstream-hygiene checks (patch refresh, shfmt on init scripts);
+          # the PKG_MIRROR_HASH check stays active
+          NO_REFRESH_CHECK: 1
+          NO_SHFMT_CHECK: 1
           # usign key for opkg-based releases (<= 24.10), apk key for
           # snapshot/25.12+. Empty secrets simply leave the index unsigned.
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
