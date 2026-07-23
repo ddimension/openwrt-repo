@@ -28,17 +28,21 @@ jobs:
         # Release branches to build. Add future OpenWrt releases here as they
         # appear (the value doubles as the directory name on the site;
         # 'snapshot' builds against master).
+        #
+        # Bring-up phase: one combination only (the Chateau test router —
+        # snapshot × aarch64_cortex-a53). Re-enable the commented entries
+        # once this one is green.
         release:
           - snapshot
-          - openwrt-25.12
+          # - openwrt-25.12
         arch:
           - aarch64_cortex-a53
-          - aarch64_cortex-a72
-          - arm_cortex-a15_neon-vfpv4
-          - arm_cortex-a7_neon-vfpv4
-          - mips_24kc
-          - mipsel_24kc
-          - x86_64
+          # - aarch64_cortex-a72
+          # - arm_cortex-a15_neon-vfpv4
+          # - arm_cortex-a7_neon-vfpv4
+          # - mips_24kc
+          # - mipsel_24kc
+          # - x86_64
     steps:
       - uses: actions/checkout@v4
 
