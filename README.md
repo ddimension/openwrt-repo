@@ -1,4 +1,4 @@
-# wwand-openwrt-repo
+# openwrt-repo
 
 OpenWrt **package feed** for the [wwand](https://github.com/ddimension/wwand)
 cellular connection manager. This repo carries only the OpenWrt package
@@ -19,7 +19,7 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 Add to `feeds.conf` (or `feeds.conf.default`) of an OpenWrt buildroot or SDK:
 
 ```
-src-git wwand https://github.com/ddimension/wwand-openwrt-repo.git
+src-git wwand https://github.com/ddimension/openwrt-repo.git
 ```
 
 then:
