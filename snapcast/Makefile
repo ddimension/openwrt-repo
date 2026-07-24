@@ -9,7 +9,7 @@ PKG_SOURCE_URL:=https://github.com/badaix/snapcast.git
 PKG_SOURCE_VERSION:=v0.34.0
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_HASH:=c037e4337abf36c85e4cd8082ed636e5da182d2c02d17360f0ba4160b0e5df1f
+PKG_MIRROR_HASH:=skip
 
 PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
 # CMAKE_INSTALL:=1
@@ -84,7 +84,7 @@ define Package/snapcast-server
   SECTION:=sound
   CATEGORY:=Sound
   TITLE:=snapcast server for multiroom audio playback
-  DEPENDS:=+libstdcpp +AUDIO_SUPPORT:alsa-lib +libsoxr +libatomic +SNAPCAST_WITH_PULSE:pulseaudio-daemon-avahi +SNAPCAST_WITH_FLAC:libflac +SNAPCAST_WITH_VORBIS:libvorbis +SNAPCAST_WITH_VORBIS:libvorbisidec +SNAPCAST_WITH_OPUS:libopus +SNAPCAST_WITH_AVAHI:libavahi-client +SNAPCAST_WITH_EXPAT:libexpat +libopenssl 
+  DEPENDS:=@BROKEN +libstdcpp +AUDIO_SUPPORT:alsa-lib +libsoxr +libatomic +SNAPCAST_WITH_PULSE:pulseaudio-daemon-avahi +SNAPCAST_WITH_FLAC:libflac +SNAPCAST_WITH_VORBIS:libvorbis +SNAPCAST_WITH_VORBIS:libvorbisidec +SNAPCAST_WITH_OPUS:libopus +SNAPCAST_WITH_AVAHI:libavahi-client +SNAPCAST_WITH_EXPAT:libexpat +libopenssl 
 
 endef
 
@@ -92,7 +92,7 @@ define Package/snapcast-client
   SECTION:=sound
   CATEGORY:=Sound
   TITLE:=snapcast client for multiroom audio playback
-  DEPENDS:=+libstdcpp +AUDIO_SUPPORT:alsa-lib +libsoxr +libatomic +SNAPCAST_WITH_PULSE:pulseaudio-daemon-avahi +SNAPCAST_WITH_FLAC:libflac +SNAPCAST_WITH_VORBIS:libvorbis +SNAPCAST_WITH_VORBIS:libvorbisidec +SNAPCAST_WITH_OPUS:libopus +SNAPCAST_WITH_AVAHI:libavahi-client +SNAPCAST_WITH_EXPAT:libexpat +libopenssl
+  DEPENDS:=@BROKEN +libstdcpp +AUDIO_SUPPORT:alsa-lib +libsoxr +libatomic +SNAPCAST_WITH_PULSE:pulseaudio-daemon-avahi +SNAPCAST_WITH_FLAC:libflac +SNAPCAST_WITH_VORBIS:libvorbis +SNAPCAST_WITH_VORBIS:libvorbisidec +SNAPCAST_WITH_OPUS:libopus +SNAPCAST_WITH_AVAHI:libavahi-client +SNAPCAST_WITH_EXPAT:libexpat +libopenssl
 endef
 
 define Package/snapcast-server/install

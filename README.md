@@ -119,14 +119,18 @@ them):
 - Any `kmod-*` dependency makes the SDK build package the whole
   kernel-module tree once per fresh volume (~30–40 min). That phase looks
   like a hang but isn't.
-- A new source commit needs a new `PKG_MIRROR_HASH`; the check output in
-  `/logs/batch.log` prints the expected value.
 
 ## Updating a package to a newer source commit
 
 The source repos are pinned via `PKG_SOURCE_VERSION`. To release a new
 version, bump `PKG_SOURCE_VERSION` (and `PKG_SOURCE_DATE`) in the package's
-Makefile, update `PKG_MIRROR_HASH` and increment `PKG_RELEASE`. The correct
-mirror hash for a new source commit is printed by the failing CI check
-("PKG_MIRROR_HASH does not match, set to <hash>"), or locally via
-`make package/<name>/download package/<name>/check V=s` in an SDK.
+Makefile and increment `PKG_RELEASE`.
+
+`PKG_MIRROR_HASH` is deliberately `skip` throughout this feed: the commit
+pin already fixes the content, and maintaining tarball hashes cost more
+than it bought us (the reproducible-tarball hash depends on the SDK's
+tar/zstd versions). Consequence: CI runs gh-action-sdk **without**
+`PACKAGES` (whole-feed mode), because the per-package check mode rejects
+`skip`. Packages that should exist in the feed but not be prebuilt carry
+`@BROKEN` in their `DEPENDS` (currently: snapcast, homesync, qfirehose,
+qlog — build them locally with `CONFIG_BROKEN=y`).

@@ -17,7 +17,7 @@ define Package/homesync
   SECTION:=admin
   CATEGORY:=Multimedia
   TITLE:=homesync
-  DEPENDS:=+snapcast-client +alsa-utils +kmod-usb-audio +kmod-usb-hid
+  DEPENDS:=@BROKEN +snapcast-client +alsa-utils +kmod-usb-audio +kmod-usb-hid
   MAINTAINER:=Andre Valentin <avalentin@marcant.net>
   PKGARCH:=all
 endef

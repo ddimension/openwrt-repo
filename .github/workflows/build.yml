@@ -51,17 +51,13 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
           FEEDNAME: wwand
-          # Bring-up: wwand* first (wwand builds ucode-mod-wwand-io and
-          # wwand-esim too). Then re-add package by package:
-          # luacurl lua-mosquitto qfirehose qlog usb-relay-hid snapcast
-          # apman homesync
-          PACKAGES: wwand wwand-lpac luci-app-wwand luci-proto-wwand
+          # No PACKAGES: build the whole feed in one make. This deliberately
+          # bypasses the per-package checks (incl. the PKG_MIRROR_HASH gate —
+          # the feed pins sources via PKG_SOURCE_VERSION and uses
+          # PKG_MIRROR_HASH:=skip). Packages excluded from the prebuilt feed
+          # (snapcast, homesync, qfirehose, qlog) carry @BROKEN in their
+          # DEPENDS and are dropped by defconfig.
           INDEX: 1
-          # these packages are not staged for openwrt.org upstream — skip the
-          # upstream-hygiene checks (patch refresh, shfmt on init scripts);
-          # the PKG_MIRROR_HASH check stays active
-          NO_REFRESH_CHECK: 1
-          NO_SHFMT_CHECK: 1
           # usign key for opkg-based releases (<= 24.10), apk key for
           # snapshot/25.12+. Empty secrets simply leave the index unsigned.
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
