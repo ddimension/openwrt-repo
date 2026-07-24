@@ -26,9 +26,7 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
 PKG_SOURCE_VERSION:=bfeb2fa55ca7853ed2c0cb3c05f2df66ed6147d3
 PKG_SOURCE_DATE:=2026-07-24
-# skip the tarball hash during development; pin a real value with
-#   make package/feeds/<feed>/wwand/download   (it prints the hash)
-PKG_MIRROR_HASH:=skip
+PKG_MIRROR_HASH:=1ba2ba2759283683eb4293f720082d35cc3c76b7532233e8e4666d5474fc73b7
 
 PKG_LICENSE:=GPL-2.0
 PKG_MAINTAINER:=
