@@ -65,10 +65,6 @@ define Package/wwand/description
   or wwand-ncm) for the control protocols your modems use.
 endef
 
-define Package/wwand/conffiles
-/etc/config/wwand
-endef
-
 define Package/wwand/install
 	$(INSTALL_DIR) $(1)$(UCDIR)/codec/schema
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/*.uc $(1)$(UCDIR)/
@@ -99,8 +95,10 @@ define Package/wwand/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand.defaults $(1)/etc/uci-defaults/99-wwand-migrate
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand.init $(1)/etc/init.d/wwand
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) $(PKG_BUILD_DIR)/files/wwand.config $(1)/etc/config/wwand
+	# no /etc/config/wwand for new installs — all config lives in
+	# /etc/config/network now (existing files survive upgrade and are still read;
+	# the uci-defaults migrator converts them). files/wwand.config is kept in the
+	# source tree only as a documented network-model example.
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/usbmisc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug $(1)/etc/hotplug.d/usbmisc/20-wwand
 	# net hotplug: NCM modems (no cdc-wdm) + re-enumeration after a mode switch
