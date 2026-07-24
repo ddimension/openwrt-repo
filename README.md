@@ -89,6 +89,39 @@ then:
 The LuCI packages need the standard `luci` feed to be present (they include
 `$(TOPDIR)/feeds/luci/luci.mk`).
 
+## Local test builds (before burning CI)
+
+Big builds should be validated locally first — same official `openwrt/sdk`
+Docker containers, same checks as the workflow:
+
+```
+scripts/local-build.sh                            # full matrix (all releases × archs)
+ARCHS=aarch64_cortex-a53 scripts/local-build.sh   # one arch
+RELEASES=snapshot ARCHS=x86_64 PACKAGES="wwand" NPROC=4 scripts/local-build.sh
+```
+
+Prints `PASS:`/`FAIL:` per package and `COMBO PASS/FAIL` per release×arch;
+on failure the exact compiler errors land in
+`/tmp/openwrt-repo-local-build/<release>-<arch>/vbuild-<pkg>.log` (override
+with `LOGDIR=`). Iterating is cheap: the SDK volume of a failed combo is
+kept, so a fix only rebuilds the failed package; volumes of passing combos
+are deleted automatically.
+
+Pitfalls handled by the script (don't run the SDK container by hand without
+them):
+
+- **`--ulimit nofile=1024:1048576` is mandatory.** Docker's default
+  (~unlimited) makes fakeroot/`apk mkpkg` burn minutes of 100% CPU *per
+  package* (fd-close loop) — a build that should take minutes runs for
+  hours, with `.faked.bin` pinned at 100% CPU.
+- `openwrt/sdk` images are bootstrap images: `/builder/setup.sh` downloads
+  the actual SDK on first start (hence the persistent volume).
+- Any `kmod-*` dependency makes the SDK build package the whole
+  kernel-module tree once per fresh volume (~30–40 min). That phase looks
+  like a hang but isn't.
+- A new source commit needs a new `PKG_MIRROR_HASH`; the check output in
+  `/logs/batch.log` prints the expected value.
+
 ## Updating a package to a newer source commit
 
 The source repos are pinned via `PKG_SOURCE_VERSION`. To release a new
