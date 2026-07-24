@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "architecture": "aarch64_cortex-a53",
+  "packages": {
+    "luci-app-wwand": "2026.07.23~7efacb15-r1",
+    "luci-proto-wwand": "2026.07.23~7d50a381-r1",
+    "ucode-mod-wwand-io": "2026.07.24~cc2e14da-r1",
+    "wwand": "2026.07.24~cc2e14da-r1",
+    "wwand-esim": "2026.07.24~cc2e14da-r1",
+    "wwand-lpac": "2.3.0-r2"
+  }
+}
