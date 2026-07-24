@@ -51,7 +51,11 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
           FEEDNAME: wwand
-          PACKAGES: apman homesync luacurl lua-mosquitto luci-app-wwand luci-proto-wwand qfirehose qlog snapcast usb-relay-hid wwand wwand-lpac
+          # Bring-up: wwand* first (wwand builds ucode-mod-wwand-io and
+          # wwand-esim too). Then re-add package by package:
+          # luacurl lua-mosquitto qfirehose qlog usb-relay-hid snapcast
+          # apman homesync
+          PACKAGES: wwand wwand-lpac luci-app-wwand luci-proto-wwand
           INDEX: 1
           # these packages are not staged for openwrt.org upstream — skip the
           # upstream-hygiene checks (patch refresh, shfmt on init scripts);
