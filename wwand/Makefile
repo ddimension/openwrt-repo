@@ -20,11 +20,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=bfeb2fa55ca7853ed2c0cb3c05f2df66ed6147d3
+PKG_SOURCE_VERSION:=faae838498a0a49afb0e52d607010465c0223657
 PKG_SOURCE_DATE:=2026-07-24
 PKG_MIRROR_HASH:=skip
 
@@ -87,7 +87,9 @@ define Package/wwand/install
 	# eSIM -> wwand-esim
 	rm -f $(1)$(UCDIR)/esim.uc $(1)$(UCDIR)/esim_bridge.uc
 	$(INSTALL_DIR) $(1)/lib/netifd/proto
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-proto.sh $(1)/lib/netifd/proto/qmi.sh
+	# the shim registers both `wwand` (current) and `qmi` (legacy alias); install
+	# under the current name — the historical qmi.sh belonged to uqmi/qmi-advanced
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-proto.sh $(1)/lib/netifd/proto/wwand.sh
 	$(INSTALL_DIR) $(1)/usr/libexec/wwand
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-migrate $(1)/usr/libexec/wwand/migrate
 	# one-time auto-migration to the network-native config model on install/upgrade
