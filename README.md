@@ -9,7 +9,7 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 
 | Package | Source |
 |---|---|
-| `wwand` (binary packages `wwand`, `ucode-mod-wwand-io`, `wwand-esim`) | https://github.com/ddimension/wwand |
+| `wwand` (binary packages `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-esim`, `ucode-mod-wwand-io`) | https://github.com/ddimension/wwand |
 | `luci-app-wwand` | https://github.com/ddimension/luci-app-wwand |
 | `luci-proto-wwand` | https://github.com/ddimension/luci-proto-wwand |
 | `wwand-lpac` | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) (bundled static wolfSSL/curl) |
@@ -32,9 +32,10 @@ repositories to GitHub Pages:
 https://ddimension.github.io/openwrt-repo/<release>/<arch>/
 ```
 
-Currently built releases: **`snapshot`** (master) and **`openwrt-25.12`**.
-Further OpenWrt release branches are added to the `release:` matrix in the
-workflow as they appear and show up under the same URL scheme.
+Currently built releases: **`snapshot`** (master), **`openwrt-25.12`** and
+**`openwrt-24.10`**. Further OpenWrt release branches are added to the
+`release:` matrix in the workflow as they appear and show up under the same
+URL scheme.
 
 | Arch | Covers (among others) |
 |---|---|
@@ -46,30 +47,40 @@ workflow as they appear and show up under the same URL scheme.
 | `mipsel_24kc` | ramips/mt7621 |
 | `x86_64` | x86/64 (VMs, APU, router PCs) |
 
-On the device (apk — OpenWrt 25.12 and later, snapshots):
+On the device — apk (OpenWrt 25.12 and later, snapshots):
 
 ```
+wget -O /etc/apk/keys/wwand.pem https://ddimension.github.io/openwrt-repo/keys/public-key.pem
 echo "https://ddimension.github.io/openwrt-repo/snapshot/aarch64_cortex-a53/packages.adb" \
   > /etc/apk/repositories.d/wwand.list
 apk update
 apk add wwand luci-app-wwand
 ```
 
+On the device — opkg (OpenWrt 24.10):
+
+```
+wget -O /etc/opkg/keys/93f8441660b57edd https://ddimension.github.io/openwrt-repo/keys/93f8441660b57edd.pub
+echo "src/gz wwand https://ddimension.github.io/openwrt-repo/openwrt-24.10/aarch64_cortex-a53" \
+  > /etc/opkg/customfeeds.conf
+opkg update
+opkg install wwand luci-app-wwand
+```
+
 Pick the `<release>/<arch>` matching the installed system.
 
 ### Signing
 
-Repositories are signed once the corresponding repo secret is set;
-until then install with `apk add --allow-untrusted`.
+Both signing keys are configured; the public halves live under
+[`keys/`](keys/) and are published at the site root.
 
-- **apk** (snapshot, 25.12+): ECDSA key. Generate with
-  `openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem`,
-  store the file content as the `PRIVATE_KEY` repo secret, and commit the
-  public half (`openssl ec -in private-key.pem -pubout -out
-  keys/public-key.pem`) — the workflow publishes `keys/` at the site root;
-  on devices install it into `/etc/apk/keys/`.
-- **opkg** (releases ≤ 24.10, if ever added to the matrix): usign key via
-  the `KEY_BUILD` secret.
+- **apk** (snapshot, 25.12+): ECDSA key (`keys/public-key.pem`), private
+  half in the `PRIVATE_KEY` repo secret. Regenerate with
+  `openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem`.
+- **opkg** (24.10): usign key (`keys/93f8441660b57edd.pub`, filename =
+  key fingerprint, which is what opkg expects under `/etc/opkg/keys/`),
+  private half in the `KEY_BUILD` repo secret. Regenerate with
+  `usign -G -s key.sec -p key.pub`.
 
 ## Usage as a feed
 
@@ -86,8 +97,9 @@ then:
 ./scripts/feeds install -a -p wwand
 ```
 
-The LuCI packages need the standard `luci` feed to be present (they include
-`$(TOPDIR)/feeds/luci/luci.mk`).
+The LuCI packages build with plain `package.mk` (deliberately not
+`luci.mk`, which can't install from a git `PKG_SOURCE`); at runtime they
+depend on `luci-base` from the standard `luci` feed.
 
 ## Local test builds (before burning CI)
 
