@@ -48,6 +48,9 @@ jobs:
         uses: openwrt/gh-action-sdk@v11
         env:
           ARCH: ${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
+          # pull the SDK from ghcr.io instead of Docker Hub — 21 parallel
+          # anonymous docker.io pulls flake regularly (registry timeouts)
+          CONTAINER: ghcr.io/openwrt/sdk:${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
           FEEDNAME: wwand
           # No PACKAGES: build the whole feed in one make. This deliberately
           # bypasses the per-package checks (incl. the PKG_MIRROR_HASH gate —
