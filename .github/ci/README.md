@@ -96,7 +96,7 @@ packages/Base-Digest) nach `image-registry.ddimension.net/myadmin/…`.
 
 **Ort der Images:** ausschließlich als **GitHub-Actions-Run-Artefakte** am jeweiligen
 Lauf — `images-chateau-{master,stable}`, `images-zyxel-{master,stable}`
-(Retention **7 Tage**, `if-no-files-found: warn`). **Keine** permanente URL (anders als
+(Retention **30 Tage**, `if-no-files-found: warn`). **Keine** permanente URL (anders als
 der Feed auf gh-pages). Holen:
 `gh run download <run-id> -R ddimension/openwrt-repo -n images-zyxel-stable`
 (bei „path traversal" das Artefakt-Zip roh über die API ziehen —

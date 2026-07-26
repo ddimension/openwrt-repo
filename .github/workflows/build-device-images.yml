@@ -82,7 +82,7 @@ jobs:
         with:
           name: images-chateau-${{ matrix.base }}
           path: out/**
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: warn
 
   zyxel:
@@ -135,5 +135,5 @@ jobs:
         with:
           name: images-zyxel-${{ matrix.base }}
           path: out/**
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: warn

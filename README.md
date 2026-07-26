@@ -109,7 +109,7 @@ as a `src-git` feed.
 
 **Where the images live:** only as **GitHub Actions run artifacts** on the
 respective run — `images-chateau-{master,stable}`,
-`images-zyxel-{master,stable}` (retention **7 days**). There is **no
+`images-zyxel-{master,stable}` (retention **30 days**). There is **no
 permanent URL** (unlike the package feed). Download the latest:
 
 ```
