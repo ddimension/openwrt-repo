@@ -34,8 +34,10 @@ if [ -d /dl ]; then
 	rm -rf dl && ln -s /dl dl
 fi
 if [ -d /ccache ]; then
-	export CCACHE_DIR=/ccache
+	# OpenWrt ignoriert eine CCACHE_DIR-Env und nutzt $(TOPDIR)/.ccache (rules.mk).
+	# Also .ccache auf das Volume symlinken -- analog zu dl.
 	echo "CONFIG_CCACHE=y" >> .config
+	rm -rf .ccache && ln -s /ccache .ccache
 fi
 # ---------------------------------------------------------------------------
 
