@@ -93,10 +93,12 @@ jobs:
           sparse-checkout: .github
           sparse-checkout-cone-mode: false
 
-      - name: Prepare output
+      - name: Prepare output + IB volume
         run: |
-          rm -rf out work && mkdir -p out work
-          sudo chown -R 1000:1000 out work "$GITHUB_WORKSPACE"
+          docker volume create "owrt-ib-${{ matrix.base }}" >/dev/null
+          sudo chown 1000:1000 "$(docker volume inspect -f '{{.Mountpoint}}' "owrt-ib-${{ matrix.base }}")"
+          rm -rf out && mkdir -p out
+          sudo chown -R 1000:1000 out "$GITHUB_WORKSPACE"
 
       - name: Login to image registry
         uses: docker/login-action@v3
@@ -115,7 +117,7 @@ jobs:
             -e GHP_DIR="$GHP_DIR" \
             -v "$GITHUB_WORKSPACE":/ci:ro \
             -v "$GITHUB_WORKSPACE/out":/out \
-            -v "$GITHUB_WORKSPACE/work":/work \
+            -v "owrt-ib-${{ matrix.base }}":/work \
             image-registry.ddimension.net/myadmin/openwrt-builder:latest \
             bash /ci/.github/ci/build-imagebuilder.sh
 
