@@ -71,7 +71,12 @@ echo "device + wwand selection ok"
 echo "::endgroup::"
 
 echo "::group::build"
-make -j"$(nproc)" BUILD_LOG=1
+# MAKE_JOBS = vom Runner-CT freigegebene Kerne (im Workflow aus der cgroup-Quota
+# ermittelt). Fallback auf nproc, wenn nicht gesetzt -- ACHTUNG: nproc meldet im
+# LXC/Container die volle Node-Kernzahl, nicht die --cores-Quota (Ueberparallel-Risiko).
+JOBS="${MAKE_JOBS:-$(nproc)}"
+echo "make -j${JOBS}"
+make -j"${JOBS}" BUILD_LOG=1
 echo "::endgroup::"
 
 # Artefakte einsammeln

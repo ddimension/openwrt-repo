@@ -65,11 +65,34 @@ jobs:
 
       - name: Build (full buildroot)
         run: |
+          # Vom Runner-CT freigegebene Kerne bestimmen. pct --cores setzt eine
+          # cgroup-CPU-Quota; nproc ignoriert die und meldet die volle Node-Kernzahl
+          # -> make -j$(nproc) baut massiv ueberparallel und thrasht sich fest
+          # (chateau-stable-Hang bei qca-ssdk). Die Quota ist nur HIER im Runner-CT
+          # sichtbar -- im verschachtelten Build-Container ist die eigene cpu.max = max
+          # (cgroup-Namespace) -> dort wuerde nproc wieder ueberzaehlen. Also hier lesen
+          # und als MAKE_JOBS reinreichen.
+          jobs="$(nproc)"
+          if [ -r /sys/fs/cgroup/cpu.max ]; then                    # cgroup v2
+            read -r q p < /sys/fs/cgroup/cpu.max
+            if [ "$q" != max ] && [ "${p:-0}" -gt 0 ] 2>/dev/null; then
+              jobs=$(( (q + p - 1) / p ))
+            fi
+          elif [ -r /sys/fs/cgroup/cpu/cpu.cfs_quota_us ]; then     # cgroup v1
+            q="$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us)"
+            p="$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us)"
+            if [ "${q:-0}" -gt 0 ] 2>/dev/null && [ "${p:-0}" -gt 0 ] 2>/dev/null; then
+              jobs=$(( (q + p - 1) / p ))
+            fi
+          fi
+          [ "${jobs:-0}" -ge 1 ] 2>/dev/null || jobs=1
+          echo "chateau build: -j${jobs} (freigegebene Kerne des Runner-CT)"
           docker run --rm --user 1000:1000 \
             -e SRC_URL='${{ matrix.src_url }}' \
             -e SRC_BRANCH='${{ matrix.src_branch }}' \
             -e TARGET="$TARGET" -e SUBTARGET="$SUBTARGET" -e DEVICES="$DEVICES" \
             -e WWAND_FEED='https://github.com/ddimension/openwrt-repo.git' \
+            -e MAKE_JOBS="$jobs" \
             -v "$GITHUB_WORKSPACE":/ci:ro \
             -v "$GITHUB_WORKSPACE/out":/out \
             -v "owrt-src-chateau-${{ matrix.base }}":/src \
