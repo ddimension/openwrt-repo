@@ -44,6 +44,14 @@ Zwei Workflows:
   persistent bis CT-Neuerzeugung.
 - **Token:** GitHub-**PAT** (fine-grained, Repo-Permission *Administration: RW*) oder
   Registration-Token (`--token-kind reg`, kurzlebig). **Kein** Docker-PAT (`dckr_pat…`)!
+- **Bind-Mount-Namespace-Falle:** Löst der dockerd, der einen Build-Container startet,
+  `-v`-Pfade in einem anderen Mount-Namespace auf als der Runner (Sibling/DinD), kommt
+  ein `-v <workspace>:/feed` **leer** im Container an (Docker legt den nicht auflösbaren
+  Pfad still neu an) → `feeds update` findet nichts, `No feed for package …`, Build rot —
+  *ohne* Fehlermeldung beim Mount. Fix in der gevendorten `openwrt-sdk`-Action: Feed rein
+  und Artefakte raus über kurzlebige **Named Volumes + `docker cp`** (Daemon-API, pfad-/
+  namespace-unabhängig) statt Bind-Mount. `openwrt-dl`/`openwrt-ccache` waren als Named
+  Volumes nie betroffen. Symptom-Check im Log: `Collecting package info: feeds/wwand` = 0×.
 
 Beispiel-Anlage:
 ```bash
