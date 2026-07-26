@@ -1,0 +1,15 @@
+# Kompletter wwand-Stack ins Image (built-in). Wird an .config angehaengt.
+CONFIG_PACKAGE_wwand=y
+CONFIG_PACKAGE_wwand-lpac=y
+CONFIG_PACKAGE_ucode-mod-wwand-io=y
+CONFIG_PACKAGE_luci-app-wwand=y
+CONFIG_PACKAGE_luci-proto-wwand=y
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_umbim=y
+CONFIG_PACKAGE_mbim-utils=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
+CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
+CONFIG_PACKAGE_kmod-rmnet=y
+CONFIG_PACKAGE_kmod-usb-serial-option=y
+CONFIG_PACKAGE_kmod-vrf=y
+CONFIG_LIBQMI_WITH_MBIM_QMUX=y

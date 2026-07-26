@@ -1,0 +1,114 @@
+# Baut Images auf den self-hosted Runnern, je fuer master und stable, mit komplettem
+# wwand-Stack.
+#   chateau : Voll-Buildroot (PR-Geraet + Kernel-Patch + DTS -> kein ImageBuilder
+#             moeglich). master aus dem PR-Branch, stable aus chateau-stable-backport.
+#             dl/ccache + build_dir persistent (Named Volumes), node-lokal.
+#   zyxel   : nr7101 + lte3301-plus sind upstream -> ImageBuilder (kein Toolchain-
+#             Build). wwand kommt SIGNIERT aus dem gh-pages-Feed.
+# Voraussetzung: image-registry.ddimension.net/myadmin/openwrt-builder:latest.
+name: build-device-images
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-device-images
+  cancel-in-progress: false
+
+jobs:
+  chateau:
+    runs-on: [self-hosted, openwrt]
+    timeout-minutes: 600
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - base: master
+            src_url: https://github.com/ddimension/openwrt.git
+            src_branch: pr-mikrotik-chateau-5g-r17-ax
+          - base: stable
+            src_url: https://github.com/ddimension/openwrt.git
+            src_branch: chateau-stable-backport
+    env:
+      TARGET: qualcommax
+      SUBTARGET: ipq60xx
+      DEVICES: mikrotik_chateau-5g-r17-ax
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          sparse-checkout-cone-mode: false
+
+      - name: Prepare volumes + output
+        run: |
+          for v in "owrt-src-chateau-${{ matrix.base }}" owrt-dl owrt-ccache; do
+            docker volume create "$v" >/dev/null
+            sudo chown 1000:1000 "$(docker volume inspect -f '{{.Mountpoint}}' "$v")"
+          done
+          rm -rf out && mkdir -p out
+          sudo chown -R 1000:1000 out "$GITHUB_WORKSPACE"
+
+      - name: Build (full buildroot)
+        run: |
+          docker run --rm --user 1000:1000 \
+            -e SRC_URL='${{ matrix.src_url }}' \
+            -e SRC_BRANCH='${{ matrix.src_branch }}' \
+            -e TARGET="$TARGET" -e SUBTARGET="$SUBTARGET" -e DEVICES="$DEVICES" \
+            -e WWAND_FEED='https://github.com/ddimension/openwrt-repo.git' \
+            -v "$GITHUB_WORKSPACE":/ci:ro \
+            -v "$GITHUB_WORKSPACE/out":/out \
+            -v "owrt-src-chateau-${{ matrix.base }}":/src \
+            -v owrt-dl:/dl -v owrt-ccache:/ccache \
+            image-registry.ddimension.net/myadmin/openwrt-builder:latest \
+            bash /ci/.github/ci/build-images.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: images-chateau-${{ matrix.base }}
+          path: out/**
+          retention-days: 7
+          if-no-files-found: warn
+
+  zyxel:
+    runs-on: [self-hosted, openwrt]
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        base: [master, stable]
+    env:
+      DEVICES: zyxel_nr7101 zyxel_lte3301-plus
+      ARCH: mipsel_24kc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          sparse-checkout-cone-mode: false
+
+      - name: Prepare output
+        run: |
+          rm -rf out work && mkdir -p out work
+          sudo chown -R 1000:1000 out work "$GITHUB_WORKSPACE"
+
+      - name: Build (ImageBuilder)
+        run: |
+          GHP_DIR='${{ matrix.base == 'master' && 'snapshot' || 'openwrt-25.12' }}'
+          docker run --rm --user 1000:1000 \
+            -e BASE='${{ matrix.base }}' \
+            -e DEVICES="$DEVICES" \
+            -e ARCH="$ARCH" \
+            -e GHP_DIR="$GHP_DIR" \
+            -v "$GITHUB_WORKSPACE":/ci:ro \
+            -v "$GITHUB_WORKSPACE/out":/out \
+            -v "$GITHUB_WORKSPACE/work":/work \
+            image-registry.ddimension.net/myadmin/openwrt-builder:latest \
+            bash /ci/.github/ci/build-imagebuilder.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: images-zyxel-${{ matrix.base }}
+          path: out/**
+          retention-days: 7
+          if-no-files-found: warn
