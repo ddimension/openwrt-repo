@@ -84,6 +84,15 @@ runs:
           -v "$FEEDVOL":/feed -v "$ARTVOL":/artifacts sdk 3600 >/dev/null
         docker cp "$FEED_DIR/." "$HELPER":/feed/
         docker exec "$HELPER" chown -R 1000:1000 /feed /artifacts
+
+        echo "::group::DIAG feed staging"
+        echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-}"
+        echo "FEED_DIR=$FEED_DIR   ARTIFACTS_DIR=$ARTIFACTS_DIR"
+        echo "runner-side FEED_DIR entries: $(ls -1A "$FEED_DIR" 2>/dev/null | wc -l)"
+        ls -la "$FEED_DIR" 2>&1 | head -25
+        echo "volume /feed entries after docker cp: $(docker exec "$HELPER" sh -c 'ls -1A /feed | wc -l')"
+        docker exec "$HELPER" sh -c 'ls -la /feed | head -25'
+        echo "::endgroup::"
         docker rm -f "$HELPER" >/dev/null
 
         rc=0
