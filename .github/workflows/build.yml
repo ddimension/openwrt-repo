@@ -90,7 +90,7 @@ jobs:
         with:
           name: repo-${{ matrix.release }}-${{ matrix.arch }}
           path: public
-          retention-days: 2
+          retention-days: 30
 
   publish:
     # publish whatever succeeded even if some matrix legs failed — the seed
