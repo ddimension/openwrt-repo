@@ -25,7 +25,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/qfirehose
   SECTION:=net
   CATEGORY:=Network
-  DEPENDS:=@BROKEN +librt +libstdcpp
+  DEPENDS:=+librt +libstdcpp
   TITLE:=qfirehose firmware update tool for quectel devices
 endef
 

@@ -148,6 +148,6 @@ version:
 CI runs gh-action-sdk in **per-package mode** (`PACKAGES`), which builds
 only the listed packages plus their real dependencies and enforces the
 mirror hash. Packages that exist in the feed but are not prebuilt
-(snapcast, homesync, qfirehose, qlog) are not in the `PACKAGES` list and
+(snapcast, homesync) are not in the `PACKAGES` list and
 additionally carry `@BROKEN` in their `DEPENDS` (build them locally with
 `CONFIG_BROKEN=y`).

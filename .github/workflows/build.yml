@@ -67,9 +67,9 @@ jobs:
           # a job in three runs). The per-package check enforces
           # PKG_MIRROR_HASH: after every PKG_SOURCE_VERSION bump run
           # scripts/update-hashes.sh and commit the Makefile change.
-          # (snapcast, homesync, qfirehose, qlog stay out of the list and
+          # (snapcast, homesync stay out of the list and
           # additionally carry @BROKEN.)
-          PACKAGES: apman luacurl lua-mosquitto usb-relay-hid wwand wwand-lpac luci-app-wwand luci-proto-wwand
+          PACKAGES: apman luacurl lua-mosquitto usb-relay-hid qfirehose qlog wwand wwand-lpac luci-app-wwand luci-proto-wwand
           INDEX: 1
           # not staged for openwrt.org upstream — skip patch-refresh and
           # shfmt hygiene checks; the hash check stays active

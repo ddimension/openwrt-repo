@@ -29,7 +29,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/qlog
   SECTION:=net
   CATEGORY:=Network
-  DEPENDS:=@BROKEN +librt +libstdcpp
+  DEPENDS:=+librt +libstdcpp
   TITLE:=qlog firmware update tool for quectel devices
 endef
 
