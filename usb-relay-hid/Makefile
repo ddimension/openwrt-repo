@@ -9,7 +9,7 @@ PKG_SOURCE_URL:=https://github.com/OzFalcon/usb-relay-hid.git
 PKG_SOURCE_VERSION:=d3a3fd21727c4aa370d3fe7b59f0386962353ffe
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_HASH:=skip
+PKG_MIRROR_HASH:=c613cc6f62a6a58828096d7b29192e1cdc5b3d6aa8fae5d268fdbb5ae2165e9c
 
 PKG_MAINTAINER:=A. Valentin <avalentin@marcant.net>
 

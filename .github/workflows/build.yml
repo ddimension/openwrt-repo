@@ -61,13 +61,20 @@ jobs:
           # embedded qemu binfmt pull, authenticated via the login step
           # above. Should a job still flake: gh run rerun --failed.
           FEEDNAME: wwand
-          # No PACKAGES: build the whole feed in one make. This deliberately
-          # bypasses the per-package checks (incl. the PKG_MIRROR_HASH gate —
-          # the feed pins sources via PKG_SOURCE_VERSION and uses
-          # PKG_MIRROR_HASH:=skip). Packages excluded from the prebuilt feed
-          # (snapcast, homesync, qfirehose, qlog) carry @BROKEN in their
-          # DEPENDS and are dropped by defconfig.
+          # Per-package mode: builds exactly these source packages plus their
+          # real dependencies — no whole-feed surface, no exposure to
+          # unrelated upstream breakage (the perl parallel-build race cost us
+          # a job in three runs). The per-package check enforces
+          # PKG_MIRROR_HASH: after every PKG_SOURCE_VERSION bump run
+          # scripts/update-hashes.sh and commit the Makefile change.
+          # (snapcast, homesync, qfirehose, qlog stay out of the list and
+          # additionally carry @BROKEN.)
+          PACKAGES: apman luacurl lua-mosquitto usb-relay-hid wwand wwand-lpac luci-app-wwand luci-proto-wwand
           INDEX: 1
+          # not staged for openwrt.org upstream — skip patch-refresh and
+          # shfmt hygiene checks; the hash check stays active
+          NO_REFRESH_CHECK: 1
+          NO_SHFMT_CHECK: 1
           # usign key for opkg-based releases (<= 24.10), apk key for
           # snapshot/25.12+. Empty secrets simply leave the index unsigned.
           KEY_BUILD: ${{ secrets.KEY_BUILD }}

@@ -135,14 +135,19 @@ them):
 ## Updating a package to a newer source commit
 
 The source repos are pinned via `PKG_SOURCE_VERSION`. To release a new
-version, bump `PKG_SOURCE_VERSION` (and `PKG_SOURCE_DATE`) in the package's
-Makefile and increment `PKG_RELEASE`.
+version:
 
-`PKG_MIRROR_HASH` is deliberately `skip` throughout this feed: the commit
-pin already fixes the content, and maintaining tarball hashes cost more
-than it bought us (the reproducible-tarball hash depends on the SDK's
-tar/zstd versions). Consequence: CI runs gh-action-sdk **without**
-`PACKAGES` (whole-feed mode), because the per-package check mode rejects
-`skip`. Packages that should exist in the feed but not be prebuilt carry
-`@BROKEN` in their `DEPENDS` (currently: snapcast, homesync, qfirehose,
-qlog — build them locally with `CONFIG_BROKEN=y`).
+1. bump `PKG_SOURCE_VERSION` (and `PKG_SOURCE_DATE`) in the package's
+   Makefile and increment `PKG_RELEASE`,
+2. run **`scripts/update-hashes.sh <package>`** — it computes the matching
+   `PKG_MIRROR_HASH` in the official SDK container (the only authoritative
+   source; host-side tar/zstd replication has produced wrong values) and
+   writes it into the Makefile,
+3. commit both changes together.
+
+CI runs gh-action-sdk in **per-package mode** (`PACKAGES`), which builds
+only the listed packages plus their real dependencies and enforces the
+mirror hash. Packages that exist in the feed but are not prebuilt
+(snapcast, homesync, qfirehose, qlog) are not in the `PACKAGES` list and
+additionally carry `@BROKEN` in their `DEPENDS` (build them locally with
+`CONFIG_BROKEN=y`).
