@@ -85,6 +85,42 @@ Both signing keys are configured; the public halves live under
   private half in the `KEY_BUILD` repo secret. Regenerate with
   `usign -G -s key.sec -p key.pub`.
 
+## Device firmware images
+
+Besides the package feed, CI also builds **ready-to-flash firmware images**
+with the **complete wwand stack baked in** (wwand + luci-app/proto-wwand +
+`ucode-mod-wwand-io` + wwand-lpac, plus umbim/mbim-utils, uqmi and the
+cdc-mbim/qmi-wwan/rmnet kmods). Built for **master and stable** each, by
+[build-device-images.yml](.github/workflows/build-device-images.yml):
+
+| Device | `master` | `stable` | How |
+|---|---|---|---|
+| MikroTik Chateau 5G R17 ax | fork branch `pr-mikrotik-chateau-5g-r17-ax` | fork branch `chateau-stable-backport` | full buildroot (device only exists in the PR) |
+| Zyxel NR7101 | `snapshot` | `openwrt-25.12` | ImageBuilder |
+| Zyxel LTE3301-PLUS | `snapshot` | `openwrt-25.12` | ImageBuilder |
+
+For the Zyxel devices the wwand packages are pulled **signed** from the
+gh-pages feed above; the Chateau is a full toolchain build with wwand added
+as a `src-git` feed.
+
+**Triggers:** automatically after every successful feed run (`build`) on
+`main`, and manually via
+`gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`.
+
+**Where the images live:** only as **GitHub Actions run artifacts** on the
+respective run — `images-chateau-{master,stable}`,
+`images-zyxel-{master,stable}` (retention **7 days**). There is **no
+permanent URL** (unlike the package feed). Download the latest:
+
+```
+gh run download -R ddimension/openwrt-repo \
+  $(gh run list -R ddimension/openwrt-repo -w build-device-images -L1 --json databaseId -q '.[0].databaseId') \
+  -n images-zyxel-stable
+```
+
+Each artifact holds `<target>-<subtarget>-<base>/…-squashfs-sysupgrade.bin`
+plus the `.manifest` (full package list, so you can verify the wwand stack).
+
 ## Licensing
 
 The packaging in this repo (Makefiles, scripts) is GPL-2.0-only (see
