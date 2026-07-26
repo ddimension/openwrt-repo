@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, openwrt]
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -97,7 +97,7 @@ jobs:
     # from the current gh-pages below keeps their previous state alive
     needs: build
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, openwrt]
     permissions:
       contents: write
     steps:
