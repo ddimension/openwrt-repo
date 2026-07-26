@@ -134,6 +134,34 @@ jobs:
           if [ -d keys ]; then cp -a keys public/; fi
           find public -maxdepth 2 -type d | sort
 
+      # GitHub Pages serves no directory listings — generate a static
+      # index.html per directory so the repo is browsable
+      - name: Generate directory indexes
+        run: |
+          find public -type d | while read -r d; do
+            rel="${d#public}"; rel="${rel#/}"
+            {
+              printf '<!doctype html><meta charset="utf-8">'
+              printf '<title>openwrt-repo/%s</title>' "$rel"
+              printf '<style>body{font:14px/1.5 monospace;margin:2em}td{padding:0 1.5em 0 0}</style>'
+              printf '<h2>openwrt-repo/%s</h2><table>' "$rel"
+              [ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td><td></td></tr>'
+              for e in "$d"/*; do
+                [ -e "$e" ] || continue
+                n="$(basename "$e")"
+                [ "$n" = index.html ] && continue
+                if [ -d "$e" ]; then
+                  printf '<tr><td><a href="%s/">%s/</a></td><td></td></tr>' "$n" "$n"
+                else
+                  printf '<tr><td><a href="%s">%s</a></td><td>%s</td></tr>' \
+                    "$n" "$n" "$(du -h "$e" | cut -f1)"
+                fi
+              done
+              printf '</table>'
+            } > "$d/index.html"
+          done
+          echo "indexed $(find public -name index.html | wc -l) directories"
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:

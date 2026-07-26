@@ -32,6 +32,9 @@ repositories to GitHub Pages:
 https://ddimension.github.io/openwrt-repo/<release>/<arch>/
 ```
 
+The whole repository is **browsable** (static directory indexes are
+generated on publish): [ddimension.github.io/openwrt-repo](https://ddimension.github.io/openwrt-repo/)
+
 Currently built releases: **`snapshot`** (master), **`openwrt-25.12`** and
 **`openwrt-24.10`**. Further OpenWrt release branches are added to the
 `release:` matrix in the workflow as they appear and show up under the same
