@@ -10,6 +10,12 @@ name: build-device-images
 
 on:
   workflow_dispatch:
+  # Nach jedem erfolgreichen Feed-Lauf ("build") auf main automatisch Images bauen,
+  # damit die frisch (signiert) published wwand-Pakete direkt in Images landen.
+  workflow_run:
+    workflows: [build]
+    types: [completed]
+    branches: [main]
 
 concurrency:
   group: build-device-images
@@ -17,6 +23,8 @@ concurrency:
 
 jobs:
   chateau:
+    # manueller Dispatch immer; via workflow_run nur, wenn der Feed-Lauf gruen war
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: [self-hosted, openwrt]
     timeout-minutes: 600
     strategy:
@@ -78,6 +86,7 @@ jobs:
           if-no-files-found: warn
 
   zyxel:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: [self-hosted, openwrt]
     timeout-minutes: 120
     strategy:

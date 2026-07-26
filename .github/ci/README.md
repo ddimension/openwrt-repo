@@ -88,8 +88,20 @@ packages/Base-Digest) nach `image-registry.ddimension.net/myadmin/…`.
 
 ## Workflow 2: `build-device-images.yml` (Firmware-Images)
 
-Dispatch: `gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`.
-Artefakte: `images-chateau-{master,stable}`, `images-zyxel-{master,stable}`.
+**Auslöser:**
+- **Automatisch** nach jedem erfolgreichen Feed-Lauf (`build`) auf `main` — via
+  `workflow_run` (nur bei `conclusion == success`). So landen frisch published,
+  signierte wwand-Pakete direkt in neuen Images. `concurrency` verhindert Stapeln.
+- **Manuell:** `gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`.
+
+**Ort der Images:** ausschließlich als **GitHub-Actions-Run-Artefakte** am jeweiligen
+Lauf — `images-chateau-{master,stable}`, `images-zyxel-{master,stable}`
+(Retention **7 Tage**, `if-no-files-found: warn`). **Keine** permanente URL (anders als
+der Feed auf gh-pages). Holen:
+`gh run download <run-id> -R ddimension/openwrt-repo -n images-zyxel-stable`
+(bei „path traversal" das Artefakt-Zip roh über die API ziehen —
+`gh api …/artifacts/<id>/zip`). Dateibaum im Artefakt: `<target>-<subtarget>-<base>/…-sysupgrade.bin`
++ `.manifest` (Paketliste inkl. wwand-Stack).
 
 ### chateau (MikroTik Chateau 5G R17 ax) — Voll-Buildroot
 
