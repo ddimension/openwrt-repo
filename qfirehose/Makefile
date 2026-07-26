@@ -10,6 +10,9 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=qfirehose
 PKG_VERSION:=2.0
 PKG_RELEASE:=1
+# License: Quectel NOTICE in the source tree — binary redistribution to
+# Quectel customers permitted; source disclosure restricted by Quectel.
+PKG_LICENSE:=Quectel-Proprietary
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/nippynetworks/qfirehose.git

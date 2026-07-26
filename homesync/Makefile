@@ -10,6 +10,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=homesync
 PKG_VERSION:=7
 PKG_RELEASE:=1
+PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
 

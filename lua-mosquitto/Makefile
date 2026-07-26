@@ -3,6 +3,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=lua-mosquitto
 PKG_VERSION:=0.4.1.9.1
 PKG_RELEASE:=1
+PKG_LICENSE:=MIT
 PKG_MAINTAINER:=André Valentin <avalentin@marcant.net>
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz

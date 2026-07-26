@@ -82,6 +82,16 @@ Both signing keys are configured; the public halves live under
   private half in the `KEY_BUILD` repo secret. Regenerate with
   `usign -G -s key.sec -p key.pub`.
 
+## Licensing
+
+The packaging in this repo (Makefiles, scripts) is GPL-2.0-only (see
+[LICENSE](LICENSE)). Each package declares its own license via
+`PKG_LICENSE` (verified against the upstream license files and source
+headers). Of note: `qfirehose` and `qlog` are Quectel vendor code — their
+NOTICE files permit use/redistribution **for Quectel customers**
+(qfirehose: binary redistribution only); they are not open source in the
+OSI sense.
+
 ## Usage as a feed
 
 Add to `feeds.conf` (or `feeds.conf.default`) of an OpenWrt buildroot or SDK:

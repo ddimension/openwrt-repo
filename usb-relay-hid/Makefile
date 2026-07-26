@@ -16,6 +16,8 @@ PKG_MAINTAINER:=A. Valentin <avalentin@marcant.net>
 CMAKE_SOURCE_SUBDIR:=src
 CMAKE_OPTIONS +=-DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
+# Upstream fork carries no LICENSE file; the V-USB-derived code is
+# GPL-only per the original pavel-a/usb-relay-hid project README.
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=
 

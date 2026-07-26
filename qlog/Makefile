@@ -10,6 +10,10 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=qlog
 PKG_VERSION:=1.5.8
 PKG_RELEASE:=1
+# License: NOTICE in the bundled zip — "public domain software for
+# customers of Quectel", free to modify/redistribute for Quectel
+# customers; all rights reserved towards non-customers.
+PKG_LICENSE:=Quectel-Customer-Use
 
 #PKG_SOURCE_PROTO:=git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)

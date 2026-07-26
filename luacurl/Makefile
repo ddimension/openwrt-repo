@@ -10,6 +10,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=luacurl
 PKG_VERSION:=0.3.11
 PKG_RELEASE:=1
+PKG_LICENSE:=MIT
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/Lua-cURL/Lua-cURLv3.git
