@@ -82,6 +82,11 @@ group "feeds update -a"
 endgroup
 
 group "make defconfig"
+# Fresh selection on every run: a leftover .config (persistent volume or
+# reused builder) keeps old CONFIG_PACKAGE_* selections alive — defconfig
+# only normalizes, it never deselects. That is how stray packages (e.g.
+# perl) end up in a per-package build.
+rm -f .config .config.old
 make defconfig
 endgroup
 
