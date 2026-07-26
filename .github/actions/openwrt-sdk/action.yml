@@ -6,10 +6,6 @@ author: aparcar
 #     'openwrt-ccache', als -v /dl bzw. -v /ccache in den SDK-Container gemountet
 #     (siehe entrypoint.sh). Node-lokal (leben im Docker des Runner-CT), bleiben
 #     ueber Laeufe erhalten, verschwinden erst bei Neuerzeugung des CT.
-#   - Feed und Artefakte werden NICHT per Bind-Mount des Workspace, sondern ueber
-#     kurzlebige Named Volumes + `docker cp` in den SDK-Container gereicht. Das ist
-#     immun gegen Mount-Namespace-Mismatch des SDK-startenden dockerd (Bind-Mount
-#     liefert dann ein leeres /feed -> Build rot). Siehe Kommentar am Run-Step.
 runs:
   using: 'composite'
   steps:
@@ -52,50 +48,7 @@ runs:
           sudo chown 1000:1000 "$(docker volume inspect -f '{{.Mountpoint}}' "$v")"
         done
 
-    # Feed rein / Artefakte raus ueber Named Volumes + `docker cp` statt Bind-Mounts.
-    # Grund: laeuft der dockerd, der den SDK-Container startet, in einem anderen
-    # Mount-Namespace als der Runner (Sibling-/DinD-Konstellation), liefert ein
-    # `-v <workspace>:/feed` ein LEERES Verzeichnis -- Docker legt den aus Daemon-Sicht
-    # nicht existenten Pfad still neu an. Folge: /feed leer -> kein Paket im Feed ->
-    # 'No feed for package ...' -> Build rot. `docker cp` streamt ueber die Daemon-API
-    # und ist damit pfad-/namespace-unabhaengig. dl/ccache sind bereits Named Volumes
-    # und waren daher nie betroffen.
-    - name: Run SDK (feed/artifacts via named volumes)
-      shell: bash
-      env:
-        FEED_DIR: ${{ steps.inputs.outputs.feed_dir }}
-        ARTIFACTS_DIR: ${{ steps.inputs.outputs.artifacts_dir }}
-      run: |
-        set -euo pipefail
-        tag="${GITHUB_RUN_ID:-0}-${GITHUB_RUN_ATTEMPT:-0}-$$"
-        FEEDVOL="owrt-feed-$tag"; ARTVOL="owrt-artifacts-$tag"; HELPER="owrt-stage-$tag"
-        cleanup() {
-          docker rm -f "$HELPER" >/dev/null 2>&1 || true
-          docker volume rm -f "$FEEDVOL" "$ARTVOL" >/dev/null 2>&1 || true
-        }
-        trap cleanup EXIT
-        docker volume create "$FEEDVOL" >/dev/null
-        docker volume create "$ARTVOL"  >/dev/null
-
-        # Feed (kompletter Checkout) per docker cp ins Volume streamen; beide Volumes
-        # dem SDK-Build-User (uid 1000) uebereignen, damit er /feed lesen und bin/logs
-        # nach /artifacts verschieben darf.
-        docker run -d -u 0 --name "$HELPER" --entrypoint sleep \
-          -v "$FEEDVOL":/feed -v "$ARTVOL":/artifacts sdk 3600 >/dev/null
-        docker cp "$FEED_DIR/." "$HELPER":/feed/
-        docker exec "$HELPER" chown -R 1000:1000 /feed /artifacts
-
-        echo "::group::DIAG feed staging"
-        echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-}"
-        echo "FEED_DIR=$FEED_DIR   ARTIFACTS_DIR=$ARTIFACTS_DIR"
-        echo "runner-side FEED_DIR entries: $(ls -1A "$FEED_DIR" 2>/dev/null | wc -l)"
-        ls -la "$FEED_DIR" 2>&1 | head -25
-        echo "volume /feed entries after docker cp: $(docker exec "$HELPER" sh -c 'ls -1A /feed | wc -l')"
-        docker exec "$HELPER" sh -c 'ls -la /feed | head -25'
-        echo "::endgroup::"
-        docker rm -f "$HELPER" >/dev/null
-
-        rc=0
+    - run: |
         docker run --rm \
           --env BUILD \
           --env BUILD_LOG \
@@ -110,20 +63,12 @@ runs:
           --env PACKAGES \
           --env INDEX \
           --env V \
-          -v "$ARTVOL":/artifacts \
-          -v "$FEEDVOL":/feed \
+          -v ${{ steps.inputs.outputs.artifacts_dir }}:/artifacts \
+          -v ${{ steps.inputs.outputs.feed_dir }}:/feed \
           -v openwrt-dl:/dl \
           -v openwrt-ccache:/ccache \
-          sdk || rc=$?
-
-        # Artefakte (bin/, logs/) aus dem Volume zurueck in den Workspace -- auch bei
-        # Fehler, damit logs/ im hochgeladenen Artefakt landen. Danach mit rc failen.
-        mkdir -p "$ARTIFACTS_DIR"
-        docker run -d -u 0 --name "$HELPER" --entrypoint sleep \
-          -v "$ARTVOL":/artifacts sdk 3600 >/dev/null
-        docker cp "$HELPER":/artifacts/. "$ARTIFACTS_DIR/" 2>/dev/null || true
-        docker rm -f "$HELPER" >/dev/null
-        exit "$rc"
+          sdk
+      shell: bash
     - run: sudo chown -R --reference=${{ steps.inputs.outputs.artifacts_dir }}/.. ${{ steps.inputs.outputs.artifacts_dir }}
       shell: bash
       if: always()

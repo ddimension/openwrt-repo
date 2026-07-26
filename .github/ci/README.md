@@ -44,14 +44,18 @@ Zwei Workflows:
   persistent bis CT-Neuerzeugung.
 - **Token:** GitHub-**PAT** (fine-grained, Repo-Permission *Administration: RW*) oder
   Registration-Token (`--token-kind reg`, kurzlebig). **Kein** Docker-PAT (`dckr_pat…`)!
-- **Bind-Mount-Namespace-Falle:** Löst der dockerd, der einen Build-Container startet,
-  `-v`-Pfade in einem anderen Mount-Namespace auf als der Runner (Sibling/DinD), kommt
-  ein `-v <workspace>:/feed` **leer** im Container an (Docker legt den nicht auflösbaren
-  Pfad still neu an) → `feeds update` findet nichts, `No feed for package …`, Build rot —
-  *ohne* Fehlermeldung beim Mount. Fix in der gevendorten `openwrt-sdk`-Action: Feed rein
-  und Artefakte raus über kurzlebige **Named Volumes + `docker cp`** (Daemon-API, pfad-/
-  namespace-unabhängig) statt Bind-Mount. `openwrt-dl`/`openwrt-ccache` waren als Named
-  Volumes nie betroffen. Symptom-Check im Log: `Collecting package info: feeds/wwand` = 0×.
+- **sparse-checkout vergiftet den geteilten Clone.** Alle Jobs beider Workflows teilen
+  sich auf einem Runner *dasselbe* Checkout-Verzeichnis. `build-device-images.yml`
+  checkt per `sparse-checkout: .github` nur `.github` aus; ein danach auf demselben
+  Runner laufender **Feed-Checkout** (`build.yml`, voller Baum) materialisiert den Rest
+  **nicht** zuverlaessig zurueck → Workspace = nur `.git`/`.github` → `/feed` leer →
+  `feeds update` findet nichts → `No feed for package 'apman'` → **alle** Feed-Jobs rot
+  (Symptom-Check: `Collecting package info: feeds/wwand` = 0×). Trat erst auf, als der
+  `workflow_run`-Auto-Trigger Feed- und Image-Jobs verschachtelt laufen liess. Fix:
+  `build.yml` leert den Workspace vor dem Checkout hart (`rm -rf $GITHUB_WORKSPACE/*`,
+  in **build**- und **publish**-Job), damit `actions/checkout` einen vollstaendigen
+  Baum zieht. `docker cp`/Named-Volumes waren hier eine **Fehlspur** — der Bind-Mount
+  war korrekt, nur die Quelle leer.
 
 Beispiel-Anlage:
 ```bash

@@ -42,6 +42,17 @@ jobs:
           - mipsel_24kc
           - x86_64
     steps:
+      # Self-hosted-Runner teilen sich das Checkout-Verzeichnis mit
+      # build-device-images.yml, das per `sparse-checkout: .github` nur .github
+      # auscheckt. Laeuft danach ein Feed-Checkout auf demselben Runner, stellt
+      # actions/checkout den vollen Baum NICHT zuverlaessig wieder her -> Workspace
+      # enthaelt nur .git/.github -> /feed leer -> "No feed for package" -> Jobs rot.
+      # Darum vor dem Checkout hart leeren (Repo ist klein, Vollclone ~gratis).
+      - name: Reset workspace (defeat leftover sparse-checkout)
+        shell: bash
+        run: |
+          shopt -s dotglob nullglob
+          rm -rf "$GITHUB_WORKSPACE"/*
       - uses: actions/checkout@v4
 
       # authenticated docker.io pulls (qemu binfmt inside gh-action-sdk) —
@@ -101,6 +112,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # s.o.: vollen Baum erzwingen, sonst fehlen z.B. keys/ beim Publish.
+      - name: Reset workspace (defeat leftover sparse-checkout)
+        shell: bash
+        run: |
+          shopt -s dotglob nullglob
+          rm -rf "$GITHUB_WORKSPACE"/*
       - uses: actions/checkout@v4
 
       # seed with the currently published site so <release>/<arch> dirs that
