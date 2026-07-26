@@ -52,7 +52,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build packages
-        uses: openwrt/gh-action-sdk@v11
+        uses: ./.github/actions/openwrt-sdk
         env:
           ARCH: ${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
           # NOTE on registry flakes: the SDK image already comes from ghcr.io
