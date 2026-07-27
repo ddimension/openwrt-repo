@@ -223,12 +223,19 @@ if [ "$INDEX" = '1' ];then
 	endgroup
 fi
 
+# /artifacts is a volume (different filesystem) and may hold leftovers from
+# a previous job — plain `mv` refuses a non-empty target across devices.
+# Clear and copy instead.
 if [ -d bin/ ]; then
-	mv bin/ /artifacts/
+	rm -rf /artifacts/bin
+	cp -a bin /artifacts/
+	rm -rf bin/
 fi
 
 if [ -d logs/ ]; then
-	mv logs/ /artifacts/
+	rm -rf /artifacts/logs
+	cp -a logs /artifacts/
+	rm -rf logs/
 fi
 
 exit "$RET"
