@@ -58,7 +58,10 @@ echo "::endgroup::"
 	cat /ci/.github/ci/config.wwand
 	echo 'CONFIG_CCACHE=y'
 	echo 'CONFIG_CCACHE_DIR="/ccache"'
+	# optional: Testing-Kernel (KERNEL_TESTING_PATCHVER) statt Default bauen
+	[ -n "${TESTING_KERNEL:-}" ] && echo 'CONFIG_TESTING_KERNEL=y'
 } > .config
+[ -n "${TESTING_KERNEL:-}" ] && echo ">> TESTING_KERNEL aktiv (CONFIG_TESTING_KERNEL=y)"
 make defconfig
 
 echo "::group::verify device selection"

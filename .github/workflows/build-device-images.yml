@@ -10,6 +10,11 @@ name: build-device-images
 
 on:
   workflow_dispatch:
+    inputs:
+      testing_kernel:
+        description: 'chateau master mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable wird dabei uebersprungen (25.12 hat kein 6.18)'
+        type: boolean
+        default: false
   # Nach jedem erfolgreichen Feed-Lauf ("build") auf main automatisch Images bauen,
   # damit die frisch (signiert) published wwand-Pakete direkt in Images landen.
   workflow_run:
@@ -64,6 +69,8 @@ jobs:
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build (full buildroot)
+        # Bei testing_kernel nur master bauen (stable = openwrt-25.12 hat kein 6.18).
+        if: ${{ github.event.inputs.testing_kernel != 'true' || matrix.base == 'master' }}
         run: |
           # Vom Runner-CT freigegebene Kerne bestimmen. pct --cores setzt eine
           # cgroup-CPU-Quota; nproc ignoriert die und meldet die volle Node-Kernzahl
@@ -93,6 +100,7 @@ jobs:
             -e TARGET="$TARGET" -e SUBTARGET="$SUBTARGET" -e DEVICES="$DEVICES" \
             -e WWAND_FEED='https://github.com/ddimension/openwrt-repo.git' \
             -e MAKE_JOBS="$jobs" \
+            -e TESTING_KERNEL='${{ github.event.inputs.testing_kernel == 'true' && '1' || '' }}' \
             -v "$GITHUB_WORKSPACE":/ci:ro \
             -v "$GITHUB_WORKSPACE/out":/out \
             -v "owrt-src-chateau-${{ matrix.base }}":/src \
