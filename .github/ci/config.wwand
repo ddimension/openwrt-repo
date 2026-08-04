@@ -1,6 +1,10 @@
 # Kompletter wwand-Stack ins Image (built-in). Wird an .config angehaengt.
 CONFIG_PACKAGE_wwand=y
 CONFIG_PACKAGE_wwand-qmi=y
+# wwand-qmi ersetzt den Stock-QMI-Stack (CONFLICTS uqmi/qmi-advanced) -> aus,
+# sonst stuft defconfig wwand-qmi auf =m (nicht im Image).
+# CONFIG_PACKAGE_uqmi is not set
+# CONFIG_PACKAGE_qmi-advanced is not set
 CONFIG_PACKAGE_wwand-lpac=y
 CONFIG_PACKAGE_ucode-mod-wwand-io=y
 CONFIG_PACKAGE_luci-app-wwand=y
