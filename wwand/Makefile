@@ -24,9 +24,9 @@ PKG_RELEASE:=2
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=15eb8047324e9b8e457658c2579e47b156f792eb
-PKG_SOURCE_DATE:=2026-07-27
-PKG_MIRROR_HASH:=b95cef6bf434172e333edc10089e4b774f07590316eca98ef9f33452c36cf0e5
+PKG_SOURCE_VERSION:=65bbf0c53645e4c62709da8d816a083b2e7552c0
+PKG_SOURCE_DATE:=2026-08-04
+PKG_MIRROR_HASH:=f84b9daca07e7ad2e6179c9449f9f1d61c29c7d24b9e283c4479b513e0d0d3be
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -106,6 +106,10 @@ define Package/wwand/install
 	# net hotplug: NCM modems (no cdc-wdm) + re-enumeration after a mode switch
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.net $(1)/etc/hotplug.d/net/20-wwand
+	# tty hotplug: AT ports appearing after the datapath netdev (vendor-serial
+	# new_id bind / late kmodloader) re-kick a modem parked in no_at_port backoff
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/tty
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.tty $(1)/etc/hotplug.d/tty/20-wwand
 endef
 
 # ---------------------------------------------------------------------------
