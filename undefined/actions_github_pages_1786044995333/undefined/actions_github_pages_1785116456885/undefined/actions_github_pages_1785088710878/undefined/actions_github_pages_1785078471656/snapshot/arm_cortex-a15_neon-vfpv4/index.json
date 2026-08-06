@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "architecture": "arm_cortex-a15_neon-vfpv4",
+  "packages": {
+    "apman": "56-r1",
+    "lua-mosquitto": "0.4.1.9.1-r1",
+    "luacurl": "0.3.11-r1",
+    "luci-app-wwand": "2026.07.25~7fe0b5b2-r4",
+    "luci-proto-wwand": "2026.07.24~e9232967-r3",
+    "ucode-mod-wwand-io": "2026.07.25~d6fc420e-r5",
+    "usb-relay-hid": "2.2.0.1-r0",
+    "wwand": "2026.07.25~d6fc420e-r5",
+    "wwand-esim": "2026.07.25~d6fc420e-r5",
+    "wwand-lpac": "2.3.0-r2",
+    "wwand-mbim": "2026.07.25~d6fc420e-r5",
+    "wwand-ncm": "2026.07.25~d6fc420e-r5",
+    "wwand-qmi": "2026.07.25~d6fc420e-r5"
+  }
+}

@@ -1,0 +1,241 @@
+Package: apman
+Version: 56-r1
+Depends: libc, lua, libubox-lua, libubus-lua, luasocket, lua-cjson, lua-mosquitto, collectd-mod-lua
+Source: /feed/apman
+SourceName: apman
+Section: admin
+SourceDateEpoch: 1785014420
+Maintainer: Andre Valentin <avalentin@marcant.net>
+Architecture: all
+Installed-Size: 40960
+Filename: apman_56-r1_all.ipk
+Size: 6524
+SHA256sum: 5a940d7a262714fe1379251d8d392e99547f39ee48ab05aff9d66e4e40d8efe7
+Description:  AP Management and statistics via collectd
+
+Package: lua-mosquitto
+Version: 0.4.1.9.1-r1
+Depends: libc, lua, libmosquitto-ssl
+Source: /feed/lua-mosquitto
+SourceName: lua-mosquitto
+Section: lang
+SourceDateEpoch: 1785014420
+URL: https://github.com/flukso/lua-mosquitto.git
+Maintainer: André Valentin <avalentin@marcant.net>
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 20480
+Filename: lua-mosquitto_0.4.1.9.1-r1_arm_cortex-a7_neon-vfpv4.ipk
+Size: 6684
+SHA256sum: bca087d3e501212d1e9b4e4d6f3f902c892829d557a85d1c1439ae56958f59ac
+Description:  Mosquitto based MQTT ( http://mqtt.org/ ) client library for Lua. MQTT is a popular network communication protocol working by "publish/subscribe" model.
+
+Package: luacurl
+Version: 0.3.11-r1
+Depends: libc, liblua5.1.5, libcurl4
+Source: /feed/luacurl
+SourceName: luacurl
+Section: lang
+SourceDateEpoch: 1785014420
+URL: http://msva.github.io/lua-curl/
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 133120
+Filename: luacurl_0.3.11-r1_arm_cortex-a7_neon-vfpv4.ipk
+Size: 46150
+SHA256sum: 09ec7acbe073d434a725e32cdee9f281d60079f9d7e93c6e6d4b655a42e81b0d
+Description:  Lua-cURL is aiming for a full-fledged libcurl binding (easy/multi/share
+ interface) to the functionality of Lua
+
+Package: luci-app-wwand
+Version: 2026.07.25~7fe0b5b2-r4
+Depends: libc, luci-base, wwand
+Source: /feed/luci-app-wwand
+SourceName: luci-app-wwand
+License: GPL-2.0-only
+Section: luci
+SourceDateEpoch: 1785014420
+Architecture: all
+Installed-Size: 112640
+Filename: luci-app-wwand_2026.07.25~7fe0b5b2-r4_all.ipk
+Size: 29625
+SHA256sum: c10ec57a1b2fee522b093d4418ceeaf0d94a1e1869912df519b86ac3c56d9d98
+Description:  LuCI status and configuration app for the wwand cellular modem daemon.
+
+Package: luci-proto-wwand
+Version: 2026.07.24~e9232967-r3
+Depends: libc, luci-base, wwand, luci-app-wwand
+Source: /feed/luci-proto-wwand
+SourceName: luci-proto-wwand
+License: GPL-2.0-only
+Section: luci
+SourceDateEpoch: 1785014420
+Architecture: all
+Installed-Size: 40960
+Filename: luci-proto-wwand_2026.07.24~e9232967-r3_all.ipk
+Size: 9825
+SHA256sum: 4cf8f19e2411f07c9aa01d7ed87bb45fa7488a167b7a159aa3979ed825c1b528
+Description:  LuCI protocol handler for the wwand cellular modem daemon: the network-native
+ 'wwand' proto plus the legacy 'qmi' alias.
+
+Package: ucode-mod-wwand-io
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, libucode20230711
+Source: /feed/wwand
+SourceName: wwand
+License: GPL-2.0
+Section: lang
+SourceDateEpoch: 1785014420
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 20480
+Filename: ucode-mod-wwand-io_2026.07.25~d6fc420e-r5_arm_cortex-a7_neon-vfpv4.ipk
+Size: 5330
+SHA256sum: d7e585fb6b684f55a6ebfd05012e15a17113c75f68362cda158a1849de9aae7c
+Description:  Minimal native ucode extension providing non-blocking, message-oriented
+ I/O on QMI control devices (/dev/cdc-wdmX) and raw tty access for AT
+ commands. Used by the wwand connection manager.
+
+Package: usb-relay-hid
+Version: 2.2.0.1-r0
+Depends: libc, libusb-compat4
+Source: /feed/usb-relay-hid
+SourceName: usb-relay-hid
+License: GPL-2.0
+Section: net
+SourceDateEpoch: 1785014420
+Maintainer: A. Valentin <avalentin@marcant.net>
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 30720
+Filename: usb-relay-hid_2.2.0.1-r0_arm_cortex-a7_neon-vfpv4.ipk
+Size: 6180
+SHA256sum: 56593cb15e81ea645e0a2efb51547ed88411364e96e32149a287a5c2cf7f28ba
+Description:  Controll hid usb relays
+
+Package: wwand-esim
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand-qmi, lpac
+Source: /feed/wwand
+SourceName: wwand
+License: GPL-2.0
+Section: net
+SourceDateEpoch: 1785014420
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 30720
+Filename: wwand-esim_2026.07.25~d6fc420e-r5_arm_cortex-a7_neon-vfpv4.ipk
+Size: 10084
+SHA256sum: 2fba6f74540cc5802cff58dc0aae0c73aae1e17394fa8a0c27a762f5d2ac7338
+Description:  Optional ES10c (SGP.22) profile management for wwand: EID, profile list,
+ enable/disable/delete over the modem UIM APDU channel. SM-DP+ profile
+ downloads and notification acknowledgements are driven by lpac: its ES10
+ APDUs are relayed through wwand's own APDU channel (ubus modem_apdu) by the
+ stdio bridge, so wwand stays the sole owner of the modem — no separate AT
+ port. lpac runs the ES9+ HTTPS on the router; no dedicated modem APN is
+ required.
+ 
+ The download is handled by an lpac binary (the +lpac dependency): either the
+ generic openwrt-packages lpac, or the self-contained wwand-lpac (which PROVIDES
+ lpac) — a single ~0.9 MB binary with a minimal static wolfSSL + libcurl linked
+ in, needing no libcurl/libssl/libcrypto .so (vs the ~6.4 MB stock libcurl+
+ OpenSSL pulls in) and carrying the GSMA-capable TLS itself. Either works via
+ /usr/bin/lpac; the stdio APDU bridge needs lpac >= 2.3.0 (upstream PR #399).
+ See wwand-lpac/Makefile.
+
+Package: wwand-lpac
+Version: 2.3.0-r2
+Depends: libc
+Conflicts: lpac
+Provides: lpac
+Source: /feed/wwand-lpac
+SourceName: wwand-lpac
+License: AGPL-3.0-only GPL-3.0-or-later curl
+Section: net
+SourceDateEpoch: 1785014420
+URL: https://github.com/estkme-group/lpac
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 829440
+Filename: wwand-lpac_2.3.0-r2_arm_cortex-a7_neon-vfpv4.ipk
+Size: 439939
+SHA256sum: 52e055f2ab48f44f8eb102bc5c42c0d47fde58139b1541eca38d1fa61a46b1d9
+Description:  A single self-contained lpac binary for wwand-esim: minimal static wolfSSL
+ (TLS 1.2/1.3, ECDHE, ECDSA+RSA, NIST + Brainpool curves, x25519, AES-GCM,
+ SHA-2; built with WOLFSSL_NO_ASN_STRICT so the GSMA id-rspRole critical
+ extension is accepted) and a minimal static libcurl (HTTPS only) are linked
+ straight into lpac. No libcurl/libssl/libcrypto .so — ~1 MB total instead of
+ the ~6.4 MB that libcurl+OpenSSL pulls in. Only the stdio + curl drivers are
+ built (the wwand stdio bridge relays the eUICC APDUs through wwand's own
+ modem_apdu channel). Drop-in replacement for the stock lpac package.
+ 
+ Includes patch 110 (backport of upstream #399, the v2.3.0 stdio-driver fix).
+
+Package: wwand-mbim
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand-qmi, kmod-usb-net-cdc-mbim
+Conflicts: umbim
+Source: /feed/wwand
+SourceName: wwand
+License: GPL-2.0
+Section: net
+SourceDateEpoch: 1785014420
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 112640
+Filename: wwand-mbim_2026.07.25~d6fc420e-r5_arm_cortex-a7_neon-vfpv4.ipk
+Size: 28998
+SHA256sum: 60888770c32f22658a560193579d149746848ca555488ec37200371c59fd4e24
+Description:  MBIM control backend for wwand (cdc_mbim driver): native MS Basic Connect (+
+ Extensions v2/v3) plus a QMI-over-MBIM passthrough that tunnels the whole QMI
+ stack over the open MBIM channel for full CDC-level telemetry/config. The
+ passthrough reuses qmi_backend, hence the dependency on wwand-qmi.
+
+Package: wwand-ncm
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand, kmod-usb-net-cdc-ncm, kmod-usb-net-cdc-ether
+Conflicts: comgt-ncm
+Source: /feed/wwand
+SourceName: wwand
+License: GPL-2.0
+Section: net
+SourceDateEpoch: 1785014420
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 71680
+Filename: wwand-ncm_2026.07.25~d6fc420e-r5_arm_cortex-a7_neon-vfpv4.ipk
+Size: 21185
+SHA256sum: e4713aeb9d86781d5370d63d811dfbd2418b2c462d98e524fa59698500d365d0
+Description:  NCM/ECM control backend for wwand: an AT-controlled datapath over a plain
+ cdc_ncm / cdc_ether netdev, for modems that expose no cdc-wdm control device.
+
+Package: wwand-qmi
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand, kmod-usb-net-qmi-wwan, kmod-rmnet
+Conflicts: uqmi, qmi-advanced
+Source: /feed/wwand
+SourceName: wwand
+License: GPL-2.0
+Section: net
+SourceDateEpoch: 1785014420
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 102400
+Filename: wwand-qmi_2026.07.25~d6fc420e-r5_arm_cortex-a7_neon-vfpv4.ipk
+Size: 30441
+SHA256sum: 9b215ad413bf11dec73e861d550becc39e5a5244f362dbe3d1b8caca4de482bc
+Description:  QMI control backend for wwand: talks QMI natively over /dev/cdc-wdmX (qmi_wwan
+ driver) with QMAP multiplexing (rmnet), without spawning uqmi/qmicli. This is
+ the common case for most cellular routers.
+
+Package: wwand
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, ucode, ucode-mod-fs, ucode-mod-struct, ucode-mod-uloop, ucode-mod-ubus, ucode-mod-uci, ucode-mod-rtnl, ucode-mod-wwand-io
+Source: /feed/wwand
+SourceName: wwand
+License: GPL-2.0
+Section: net
+SourceDateEpoch: 1785014420
+Architecture: arm_cortex-a7_neon-vfpv4
+Installed-Size: 378880
+Filename: wwand_2026.07.25~d6fc420e-r5_arm_cortex-a7_neon-vfpv4.ipk
+Size: 105158
+SHA256sum: 12a20d36c558146da04b50314ba786ab0bd3e723dd02c59c594ad5215783cae9
+Description:  wwand is an event-driven connection manager daemon for cellular modems,
+ supporting multiple modems and multiple parallel PDP contexts. This base
+ package carries the daemon, the netifd proto shim, the QMI codec (qmux/tlv +
+ service schemas), the generic service client, the SIM/APDU layer and the
+ shared modem/context core. Install a backend package (wwand-qmi, wwand-mbim
+ or wwand-ncm) for the control protocols your modems use.
+

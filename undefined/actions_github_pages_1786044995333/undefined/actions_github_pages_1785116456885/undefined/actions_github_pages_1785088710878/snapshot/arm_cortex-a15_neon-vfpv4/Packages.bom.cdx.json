@@ -1,0 +1,201 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:8ed6776e-7e32-41bd-95a9-23a068973395",
+  "version": "1",
+  "metadata": {
+    "timestamp": "2026-07-26T17:28:46Z"
+  },
+  "components": [
+    {
+      "name": "apman",
+      "version": "56-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lua-mosquitto",
+      "version": "0.4.1.9.1-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luacurl",
+      "version": "0.3.11-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand",
+      "version": "2026.07.25~7fe0b5b2-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-proto-wwand",
+      "version": "2026.07.26~51985b82-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qfirehose",
+      "version": "2.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Proprietary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qlog",
+      "version": "1.5.8-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Customer-Use"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ucode-mod-wwand-io",
+      "version": "2026.07.26~38148034-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "usb-relay-hid",
+      "version": "2.2.0.1-r0",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand",
+      "version": "2026.07.26~38148034-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-esim",
+      "version": "2026.07.26~38148034-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-lpac",
+      "version": "2.3.0-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "AGPL-3.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "GPL-3.0-or-later"
+          }
+        },
+        {
+          "license": {
+            "name": "curl"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-mbim",
+      "version": "2026.07.26~38148034-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ncm",
+      "version": "2026.07.26~38148034-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qmi",
+      "version": "2026.07.26~38148034-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    }
+  ]
+}

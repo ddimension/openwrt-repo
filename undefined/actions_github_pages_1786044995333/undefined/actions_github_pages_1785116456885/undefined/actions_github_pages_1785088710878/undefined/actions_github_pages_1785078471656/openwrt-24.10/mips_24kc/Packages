@@ -1,0 +1,199 @@
+Package: apman
+Version: 56-r1
+Depends: libc, lua, libubox-lua, libubus-lua, luasocket, lua-cjson, lua-mosquitto, collectd-mod-lua
+Section: admin
+Architecture: all
+Installed-Size: 40960
+Filename: apman_56-r1_all.ipk
+Size: 6524
+SHA256sum: 5a940d7a262714fe1379251d8d392e99547f39ee48ab05aff9d66e4e40d8efe7
+Description:  AP Management and statistics via collectd
+
+Package: lua-mosquitto
+Version: 0.4.1.9.1-r1
+Depends: libc, lua, libmosquitto-ssl
+Section: lang
+URL: https://github.com/flukso/lua-mosquitto.git
+Architecture: mips_24kc
+Installed-Size: 71680
+Filename: lua-mosquitto_0.4.1.9.1-r1_mips_24kc.ipk
+Size: 7136
+SHA256sum: 856a9747c8b5a97fa1d75b93117b36a057d5cfa6f2a528adc82a2dd673744e62
+Description:  Mosquitto based MQTT ( http://mqtt.org/ ) client library for Lua. MQTT is a popular network communication protocol working by "publish/subscribe" model.
+
+Package: luacurl
+Version: 0.3.11-r1
+Depends: libc, liblua5.1.5, libcurl4
+Section: lang
+URL: http://msva.github.io/lua-curl/
+Architecture: mips_24kc
+Installed-Size: 204800
+Filename: luacurl_0.3.11-r1_mips_24kc.ipk
+Size: 49599
+SHA256sum: ad91e93db00a45d612783a78a17299600387fc3fff51911c296a6190e6456a28
+Description:  Lua-cURL is aiming for a full-fledged libcurl binding (easy/multi/share
+ interface) to the functionality of Lua
+
+Package: luci-app-wwand
+Version: 2026.07.25~7fe0b5b2-r4
+Depends: libc, luci-base, wwand
+License: GPL-2.0-only
+Section: luci
+Architecture: all
+Installed-Size: 112640
+Filename: luci-app-wwand_2026.07.25~7fe0b5b2-r4_all.ipk
+Size: 29625
+SHA256sum: c10ec57a1b2fee522b093d4418ceeaf0d94a1e1869912df519b86ac3c56d9d98
+Description:  LuCI status and configuration app for the wwand cellular modem daemon.
+
+Package: luci-proto-wwand
+Version: 2026.07.24~e9232967-r3
+Depends: libc, luci-base, wwand, luci-app-wwand
+License: GPL-2.0-only
+Section: luci
+Architecture: all
+Installed-Size: 40960
+Filename: luci-proto-wwand_2026.07.24~e9232967-r3_all.ipk
+Size: 9825
+SHA256sum: 4cf8f19e2411f07c9aa01d7ed87bb45fa7488a167b7a159aa3979ed825c1b528
+Description:  LuCI protocol handler for the wwand cellular modem daemon: the network-native
+ 'wwand' proto plus the legacy 'qmi' alias.
+
+Package: ucode-mod-wwand-io
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, libucode20230711
+License: GPL-2.0
+Section: lang
+Architecture: mips_24kc
+Installed-Size: 71680
+Filename: ucode-mod-wwand-io_2026.07.25~d6fc420e-r5_mips_24kc.ipk
+Size: 5248
+SHA256sum: 5532b42defa87cd7cb56b87eb6a491153134c78286718f8bfa355a242487fcb7
+Description:  Minimal native ucode extension providing non-blocking, message-oriented
+ I/O on QMI control devices (/dev/cdc-wdmX) and raw tty access for AT
+ commands. Used by the wwand connection manager.
+
+Package: usb-relay-hid
+Version: 2.2.0.1-r0
+Depends: libc, libusb-compat4
+License: GPL-2.0
+Section: net
+Architecture: mips_24kc
+Installed-Size: 143360
+Filename: usb-relay-hid_2.2.0.1-r0_mips_24kc.ipk
+Size: 6242
+SHA256sum: 9add94e41b1de16f8d455242b16144c51a20618bf48a67c4df8ab43282ebc9cf
+Description:  Controll hid usb relays
+
+Package: wwand-esim
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand-qmi, lpac
+License: GPL-2.0
+Section: net
+Architecture: mips_24kc
+Installed-Size: 30720
+Filename: wwand-esim_2026.07.25~d6fc420e-r5_mips_24kc.ipk
+Size: 10077
+SHA256sum: 4d72bbadce8356d0faf9aec9fc38a3311ce081d62c39a636bfab4ac812b65ef4
+Description:  Optional ES10c (SGP.22) profile management for wwand: EID, profile list,
+ enable/disable/delete over the modem UIM APDU channel. SM-DP+ profile
+ downloads and notification acknowledgements are driven by lpac: its ES10
+ APDUs are relayed through wwand's own APDU channel (ubus modem_apdu) by the
+ stdio bridge, so wwand stays the sole owner of the modem — no separate AT
+ port. lpac runs the ES9+ HTTPS on the router; no dedicated modem APN is
+ required.
+ 
+ The download is handled by an lpac binary (the +lpac dependency): either the
+ generic openwrt-packages lpac, or the self-contained wwand-lpac (which PROVIDES
+ lpac) — a single ~0.9 MB binary with a minimal static wolfSSL + libcurl linked
+ in, needing no libcurl/libssl/libcrypto .so (vs the ~6.4 MB stock libcurl+
+ OpenSSL pulls in) and carrying the GSMA-capable TLS itself. Either works via
+ /usr/bin/lpac; the stdio APDU bridge needs lpac >= 2.3.0 (upstream PR #399).
+ See wwand-lpac/Makefile.
+
+Package: wwand-lpac
+Version: 2.3.0-r2
+Depends: libc
+Conflicts: lpac
+Provides: lpac
+License: AGPL-3.0-only GPL-3.0-or-later curl
+Section: net
+URL: https://github.com/estkme-group/lpac
+Architecture: mips_24kc
+Installed-Size: 931840
+Filename: wwand-lpac_2.3.0-r2_mips_24kc.ipk
+Size: 461528
+SHA256sum: 8304b648950a9dab2a7ce56fa608ebbf40a24661419645c6ba0b82f89fc1f36d
+Description:  A single self-contained lpac binary for wwand-esim: minimal static wolfSSL
+ (TLS 1.2/1.3, ECDHE, ECDSA+RSA, NIST + Brainpool curves, x25519, AES-GCM,
+ SHA-2; built with WOLFSSL_NO_ASN_STRICT so the GSMA id-rspRole critical
+ extension is accepted) and a minimal static libcurl (HTTPS only) are linked
+ straight into lpac. No libcurl/libssl/libcrypto .so — ~1 MB total instead of
+ the ~6.4 MB that libcurl+OpenSSL pulls in. Only the stdio + curl drivers are
+ built (the wwand stdio bridge relays the eUICC APDUs through wwand's own
+ modem_apdu channel). Drop-in replacement for the stock lpac package.
+ 
+ Includes patch 110 (backport of upstream #399, the v2.3.0 stdio-driver fix).
+
+Package: wwand-mbim
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand-qmi, kmod-usb-net-cdc-mbim
+Conflicts: umbim
+License: GPL-2.0
+Section: net
+Architecture: mips_24kc
+Installed-Size: 112640
+Filename: wwand-mbim_2026.07.25~d6fc420e-r5_mips_24kc.ipk
+Size: 28984
+SHA256sum: e05a9bb26834139ec4c0c47d49f9ebfb8e5a4c407ddad2aa36907940f619727d
+Description:  MBIM control backend for wwand (cdc_mbim driver): native MS Basic Connect (+
+ Extensions v2/v3) plus a QMI-over-MBIM passthrough that tunnels the whole QMI
+ stack over the open MBIM channel for full CDC-level telemetry/config. The
+ passthrough reuses qmi_backend, hence the dependency on wwand-qmi.
+
+Package: wwand-ncm
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand, kmod-usb-net-cdc-ncm, kmod-usb-net-cdc-ether
+Conflicts: comgt-ncm
+License: GPL-2.0
+Section: net
+Architecture: mips_24kc
+Installed-Size: 71680
+Filename: wwand-ncm_2026.07.25~d6fc420e-r5_mips_24kc.ipk
+Size: 21177
+SHA256sum: 7ad8072fab350e502fd3760c72dd221079504d1385430c7e1880fe57336bc99b
+Description:  NCM/ECM control backend for wwand: an AT-controlled datapath over a plain
+ cdc_ncm / cdc_ether netdev, for modems that expose no cdc-wdm control device.
+
+Package: wwand-qmi
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, wwand, kmod-usb-net-qmi-wwan, kmod-rmnet
+Conflicts: uqmi, qmi-advanced
+License: GPL-2.0
+Section: net
+Architecture: mips_24kc
+Installed-Size: 102400
+Filename: wwand-qmi_2026.07.25~d6fc420e-r5_mips_24kc.ipk
+Size: 30434
+SHA256sum: 7765bcbb22ef25b96b8f2b2cd75469d69f1370b81c388de3b62870bdc3146ae2
+Description:  QMI control backend for wwand: talks QMI natively over /dev/cdc-wdmX (qmi_wwan
+ driver) with QMAP multiplexing (rmnet), without spawning uqmi/qmicli. This is
+ the common case for most cellular routers.
+
+Package: wwand
+Version: 2026.07.25~d6fc420e-r5
+Depends: libc, ucode, ucode-mod-fs, ucode-mod-struct, ucode-mod-uloop, ucode-mod-ubus, ucode-mod-uci, ucode-mod-rtnl, ucode-mod-wwand-io
+License: GPL-2.0
+Section: net
+Architecture: mips_24kc
+Installed-Size: 378880
+Filename: wwand_2026.07.25~d6fc420e-r5_mips_24kc.ipk
+Size: 105153
+SHA256sum: 824a3326eb4e51ec7daab89758c3ecf851fce1abb820ead61f40b5742c375c85
+Description:  wwand is an event-driven connection manager daemon for cellular modems,
+ supporting multiple modems and multiple parallel PDP contexts. This base
+ package carries the daemon, the netifd proto shim, the QMI codec (qmux/tlv +
+ service schemas), the generic service client, the SIM/APDU layer and the
+ shared modem/context core. Install a backend package (wwand-qmi, wwand-mbim
+ or wwand-ncm) for the control protocols your modems use.
+

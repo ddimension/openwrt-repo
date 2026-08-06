@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "architecture": "aarch64_cortex-a72",
+  "packages": {
+    "apman": "56-r1",
+    "lua-mosquitto": "0.4.1.9.1-r1",
+    "luacurl": "0.3.11-r1",
+    "luci-app-wwand": "2026.07.25~7fe0b5b2-r4",
+    "luci-proto-wwand": "2026.07.26~51985b82-r4",
+    "qfirehose": "2.0-r1",
+    "qlog": "1.5.8-r1",
+    "ucode-mod-wwand-io": "2026.07.26~38148034-r2",
+    "usb-relay-hid": "2.2.0.1-r0",
+    "wwand-esim": "2026.07.26~38148034-r2",
+    "wwand-lpac": "2.3.0-r2",
+    "wwand-mbim": "2026.07.26~38148034-r2",
+    "wwand-ncm": "2026.07.26~38148034-r2",
+    "wwand-qmi": "2026.07.26~38148034-r2",
+    "wwand": "2026.07.26~38148034-r2"
+  }
+}

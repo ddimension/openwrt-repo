@@ -1,0 +1,156 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:35c63d0f-304c-4efb-a393-fe4a35810414",
+  "version": "1",
+  "metadata": {
+    "timestamp": "2026-07-25T07:57:52Z"
+  },
+  "components": [
+    {
+      "name": "apman",
+      "version": "56-r1",
+      "type": "application"
+    },
+    {
+      "name": "lua-mosquitto",
+      "version": "0.4.1.9.1-r1",
+      "type": "application"
+    },
+    {
+      "name": "luacurl",
+      "version": "0.3.11-r1",
+      "type": "application"
+    },
+    {
+      "name": "luci-app-wwand",
+      "version": "2026.07.25~7fe0b5b2-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-proto-wwand",
+      "version": "2026.07.24~e9232967-r3",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ucode-mod-wwand-io",
+      "version": "2026.07.25~d64b8056-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "usb-relay-hid",
+      "version": "2.2.0.1-r0",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand",
+      "version": "2026.07.25~d64b8056-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-esim",
+      "version": "2026.07.25~d64b8056-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-lpac",
+      "version": "2.3.0-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "AGPL-3.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "GPL-3.0-or-later"
+          }
+        },
+        {
+          "license": {
+            "name": "curl"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-mbim",
+      "version": "2026.07.25~d64b8056-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ncm",
+      "version": "2026.07.25~d64b8056-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qmi",
+      "version": "2026.07.25~d64b8056-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0"
+          }
+        }
+      ]
+    }
+  ]
+}
