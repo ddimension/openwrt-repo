@@ -35,8 +35,8 @@ https://ddimension.github.io/openwrt-repo/<release>/<arch>/
 The whole repository is **browsable** (static directory indexes are
 generated on publish): [ddimension.github.io/openwrt-repo](https://ddimension.github.io/openwrt-repo/)
 
-Currently built releases: **`snapshot`** (master), **`openwrt-25.12`** and
-**`openwrt-24.10`**. Further OpenWrt release branches are added to the
+Currently built releases: **`snapshot`** (master) and **`openwrt-25.12`**
+(openwrt-24.10 is no longer built). Further OpenWrt release branches are added to the
 `release:` matrix in the workflow as they appear and show up under the same
 URL scheme.
 
@@ -60,16 +60,6 @@ apk update
 apk add wwand luci-app-wwand
 ```
 
-On the device — opkg (OpenWrt 24.10):
-
-```
-wget -O /etc/opkg/keys/93f8441660b57edd https://ddimension.github.io/openwrt-repo/keys/93f8441660b57edd.pub
-echo "src/gz wwand https://ddimension.github.io/openwrt-repo/openwrt-24.10/aarch64_cortex-a53" \
-  > /etc/opkg/customfeeds.conf
-opkg update
-opkg install wwand luci-app-wwand
-```
-
 Pick the `<release>/<arch>` matching the installed system.
 
 ### Signing
@@ -80,10 +70,10 @@ Both signing keys are configured; the public halves live under
 - **apk** (snapshot, 25.12+): ECDSA key (`keys/public-key.pem`), private
   half in the `PRIVATE_KEY` repo secret. Regenerate with
   `openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem`.
-- **opkg** (24.10): usign key (`keys/93f8441660b57edd.pub`, filename =
-  key fingerprint, which is what opkg expects under `/etc/opkg/keys/`),
-  private half in the `KEY_BUILD` repo secret. Regenerate with
-  `usign -G -s key.sec -p key.pub`.
+- **opkg** (usign key `keys/93f8441660b57edd.pub`, filename = key
+  fingerprint, private half in the `KEY_BUILD` repo secret): kept for
+  opkg-based releases; currently unused since openwrt-24.10 was dropped
+  from the build matrix.
 
 ## Device firmware images
 
