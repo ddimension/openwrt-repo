@@ -38,7 +38,11 @@ jobs:
         include:
           - base: master
             src_url: https://github.com/ddimension/openwrt.git
-            src_branch: pr-mikrotik-chateau-5g-r17-ax
+            # Integration branch: latest openwrt main + device support (#24335)
+            # + QCA8081 2.5G TX-clock fix (#24566) + ath11k reboot fix (#24601).
+            # The individual PR branches stay clean for upstream; this branch
+            # carries all three so the built image actually works.
+            src_branch: chateau-ci
           - base: stable
             src_url: https://github.com/ddimension/openwrt.git
             src_branch: chateau-stable-backport
