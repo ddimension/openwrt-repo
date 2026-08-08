@@ -20,13 +20,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=13
+PKG_RELEASE:=14
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=13c4cf26bd437795c59e46c6dc7f034615746523
+PKG_SOURCE_VERSION:=f9789b7203dac83c85cc2de38aa059e4adcbd3b7
 PKG_SOURCE_DATE:=2026-08-08
-PKG_MIRROR_HASH:=24ec594c40faf663a7d5f3740b647f7de9c8b92a6c6a6fbfdba8971475dfb6e6
+PKG_MIRROR_HASH:=3b0e78fcd865d7f7b7cf2ed3d3aeb574934640d09b779dbf2889a3a12059b3ca
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -87,20 +87,22 @@ define Package/wwand/install
 	# eSIM -> wwand-esim
 	rm -f $(1)$(UCDIR)/esim.uc $(1)$(UCDIR)/esim_bridge.uc
 	$(INSTALL_DIR) $(1)/lib/netifd/proto
-	# the shim registers both `wwand` (current) and `qmi` (legacy alias); install
+	# the shim registers `wwand`; the legacy `qmi` alias only when the global
+	# `option takeover` is set (default off, so uqmi keeps `proto qmi`). Install
 	# under the current name — the historical qmi.sh belonged to uqmi/qmi-advanced
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-proto.sh $(1)/lib/netifd/proto/wwand.sh
 	$(INSTALL_DIR) $(1)/usr/libexec/wwand
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-migrate $(1)/usr/libexec/wwand/migrate
-	# one-time auto-migration to the network-native config model on install/upgrade
+	# migration is user-triggered (LuCI modem list / the migrate CLI); the
+	# uci-defaults hook auto-migrates on install/upgrade ONLY when the global
+	# `option takeover` is set (default off — wwand does not touch existing configs)
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand.defaults $(1)/etc/uci-defaults/99-wwand-migrate
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand.init $(1)/etc/init.d/wwand
 	# no /etc/config/wwand for new installs — all config lives in
-	# /etc/config/network now (existing files survive upgrade and are still read;
-	# the uci-defaults migrator converts them). files/wwand.config is kept in the
-	# source tree only as a documented network-model example.
+	# /etc/config/network now (existing files survive upgrade and are still read).
+	# files/wwand.config is kept in the source tree only as a documented example.
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/usbmisc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug $(1)/etc/hotplug.d/usbmisc/20-wwand
 	# net hotplug: NCM modems (no cdc-wdm) + re-enumeration after a mode switch
@@ -121,9 +123,10 @@ define Package/wwand-qmi
   SUBMENU:=WWAN
   TITLE:=QMI backend for wwand
   DEPENDS:=+wwand +kmod-usb-net-qmi-wwan +kmod-rmnet
-  # replaces the stock OpenWrt QMI stack (uqmi + the qmi-advanced dialer): wwand
-  # talks QMI natively, so they must not both claim the modem.
-  CONFLICTS:=uqmi qmi-advanced
+  # coexists with the stock OpenWrt QMI stack (uqmi + the qmi-advanced dialer):
+  # by default wwand claims only `proto wwand` interfaces, so both can be
+  # installed. Set the global `option takeover '1'` (or migrate interfaces from
+  # the LuCI modem list) to hand `proto qmi` interfaces to wwand.
 endef
 
 define Package/wwand-qmi/description
@@ -151,9 +154,10 @@ define Package/wwand-mbim
   SUBMENU:=WWAN
   TITLE:=MBIM backend for wwand
   DEPENDS:=+wwand-qmi +kmod-usb-net-cdc-mbim
-  # replaces the stock OpenWrt MBIM stack (netifd `mbim` proto, package umbim):
-  # wwand manages cdc_mbim modems itself, so the two must not both claim them.
-  CONFLICTS:=umbim
+  # coexists with the stock OpenWrt MBIM stack (netifd `mbim` proto, package
+  # umbim): wwand manages a cdc_mbim modem only once its interface has been
+  # migrated to `proto wwand` (LuCI modem list / migrate CLI), so both stacks can
+  # be installed side by side.
 endef
 
 define Package/wwand-mbim/description
@@ -184,9 +188,10 @@ define Package/wwand-ncm
   SUBMENU:=WWAN
   TITLE:=NCM/ECM backend for wwand
   DEPENDS:=+wwand +kmod-usb-net-cdc-ncm +kmod-usb-net-cdc-ether
-  # replaces the stock OpenWrt NCM stack (netifd `ncm` proto, package comgt-ncm):
-  # wwand drives the AT/NCM modem itself, so the two must not both claim it.
-  CONFLICTS:=comgt-ncm
+  # coexists with the stock OpenWrt NCM stack (netifd `ncm` proto, package
+  # comgt-ncm): wwand drives an AT/NCM modem only once its interface has been
+  # migrated to `proto wwand` (LuCI modem list / migrate CLI), so both stacks can
+  # be installed side by side.
 endef
 
 define Package/wwand-ncm/description
