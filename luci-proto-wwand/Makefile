@@ -1,8 +1,9 @@
 #
 # LuCI network-manager protocol handler for the wwand modem daemon.
-# Registers the 'wwand' protocol UI (protocol/wwand.js) plus the legacy 'qmi'
-# alias (protocol/qmi.js). Because it installs protocol/qmi.js it replaces
-# luci-proto-qmi — both install that path, so only one can be installed.
+# Registers only the 'wwand' protocol UI (protocol/wwand.js). It deliberately
+# does NOT ship a 'qmi' alias: `proto qmi` stays with luci-proto-qmi/uqmi (no
+# file collision, good-citizen coexistence), and interfaces are moved to
+# `proto wwand` via the migration list in the LuCI modem page.
 #
 # Sources live in https://github.com/ddimension/luci-proto-wwand — bump
 # PKG_SOURCE_VERSION (and PKG_SOURCE_DATE) to pick up new source commits.
@@ -17,13 +18,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-proto-wwand
-PKG_RELEASE:=7
+PKG_RELEASE:=8
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/luci-proto-wwand.git
-PKG_SOURCE_VERSION:=69e719239c2b6a62d87d421634af20b237b09b40
+PKG_SOURCE_VERSION:=3e456fd765c5fbfddaab7891654da8e3f19364e5
 PKG_SOURCE_DATE:=2026-08-08
-PKG_MIRROR_HASH:=a8f0343647170e2777ee00c34642b9eabff3b7f1403c8b5bad2a0bf37dd162e9
+PKG_MIRROR_HASH:=be5fad67a1f7e081b71ab5220bb4e1e9f8a81a862a99eda50122b6bf3045fbba
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=

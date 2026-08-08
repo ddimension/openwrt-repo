@@ -20,7 +20,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=14
+PKG_RELEASE:=15
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
@@ -214,7 +214,10 @@ define Package/ucode-mod-wwand-io
   CATEGORY:=Languages
   SUBMENU:=ucode
   TITLE:=Message-oriented cdc-wdm/tty I/O module for wwand
-  DEPENDS:=+libucode
+  # +ucode (not just +libucode): a .so under /usr/lib/ucode is unusable without
+  # the interpreter, and +ucode already pulls +libucode. Matches the in-tree
+  # UcodeModule macro (DEPENDS:=+ucode) used by all stock ucode-mod-* packages.
+  DEPENDS:=+ucode
 endef
 
 define Package/ucode-mod-wwand-io/description
@@ -225,7 +228,9 @@ endef
 
 define Package/ucode-mod-wwand-io/install
 	$(INSTALL_DIR) $(1)/usr/lib/ucode
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/wwand_io.so $(1)/usr/lib/ucode/
+	# use cmake.mk's exported binary dir (CMAKE_BINARY_SUBDIR above), not a
+	# hardcoded build/, so changing the subdir can't silently break the install
+	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/wwand_io.so $(1)/usr/lib/ucode/
 endef
 
 # ---------------------------------------------------------------------------
@@ -234,6 +239,7 @@ endef
 define Package/wwand-esim
   SECTION:=net
   CATEGORY:=Network
+  SUBMENU:=WWAN
   TITLE:=eSIM (eUICC) profile management for wwand
   # Needs an lpac binary at /usr/bin/lpac: either the generic openwrt-packages
   # lpac, or our self-contained static wwand-lpac (bundled wolfSSL+libcurl, no
