@@ -137,6 +137,19 @@ jobs:
         run: |
           mkdir -p public fresh
           rm -rf public/.git
+          # clear cruft a broken past deploy left in gh-pages: the whole feed had
+          # been nested under undefined/actions_github_pages_<ts>/... (a stray path
+          # var + the peaceiris staging dir), which the seed checkout above would
+          # otherwise perpetuate forever and leaves the site root at 404. The build
+          # matrix rebuilds every arch each run, so the fresh artifacts below fully
+          # repopulate <release>/<arch>; only real release dirs + keys must survive.
+          for e in public/*; do
+            [ -e "$e" ] || continue
+            case "$(basename "$e")" in
+              keys|index.html|openwrt-*|snapshot) ;;
+              *) echo "pruning stray $e"; rm -rf "$e" ;;
+            esac
+          done
           # replace (not overlay) every dir that was rebuilt, so outdated
           # package versions don't accumulate
           for archdir in fresh/*/*/; do
