@@ -20,13 +20,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=17
+PKG_RELEASE:=18
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=77332573220ec599a73e196c35f3e8840346251b
+PKG_SOURCE_VERSION:=1777c045f2cd9547b7eda506caa8f3076f99bcab
 PKG_SOURCE_DATE:=2026-08-09
-PKG_MIRROR_HASH:=303522766759b558c2a904c64e083203a3f3391b44f20a9b39c0d1d19d638281
+PKG_MIRROR_HASH:=eb35d994294a1bda63ecc13ad59e0fea84729882931b65226674c26f946467dd
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -112,6 +112,10 @@ define Package/wwand/install
 	# new_id bind / late kmodloader) re-kick a modem parked in no_at_port backoff
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/tty
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.tty $(1)/etc/hotplug.d/tty/20-wwand
+	# wwan-framework hotplug: PCIe/MHI (and some USB) modems expose their control
+	# port under /sys/class/wwan (/dev/wwanXqmiN|mbimN), not usbmisc/cdc-wdm
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/wwan
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.wwan $(1)/etc/hotplug.d/wwan/20-wwand
 endef
 
 # ---------------------------------------------------------------------------
