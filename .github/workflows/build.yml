@@ -192,9 +192,21 @@ jobs:
           echo "indexed $(find public -name index.html | wc -l) directories"
 
       - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: public
-          force_orphan: true
-          commit_message: 'packages @ ${{ github.sha }}'
+        # peaceiris/actions-gh-pages built its work dir at $RUNNER_TEMP/... but
+        # RUNNER_TEMP is empty on these self-hosted runners, so the whole feed
+        # got committed under a literal `undefined/actions_github_pages_<ts>/`
+        # and every feed URL served 404. Publish deterministically instead: a
+        # plain force-push of public/ to the gh-pages root (orphan each time).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          touch public/.nojekyll
+          cd public
+          rm -rf .git
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.email "ci@ddimension.net"
+          git config user.name "ddimension ci"
+          git add -A
+          git commit -q -m "packages @ ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
