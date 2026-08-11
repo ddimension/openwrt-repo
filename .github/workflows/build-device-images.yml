@@ -174,3 +174,69 @@ jobs:
           path: out/**
           retention-days: 30
           if-no-files-found: warn
+
+  # Copy the built device images into the repo (gh-pages) under /images so they
+  # have a stable, browsable URL (the 30-day run artifacts above stay too). Seeds
+  # from the current gh-pages so the package feed and other images survive; the
+  # feed publish job keeps the images/ dir via its prune keep-list.
+  publish-images:
+    needs: [chateau, zyxel]
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, openwrt]
+    permissions:
+      contents: write
+    steps:
+      - name: Reset workspace (defeat leftover sparse-checkout)
+        shell: bash
+        run: |
+          shopt -s dotglob nullglob
+          rm -rf "$GITHUB_WORKSPACE"/*
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: images-*
+          path: dl
+
+      - name: Publish images to gh-pages /images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          [ -d dl ] && [ -n "$(ls -A dl 2>/dev/null)" ] || { echo "no image artifacts"; exit 0; }
+          git clone --depth 1 -b gh-pages \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" site
+          for art in dl/images-*; do
+            [ -d "$art" ] || continue
+            rest="$(basename "$art")"; rest="${rest#images-}"
+            group="${rest%-*}"; base="${rest##*-}"      # images-zyxel-master -> group=zyxel base=master
+            dest="site/images/${group}/${base}"
+            rm -rf "$dest"; mkdir -p "$dest"
+            # the artifact holds a single target dir (qualcommax-ipq60xx /
+            # ramips-mt7621-<base>); flatten it and drop the per-image package repo
+            sub="$(find "$art" -mindepth 1 -maxdepth 1 -type d | head -1)"
+            if [ -n "$sub" ]; then cp -a "$sub"/. "$dest"/; else cp -a "$art"/. "$dest"/; fi
+            rm -rf "$dest/packages"
+            echo "published $group/$base"
+          done
+          # regenerate directory indexes site-wide (GitHub Pages serves no listings)
+          cd site
+          find . -path ./.git -prune -o -type d -print | while read -r d; do
+            rel="${d#.}"; rel="${rel#/}"
+            {
+              printf '<!doctype html><meta charset="utf-8"><title>openwrt-repo/%s</title>' "$rel"
+              printf '<style>body{font:14px/1.5 monospace;margin:2em}td{padding:0 1.5em 0 0}</style>'
+              printf '<h2>openwrt-repo/%s</h2><table>' "$rel"
+              [ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td></tr>'
+              for e in "$d"/*; do
+                [ -e "$e" ] || continue; n="$(basename "$e")"; [ "$n" = index.html ] && continue
+                if [ -d "$e" ]; then printf '<tr><td><a href="%s/">%s/</a></td></tr>' "$n" "$n"
+                else printf '<tr><td><a href="%s">%s</a></td></tr>' "$n" "$n"; fi
+              done
+              printf '</table>'
+            } > "$d/index.html"
+          done
+          git config user.email "ci@ddimension.net"
+          git config user.name "ddimension ci"
+          git add -A
+          git diff --cached --quiet || git commit -q -m "images: device images @ ${GITHUB_SHA}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

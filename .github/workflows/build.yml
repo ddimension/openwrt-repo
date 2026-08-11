@@ -146,7 +146,7 @@ jobs:
           for e in public/*; do
             [ -e "$e" ] || continue
             case "$(basename "$e")" in
-              keys|index.html|openwrt-*|snapshot) ;;
+              keys|index.html|images|openwrt-*|snapshot) ;;
               *) echo "pruning stray $e"; rm -rf "$e" ;;
             esac
           done
