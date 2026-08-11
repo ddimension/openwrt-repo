@@ -31,7 +31,9 @@ jobs:
     # manueller Dispatch immer; via workflow_run nur, wenn der Feed-Lauf gruen war
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: [self-hosted, openwrt]
-    timeout-minutes: 600
+    # 900 (15h): a cold full buildroot (empty owrt-src/ccache/dl) takes ~12h;
+    # 600 timed out chateau-stable once. Warm/incremental runs finish far sooner.
+    timeout-minutes: 900
     strategy:
       fail-fast: false
       matrix:
