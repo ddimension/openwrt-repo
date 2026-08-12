@@ -20,13 +20,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=19
+PKG_RELEASE:=20
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=43f20952a7972a07c77b015a4412e8dfda137316
+PKG_SOURCE_VERSION:=fc47ee1afd9259d6509fbe6fdd54d6af534616b9
 PKG_SOURCE_DATE:=2026-08-12
-PKG_MIRROR_HASH:=9f4180781dc6066242848f3f5ad627a9b9caec7c4c4783957824f944420f3480
+PKG_MIRROR_HASH:=73fcc99e42b41d4e4c09d75344f423be28701e15327ddb90ab0f1c458490f7f1
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -72,8 +72,11 @@ define Package/wwand/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/codec/schema/*.uc $(1)$(UCDIR)/codec/schema/
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src-ucode/main.uc $(1)/usr/sbin/wwand
+	# wwandctl: the human-friendly CLI front-end over the ubus API
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src-ucode/wwandctl.uc $(1)/usr/bin/wwandctl
 	# strip out the files that belong to the per-backend + esim packages
-	rm -f $(1)$(UCDIR)/main.uc
+	rm -f $(1)$(UCDIR)/main.uc $(1)$(UCDIR)/wwandctl.uc
 	# QMI backend -> wwand-qmi
 	rm -f $(1)$(UCDIR)/modem.uc $(1)$(UCDIR)/context.uc \
 		$(1)$(UCDIR)/qmi_backend.uc $(1)$(UCDIR)/callend.uc $(1)$(UCDIR)/qmi_lazy.uc
