@@ -12,7 +12,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand-lpac
 PKG_VERSION:=2.3.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_LICENSE:=AGPL-3.0-only GPL-3.0-or-later curl
 PKG_MAINTAINER:=
@@ -57,8 +57,14 @@ define Package/wwand-lpac
   SUBMENU:=WWAN
   TITLE:=lpac eSIM LPA — self-contained static build (wolfSSL)
   URL:=https://github.com/estkme-group/lpac
+  # PROVIDES:=lpac so wwand-esim's `+lpac` dependency resolves to this
+  # self-contained build. Do NOT also CONFLICTS:=lpac — when the real `lpac`
+  # package is present in the feed set (CI), CONFLICTS emits a
+  # `depends on PACKAGE_lpac` (scripts/package-metadata.pl mconf_conflicts)
+  # which, together with the PROVIDES `select`, is a Kconfig recursive
+  # dependency that breaks `make defconfig` for every feed consumer. The
+  # vpackage provider model keeps the two `lpac` providers mutually exclusive.
   PROVIDES:=lpac
-  CONFLICTS:=lpac
 endef
 
 define Package/wwand-lpac/description
