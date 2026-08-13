@@ -79,6 +79,19 @@ echo "::group::build"
 # LXC/Container die volle Node-Kernzahl, nicht die --cores-Quota (Ueberparallel-Risiko).
 JOBS="${MAKE_JOBS:-$(nproc)}"
 echo "make -j${JOBS}"
+
+# qca-ssdk (Qualcomm SSDK, out-of-tree Kernel-Modul) haengt beim parallelen Build
+# reproduzierbar fest -- 'make[3] -C package/kernel/qca-ssdk compile' bleibt ohne
+# CPU-Last stehen (Jobserver-Deadlock), v.a. auf dem 25.12/6.12 chateau-stable-Leg.
+# Darum: die schweren Voraussetzungen parallel bauen, qca-ssdk dann ALLEIN
+# single-threaded, danach der volle parallele Build (qca-ssdk ist dann fertig und
+# wird uebersprungen). Auf Legs, die nicht haengen wuerden, ist das nur strukturiert.
+if [ -d package/kernel/qca-ssdk ]; then
+	echo ">> qca-ssdk: prereqs parallel, dann qca-ssdk -j1 (Deadlock-Vermeidung)"
+	make -j"${JOBS}" tools/install toolchain/install target/linux/compile BUILD_LOG=1
+	make -j1 package/kernel/qca-ssdk/compile BUILD_LOG=1
+fi
+
 make -j"${JOBS}" BUILD_LOG=1
 echo "::endgroup::"
 
