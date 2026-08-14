@@ -53,7 +53,7 @@ URL scheme.
 On the device — apk (OpenWrt 25.12 and later, snapshots):
 
 ```
-wget -O /etc/apk/keys/wwand.pem https://ddimension.github.io/openwrt-repo/keys/public-key.pem
+wget -O /etc/apk/keys/ddimension.pem https://ddimension.github.io/openwrt-repo/keys/ddimension.pem
 echo "https://ddimension.github.io/openwrt-repo/snapshot/aarch64_cortex-a53/packages.adb" \
   > /etc/apk/repositories.d/wwand.list
 apk update
@@ -67,8 +67,10 @@ Pick the `<release>/<arch>` matching the installed system.
 Both signing keys are configured; the public halves live under
 [`keys/`](keys/) and are published at the site root.
 
-- **apk** (snapshot, 25.12+): ECDSA key (`keys/public-key.pem`), private
-  half in the `PRIVATE_KEY` repo secret. Regenerate with
+- **apk** (snapshot, 25.12+): ECDSA key (`keys/ddimension.pem`), private
+  half in the `PRIVATE_KEY` repo secret. Install it on the device as
+  `/etc/apk/keys/ddimension.pem` (any unique name — do NOT overwrite the
+  stock `public-key.pem`); CI-built images bake in the same key. Regenerate with
   `openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem`.
 - **opkg** (usign key `keys/93f8441660b57edd.pub`, filename = key
   fingerprint, private half in the `KEY_BUILD` repo secret): kept for

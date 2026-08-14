@@ -127,6 +127,8 @@ Kein ImageBuilder möglich: neues Gerät **nur im PR** (+ Kernel-Patch
   geteilt `owrt-dl`/`owrt-ccache`. `CONFIG_CCACHE_DIR=/ccache`, `dl`→`/dl`.
 - wwand komplett: `.github/ci/config.wwand`; wwand-Feed via `src-git` aus diesem Repo.
 - Skript: `.github/ci/build-images.sh`.
+- **Lokal nachbauen:** `scripts/local-image-build.sh` (podman/docker, Resume,
+  ccache-Ordner, andere Geräte/Archs) — Doku im Haupt-README.
 
 **Backport pflegen** (wenn sich der PR ändert): PR neu auf `openwrt-25.12` cherry-picken,
 Konflikte wie oben lösen, `chateau-stable-backport` force-pushen.
@@ -137,7 +139,7 @@ Beide **upstream** → offizieller ramips/mt7621-ImageBuilder (snapshot bzw. neu
 `25.12.x`), **kein** Toolchain-Build. wwand kommt **signiert** aus gh-pages:
 - apk-IB nutzt die Datei **`repositories`** (eine `packages.adb`-URL je Zeile) und
   vertraut allen **`.pem`** in `keys/`; `CONFIG_SIGNATURE_CHECK=y` (default) prüft.
-- Also: `keys/ddimension.pem` (aus `.github/ci/keys/ddimension-public-key.pem`) +
+- Also: `keys/ddimension.pem` (die einzige Key-Quelle im Repo-Root) +
   `…/<snapshot|openwrt-25.12>/mipsel_24kc/packages.adb` an `repositories` anhängen.
 - Arch mt7621 = `mipsel_24kc`. Skript: `.github/ci/build-imagebuilder.sh`.
 

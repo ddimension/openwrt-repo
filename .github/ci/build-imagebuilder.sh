@@ -30,7 +30,7 @@ echo "::endgroup::"
 cd ib
 
 # 2) wwand-Feed SIGNIERT einbinden
-cp -f /ci/.github/ci/keys/ddimension-public-key.pem keys/ddimension.pem
+cp -f /ci/keys/ddimension.pem keys/ddimension.pem
 FEED="${FEED_ROOT}/${GHP_DIR}/${ARCH}"
 echo "${FEED}/packages.adb" >> repositories
 echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
