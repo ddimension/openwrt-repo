@@ -1,0 +1,4 @@
+#!/bin/sh
+# Wrapper for bkerler edl's DIAG tool. Talks the Qualcomm DIAG protocol over
+# the modem's USB DIAG port (e.g. /dev/ttyUSB0 on the RG650E composition).
+exec python3 -m edlclient.Tools.qc_diag "$@"
