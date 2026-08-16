@@ -25,6 +25,13 @@ per broker and stable across reboots.
 Conventions used below:
 
 * **QoS/retain** — unless stated otherwise a publish is QoS 0, not retained.
+* **What to subscribe with** — the periodic status is the bulk of the traffic and
+  is replaced every `status_interval` anyway, so subscribe to it with QoS 0; a
+  lost message costs nothing and QoS 1 only buys retransmission of data that is
+  already stale. Subscribe with QoS 1 to everything that is not repeated:
+  `command_result/#`, `properties/#`, `online`, `booted`. Overlapping
+  subscriptions are fine — the broker delivers one copy at the highest matching
+  QoS.
 * **`timestamp`** — float, seconds since the epoch, taken on the device
   (`socket.gettime()`). Added to every payload that is a JSON object. Device
   clocks may be unsynchronised early after boot.
@@ -154,7 +161,8 @@ whose name is prefixed by the master's) are folded into their master.
 | `info` | `iwinfo info {device}` | phy mode, channel, txpower, country, hwmode, htmode, signal, noise, bitrate, encryption, hardware |
 | `clients` | `hostapd.<ifname> get_clients` | see below |
 | `assoclist` | `iwinfo assoclist {device}` | `{"results":[…]}`, **merged across master and slaves** |
-| `stations` | `iw dev <dev> station dump` | raw text, master then each slave, separated by `\n` |
+| `stations` | `iw dev <dev> station dump` | map `<mac>` → fields, see below. Raw text on agents older than 56-2 |
+| `v` | — | payload version of this device object. `2` since apman 56-2, absent before |
 | `status` | `network.device status {name}` | link state, MTU, `statistics{rx_bytes,tx_bytes,rx_packets,…}` |
 | `ap_status` | `hostapd.<ifname> get_status` | see below |
 | `hostapd_status` | `hostapd status` → `interfaces[<ifname>]` | see below, ucode hostapd only |
@@ -192,7 +200,46 @@ extended by apman with:
   apman 56-2; before that they were only visible in the `stations` text.
 
 `stations` covers interfaces that never appear in `assoclist` (p2p, mesh peers),
-which is why it is kept in addition to `assoclist`.
+which is why it is kept in addition to `assoclist`. Interfaces without a single
+associated station are dumped as well and yield `{}` — absence of the key means
+the dump failed, an empty object means the interface is idle.
+
+**Payload version 2 (apman ≥ 56-2)** — `stations` is a map, not text:
+
+```json
+"v": 2,
+"stations": {
+  "1c:bf:ce:ea:1a:6e": {
+    "device": "wap-knet1",
+    "signal": "-70 dBm", "signal_avg": "-70 dBm",
+    "tx_bitrate": "702.0 MBit/s VHT-MCS 8 80MHz VHT-NSS 2",
+    "connected_time": "132239 seconds", "inactive_time": "3330 ms",
+    "authorized": "yes", "authenticated": "yes", "associated": "yes"
+  }
+}
+```
+
+The agent parses `iw station dump` itself. The controller used to do this on
+every message for the whole fleet; on the device it happens once per interval
+and the work spreads across the access points.
+
+* Keys are the labels `iw` prints, lowercased where `iw` does, with ` `, `,`,
+  `.`, `-` and `/` replaced by `_` — the same normalisation the controller
+  applied before, so field names downstream are unchanged. `iw`'s own
+  capitalisation survives (`MFP`, `WMM_WME`, `DTIM_period`, `TDLS_peer`), and
+  one label keeps its brackets: `associated_at_[boottime]`.
+* **Values stay strings, units included** (`"-70 dBm"`, `"3330 ms"`,
+  `"702.0 MBit/s VHT-MCS 8 80MHz VHT-NSS 2"`). Nothing is converted, so no
+  information is lost and no parsing decision is baked into the agent. Consumers
+  that want numbers must strip the unit.
+* `device` is added per station: the interface it was actually seen on, which is
+  what distinguishes the slaves of a `Master (VLAN)` setup after the dumps of
+  master and slaves have been merged.
+* The MAC key is lowercase.
+
+Detect the form, never assume it: `v == 2` (or `stations` being an object rather
+than a string) means structured. A controller that must serve both can keep its
+old text parser for payloads without `v`.
 
 ### `hostapd/status`
 `ubus call hostapd status`, the authoritative BSS topology:
@@ -305,8 +352,8 @@ session from `properties/session/create` or an empty string.
 Requirements, otherwise the message is silently discarded (with a log line):
 `jsonrpc` == `"2.0"`, `method` == `"call"`, `params` is an array.
 
-The response is published **retained, QoS 1** to
-`<topic_prefix>ap/<hostname>/command_result`:
+The response is published **QoS 1, not retained** (it was retained up to agent
+56-1) to `<topic_prefix>ap/<hostname>/command_result`:
 
 ```json
 {"jsonrpc":"2.0","id":42,"result":{…ubus reply…}}
@@ -323,9 +370,13 @@ A command sent to the fleet wide topic is answered by every device on its own
 ```
 
 Executed in order, the responses are published as a JSON array (same order) to
-`command_result/bulk`, retained, QoS 1. If any entry fails validation, the
-**whole batch is aborted and nothing is published** — the controller must treat
-a missing result as a failure and time out.
+`command_result/bulk`, retained, QoS 1. Up to agent 56-1 a single entry failing
+validation aborted the **whole batch with nothing published**; since 56-2 every
+entry produces its own result or error object at its position in the array. A
+payload without a `list` array yields one error object on the same topic.
+
+Bulk is the cheaper way to address several interfaces of one access point: one
+message, one round trip, the answers arrive together.
 
 ### Error semantics (command channel v2, agent >= 56-2)
 
@@ -344,15 +395,32 @@ indistinguishable from a failure. `code` is the ubus status (2 invalid argument,
 3 method not found, 4 not found, 6 permission denied, 7 timeout, 8 not
 supported).
 
-Responses are additionally published to **`command_result/<id>`** (not retained)
-so concurrent commands do not overwrite each other in the retained slot of the
-shared topic. Malformed requests now also produce an error response instead of
-being dropped silently, and in a bulk batch a bad entry no longer discards the
-whole batch — each entry gets its own result or error, in order.
+Responses are additionally published to **`command_result/<id>`**, which is the
+topic a controller should wait on: the shared topic carries whichever answer was
+produced last, so two commands in flight overwrite each other there. `<id>` is
+the request id stripped of everything outside `[A-Za-z0-9._-]`, so keep ids
+within that set if you want to subscribe to a single one.
+
+Neither topic is retained since 56-2. A retained result was handed to every
+reconnecting consumer and read as the answer to the command it had just sent —
+the controller has to match on `id` regardless, but with retain it matched an id
+from the previous session. Two consequences for a controller:
+
+* Do not send a command before the subscription to its result topic is
+  established; there is no retained copy to fall back on.
+* Use a fresh, unique `id` per command. A deterministic id combined with a
+  caching consumer returns the previous run's answer instantly.
+
+Malformed requests now also produce an error response instead of being dropped
+silently, and in a bulk batch a bad entry no longer discards the whole batch —
+each entry gets its own result or error, in order.
+
+The one exception is `command_result/bulk`, which is **still retained** — the
+array is published under a single topic without per-id copies, so the `id` match
+inside the array is the only correlation there and a stale retained array can
+still be seen once on subscribe.
 
 A crashing call still takes the daemon down; procd restarts it after ~10 s.
-Because the shared result topic is retained, a controller must match on `id`
-and ignore stale results left there.
 
 ## 7. Controller cookbook
 
@@ -402,6 +470,9 @@ controller runs `sysupgrade`, `logread`, `iw`, etc.
 | `signature` per client | hostapd built with `CONFIG_TAXONOMY` | key present |
 | `mbo` per client | hostapd built with `CONFIG_MBO` | key present |
 | `assoclist[].device`, slave stations in `assoclist` | apman ≥ 56-2 | key present |
+| structured `stations` map | apman ≥ 56-2 | `v == 2` in the status payload |
+| `error{code,message,object,method}`, `ubus_status`, `command_result/<id>` | apman ≥ 56-2 | `properties/agent` `features[]` |
+| `properties/agent`, `survey/<ifname>` | apman ≥ 56-2 | retained topic present |
 | `apup-newpeer` | OpenWrt patch `780-Implement-APuP` | notification arrives |
 
 Do not assume a topic exists because the device is online — an AP with no
@@ -416,6 +487,6 @@ first hostapd object before it establishes any subscription.
   during a broker outage.
 * Commands are executed as root without authorisation checks. The broker is the
   only security boundary — see the security section of the [README](../README.md).
-* Retained command results mean a controller sees the last result of the
-  previous session on subscribe; always match `id`.
+* `command_result/bulk` is still retained, so a controller sees the last batch of
+  the previous session on subscribe; always match `id`.
 * `timestamp` is device local and unsynchronised right after boot.
