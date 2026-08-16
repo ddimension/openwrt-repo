@@ -2,16 +2,18 @@
 # One source package (git: ddimension/wwand); the ucode side is split into a
 # backend-neutral base plus per-backend packages so an install carries only the
 # control protocols it needs:
-#   wwand            - daemon + shared core + codec/client (no backend on its own)
+#   wwand            - daemon + shared core + codec/client + native wwand_io.so
+#                      transport module (no backend on its own)
 #   wwand-qmi        - QMI backend            (DEPENDS wwand)
 #   wwand-mbim       - MBIM backend           (DEPENDS wwand-qmi: the MBIM
 #                                              QMI-over-MBIM passthrough reuses
 #                                              qmi_backend)
 #   wwand-ncm        - NCM/ECM backend        (DEPENDS wwand)
 #   wwand-esim       - eSIM management        (DEPENDS wwand-qmi + wwand-lpac)
-#   ucode-mod-wwand-io - native C transport module
 # A typical QMI router installs `wwand-qmi` (which pulls in `wwand`); add
-# `wwand-mbim` / `wwand-ncm` for those modems.
+# `wwand-mbim` / `wwand-ncm` for those modems. The ucode tree ships precompiled
+# to bytecode by default — built by the repo-root CMakeLists.txt alongside
+# wwand_io.so (dev opt-out: CONFIG_WWAND_UCODE_SOURCE).
 #
 # NOTE: the split needs the ucode source that lazy-loads every backend
 # (qmi_lazy.uc + the backend-neutral daemon). Bump PKG_SOURCE_VERSION (and
@@ -20,28 +22,62 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=25
+PKG_RELEASE:=26
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=00b70b66c7bc9937f2dc5f701807a67041d4d821
+PKG_SOURCE_VERSION:=b2d81767aa3371ab28ad3f520b57ec0142dd36b0
 PKG_SOURCE_DATE:=2026-08-16
-PKG_MIRROR_HASH:=ad524ab61cebdc5af451bfa7685fd0af09ab19a7244341032da8012aed64a3c0
+PKG_MIRROR_HASH:=6477620dc3832d0f66f38a9286429d25724fc74b607c290dbf131a4ab622e040
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
 
+# host ucode is the bytecode compiler for the precompile step (below). It is
+# built from the same ucode revision as the on-device runtime, so the bytecode
+# it emits always matches the target interpreter.
+PKG_BUILD_DEPENDS:=ucode/host
+
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
 
-# The native module's cmake tree is the io/ subdir of the source tree; build
-# out-of-tree so cmake artifacts stay out of the source checkout. The ucode
-# side (src-ucode/, files/) installs straight from PKG_BUILD_DIR and needs no
-# compile step.
-CMAKE_SOURCE_SUBDIR:=io
+# One cmake build (repo-root CMakeLists.txt) produces both the native
+# wwand_io.so (io/ subdir) and — by default — the ucode tree compiled to
+# bytecode, one compiler invocation per file with explicit source lists (the
+# whole mechanism, incl. the invariants it enforces, is documented in the
+# wwand repo's CMakeLists.txt). The bytecode compiler is the SDK's host ucode
+# (PKG_BUILD_DEPENDS:=ucode/host) — same ucode revision as the target runtime,
+# which bytecode is locked to.
 CMAKE_BINARY_SUBDIR:=build
 
+CMAKE_OPTIONS += \
+	-DUCODE_COMPILER=$(STAGING_DIR_HOSTPKG)/bin/ucode \
+	-DUCODE_PRECOMPILE=$(if $(CONFIG_WWAND_UCODE_SOURCE),OFF,ON)
+
+# every install section takes the ucode tree from here: the bytecode output of
+# the cmake build, or the plain sources when CONFIG_WWAND_UCODE_SOURCE is set.
+WWAND_UCODE=$(if $(CONFIG_WWAND_UCODE_SOURCE),$(PKG_BUILD_DIR)/src-ucode,$(PKG_BUILD_DIR)/$(CMAKE_BINARY_SUBDIR)/ucode/wwand)
+
 UCDIR:=/usr/share/ucode/wwand
+
+# DEVELOPERS: enable CONFIG_WWAND_UCODE_SOURCE (menuconfig, under this package)
+# to ship readable .uc source instead of bytecode — for editing modules live
+# under /usr/share/ucode/wwand and for source-line tracebacks; bytecode
+# tracebacks report offsets only.
+PKG_CONFIG_DEPENDS:=CONFIG_WWAND_UCODE_SOURCE
+
+define Package/wwand/config
+config WWAND_UCODE_SOURCE
+	bool "Ship ucode sources instead of precompiled bytecode"
+	depends on PACKAGE_wwand
+	default n
+	help
+	  wwand normally ships its ucode tree precompiled to bytecode
+	  (faster daemon start, no parse step on the device). Enable this
+	  for development builds: the readable sources are installed
+	  instead, runtime tracebacks carry source line numbers and the
+	  modules can be edited in place on the device.
+endef
 
 # ---------------------------------------------------------------------------
 # base: daemon + framework + codec/client + shared core. No backend on its own;
@@ -53,7 +89,11 @@ define Package/wwand
   SUBMENU:=WWAN
   TITLE:=Event-driven cellular connection manager (backend-neutral core)
   DEPENDS:=+ucode +ucode-mod-fs +ucode-mod-struct +ucode-mod-uloop \
-	+ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-wwand-io
+	+ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl
+  # the native wwand_io transport module ships inside this package (it is
+  # wwand-private, always version-locked to the ucode side). PROVIDES keeps
+  # configs/upgrades from the era of the separate ucode-mod-wwand-io working.
+  PROVIDES:=ucode-mod-wwand-io
 endef
 
 define Package/wwand/description
@@ -66,15 +106,18 @@ define Package/wwand/description
 endef
 
 define Package/wwand/install
+	# native transport module (built by the cmake step from io/)
+	$(INSTALL_DIR) $(1)/usr/lib/ucode
+	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/io/wwand_io.so $(1)/usr/lib/ucode/
 	$(INSTALL_DIR) $(1)$(UCDIR)/codec/schema
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/*.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/codec/*.uc $(1)$(UCDIR)/codec/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/codec/schema/*.uc $(1)$(UCDIR)/codec/schema/
+	$(INSTALL_DATA) $(WWAND_UCODE)/*.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/codec/*.uc $(1)$(UCDIR)/codec/
+	$(INSTALL_DATA) $(WWAND_UCODE)/codec/schema/*.uc $(1)$(UCDIR)/codec/schema/
 	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src-ucode/main.uc $(1)/usr/sbin/wwand
+	$(INSTALL_BIN) $(WWAND_UCODE)/main.uc $(1)/usr/sbin/wwand
 	# wwandctl: the human-friendly CLI front-end over the ubus API
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src-ucode/wwandctl.uc $(1)/usr/bin/wwandctl
+	$(INSTALL_BIN) $(WWAND_UCODE)/wwandctl.uc $(1)/usr/bin/wwandctl
 	# strip out the files that belong to the per-backend + esim packages
 	rm -f $(1)$(UCDIR)/main.uc $(1)$(UCDIR)/wwandctl.uc
 	# QMI backend -> wwand-qmi
@@ -144,11 +187,11 @@ endef
 
 define Package/wwand-qmi/install
 	$(INSTALL_DIR) $(1)$(UCDIR)
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/modem.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/context.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/qmi_backend.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/callend.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/qmi_lazy.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/modem.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/context.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/qmi_backend.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/callend.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/qmi_lazy.uc $(1)$(UCDIR)/
 endef
 
 # ---------------------------------------------------------------------------
@@ -175,15 +218,15 @@ define Package/wwand-mbim/description
 endef
 
 define Package/wwand-mbim/install
-	$(INSTALL_DIR) $(1)$(UCDIR)/codec/mbim-schema
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/modem_mbim.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/context_mbim.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/mbim_backend.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/mbim_client.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/qmi_over_mbim.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/mbim_lazy.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/codec/mbim.uc $(1)$(UCDIR)/codec/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/codec/mbim-schema/*.uc $(1)$(UCDIR)/codec/mbim-schema/
+	$(INSTALL_DIR) $(1)$(UCDIR)/codec/mbim_schema
+	$(INSTALL_DATA) $(WWAND_UCODE)/modem_mbim.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/context_mbim.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/mbim_backend.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/mbim_client.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/qmi_over_mbim.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/mbim_lazy.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/codec/mbim.uc $(1)$(UCDIR)/codec/
+	$(INSTALL_DATA) $(WWAND_UCODE)/codec/mbim_schema/*.uc $(1)$(UCDIR)/codec/mbim_schema/
 endef
 
 # ---------------------------------------------------------------------------
@@ -208,36 +251,9 @@ endef
 
 define Package/wwand-ncm/install
 	$(INSTALL_DIR) $(1)$(UCDIR)
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/modem_ncm.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/context_ncm.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/ncm_lazy.uc $(1)$(UCDIR)/
-endef
-
-# ---------------------------------------------------------------------------
-# ucode-mod-wwand-io: native C transport module.
-# ---------------------------------------------------------------------------
-define Package/ucode-mod-wwand-io
-  SECTION:=lang
-  CATEGORY:=Languages
-  SUBMENU:=ucode
-  TITLE:=Message-oriented cdc-wdm/tty I/O module for wwand
-  # +ucode (not just +libucode): a .so under /usr/lib/ucode is unusable without
-  # the interpreter, and +ucode already pulls +libucode. Matches the in-tree
-  # UcodeModule macro (DEPENDS:=+ucode) used by all stock ucode-mod-* packages.
-  DEPENDS:=+ucode
-endef
-
-define Package/ucode-mod-wwand-io/description
-  Minimal native ucode extension providing non-blocking, message-oriented
-  I/O on QMI control devices (/dev/cdc-wdmX) and raw tty access for AT
-  commands. Used by the wwand connection manager.
-endef
-
-define Package/ucode-mod-wwand-io/install
-	$(INSTALL_DIR) $(1)/usr/lib/ucode
-	# use cmake.mk's exported binary dir (CMAKE_BINARY_SUBDIR above), not a
-	# hardcoded build/, so changing the subdir can't silently break the install
-	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/wwand_io.so $(1)/usr/lib/ucode/
+	$(INSTALL_DATA) $(WWAND_UCODE)/modem_ncm.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/context_ncm.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/ncm_lazy.uc $(1)$(UCDIR)/
 endef
 
 # ---------------------------------------------------------------------------
@@ -277,13 +293,12 @@ endef
 
 define Package/wwand-esim/install
 	$(INSTALL_DIR) $(1)$(UCDIR)
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/esim.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/src-ucode/esim_bridge.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/esim.uc $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(WWAND_UCODE)/esim_bridge.uc $(1)$(UCDIR)/
 endef
 
 $(eval $(call BuildPackage,wwand))
 $(eval $(call BuildPackage,wwand-qmi))
 $(eval $(call BuildPackage,wwand-mbim))
 $(eval $(call BuildPackage,wwand-ncm))
-$(eval $(call BuildPackage,ucode-mod-wwand-io))
 $(eval $(call BuildPackage,wwand-esim))

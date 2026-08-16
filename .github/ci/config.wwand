@@ -6,7 +6,6 @@ CONFIG_PACKAGE_wwand-qmi=y
 # CONFIG_PACKAGE_uqmi is not set
 # CONFIG_PACKAGE_qmi-advanced is not set
 CONFIG_PACKAGE_wwand-lpac=y
-CONFIG_PACKAGE_ucode-mod-wwand-io=y
 CONFIG_PACKAGE_luci-app-wwand=y
 CONFIG_PACKAGE_luci-proto-wwand=y
 CONFIG_PACKAGE_luci=y

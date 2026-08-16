@@ -35,7 +35,7 @@ FEED="${FEED_ROOT}/${GHP_DIR}/${ARCH}"
 echo "${FEED}/packages.adb" >> repositories
 echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
 
-PKGS="wwand wwand-lpac ucode-mod-wwand-io luci-app-wwand luci-proto-wwand \
+PKGS="wwand wwand-lpac luci-app-wwand luci-proto-wwand \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
 kmod-usb-serial-option kmod-vrf luci"
 

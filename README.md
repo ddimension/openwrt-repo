@@ -9,7 +9,7 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 
 | Package | Source |
 |---|---|
-| `wwand` (binary packages `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-esim`, `ucode-mod-wwand-io`) | https://github.com/ddimension/wwand |
+| `wwand` (binary packages `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-esim`) | https://github.com/ddimension/wwand |
 | `luci-app-wwand` | https://github.com/ddimension/luci-app-wwand |
 | `luci-proto-wwand` | https://github.com/ddimension/luci-proto-wwand |
 | `wwand-lpac` | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) (bundled static wolfSSL/curl) |
@@ -81,7 +81,7 @@ Both signing keys are configured; the public halves live under
 
 Besides the package feed, CI also builds **ready-to-flash firmware images**
 with the **complete wwand stack baked in** (wwand + luci-app/proto-wwand +
-`ucode-mod-wwand-io` + wwand-lpac, plus umbim/mbim-utils, uqmi and the
+wwand-lpac, plus umbim/mbim-utils, uqmi and the
 cdc-mbim/qmi-wwan/rmnet kmods). Built for **master and stable** each, by
 [build-device-images.yml](.github/workflows/build-device-images.yml):
 
@@ -172,6 +172,61 @@ them):
 - Any `kmod-*` dependency makes the SDK build package the whole
   kernel-module tree once per fresh volume (~30–40 min). That phase looks
   like a hang but isn't.
+
+## Local device-image builds (chateau and other routers)
+
+`scripts/local-image-build.sh` replicates the CI firmware-image build
+(`build-device-images.yml` + `.github/ci/build-images.sh`) locally in the
+same `openwrt-builder` container, using **podman** (preferred) or
+**docker**. Default device is the MikroTik Chateau 5G R17 ax
+(qualcommax/ipq60xx) with the complete wwand stack baked in; via options it
+builds any device/architecture from any OpenWrt tree.
+
+```
+scripts/local-image-build.sh <release> [options] [-- <extra make-args>]
+
+scripts/local-image-build.sh master                     # chateau, fork branch chateau-ci
+scripts/local-image-build.sh stable -c ~/.cache/owrt    # 25.12 backport, with ccache
+scripts/local-image-build.sh master -p "htop tcpdump"   # extra packages in the image
+scripts/local-image-build.sh master --resume            # continue after a build error
+scripts/local-image-build.sh master --resume -- V=s -j1 # find the actual error
+scripts/local-image-build.sh openwrt-24.10 \            # other device, other arch
+  --target ramips --subtarget mt7621 --device zyxel_nr7101
+```
+
+`<release>` maps to the source tree like the CI matrix: `master`/`snapshot`
+→ fork branch `chateau-ci` (openwrt main + device support #24335 +
+QCA8081 TX-clock fix #24566 + ath11k reboot fix #24601), `stable` → fork
+branch `chateau-stable-backport` (25.12 + PR); anything else (e.g.
+`openwrt-24.10`, `v24.10.2`) is fetched as branch/tag from upstream
+`openwrt/openwrt.git` — the Chateau device does not exist there, so combine
+it with `--device`. Override freely with `--src-url`/`--src-branch`.
+
+Key options (full list: `--help`):
+
+- `-p "pkg …"` — extra packages (`CONFIG_PACKAGE_x=y`); `--config FILE`
+  appends arbitrary `.config` snippets; `--no-wwand` drops the wwand stack.
+- `-c DIR` — cache dir: enables `CONFIG_CCACHE` on `DIR/ccache` and moves
+  the download cache to `DIR/dl` (shareable across trees, like the CI's
+  named volumes). Without it, no ccache and `dl/` lives in the work dir.
+- **Resume:** the source tree incl. `build_dir`/`staging_dir` persists
+  under `./build/<device>-<release>/src`, so every re-run is incremental.
+  `--resume` additionally skips git sync/feeds/defconfig and jumps straight
+  to `make` — the fast path after a failure (`git reset`/`feeds update`
+  would otherwise trigger rebuilds). `--fresh` wipes the tree.
+- `--image IMG` / `--engine podman|docker` — defaults:
+  `image-registry.ddimension.net/myadmin/openwrt-builder:latest` (build it
+  yourself from `~/projects/containers/openwrt-builder/` if you can't pull),
+  podman preferred. Rootless podman runs with `--userns=keep-id`, docker
+  with the host uid/gid, root falls back to uid 1000 + chown; SELinux hosts
+  get `:z` mount labels automatically. The mandatory
+  `--ulimit nofile` cap (see pitfalls above) is applied.
+- `--testing-kernel` — `CONFIG_TESTING_KERNEL=y` (KERNEL_TESTING_PATCHVER),
+  `--patch FILE` applies a patch after checkout.
+
+Images land in `./build/<device>-<release>/out/<target>-<subtarget>/`
+(override with `-o`); build logs in `…/src/logs/`. Expect several hours and
+~40 GB for a first full toolchain build.
 
 ## Updating a package to a newer source commit
 
