@@ -136,7 +136,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github
+          sparse-checkout: |
+            .github
+            keys
           sparse-checkout-cone-mode: false
 
       - name: Prepare output + IB volume
