@@ -16,7 +16,7 @@ local have_unix, unix = pcall(require, "socket.unix")
 have_unix = have_unix and type(unix) == 'table' and type(unix.dgram) == 'function'
 
 local apman = {}
-apman.version = '56-5'			-- keep in sync with the package Makefile
+apman.version = '56-9'			-- keep in sync with the package Makefile
 apman.started_at = nil
 apman.conn = nil
 apman.hostname = nil
@@ -60,6 +60,64 @@ apman.ctrl_enabled = true
 apman.ctrl_timeout = 3			-- s to wait for an answer
 apman.ctrl_allow_all = false		-- ignore the allowlist below
 apman.ctrl_seq = 0
+apman.ctrl_stale_cleaned = false
+-- Persistent monitors on the control channel (ATTACH), one per bss.
+--
+-- The ubus notifications cover what a client does — probe, auth, assoc,
+-- disassoc — and they arrive parsed. The control channel covers what hostapd
+-- itself does, and a few things about clients that ubus loses on the way:
+--
+--   * AP-STA-CONNECTED carries keyid, vlanid and ip_addr, so a key handed out
+--     is recognised at the moment it is used instead of on the next poll
+--   * BSS-TM-RESP prints status_code as a number, while the ubus path renders
+--     it through blobmsg_add_u8 and libubox turns that into a boolean
+--   * why a station was refused (max sta, blocked, wrong key) and how the EAP
+--     server answered — neither exists over ubus at all
+--
+-- Measured on a busy access point: 171 ubus notifications against 4 control
+-- channel events in the same four minutes, because probe requests do not come
+-- through here. The stream is cheap.
+apman.ctrl_events = true
+apman.ctrl_monitors = {}		-- ifname -> { sock, path, ufd }
+apman.ctrl_event_all = false		-- forward everything, not just the list
+apman.ctrl_event_allow = {
+	-- stations
+	['AP-STA-CONNECTED'] = true, ['AP-STA-DISCONNECTED'] = true,
+	['AP-STA-POSSIBLE-PSK-MISMATCH'] = true, ['EAPOL-4WAY-HS-COMPLETED'] = true,
+	['AP-REJECTED-MAX-STA'] = true, ['AP-REJECTED-BLOCKED-STA'] = true,
+	-- steering, with the status code the ubus path cannot carry
+	['BSS-TM-RESP'] = true, ['BSS-TM-QUERY'] = true,
+	['MBO-CELL-PREFERENCE'] = true, ['MBO-TRANSITION-REASON'] = true,
+	-- the eap server, which has no ubus equivalent
+	['CTRL-EVENT-EAP-SUCCESS2'] = true, ['CTRL-EVENT-EAP-FAILURE2'] = true,
+	['CTRL-EVENT-EAP-TIMEOUT-FAILURE2'] = true, ['CTRL-EVENT-EAP-RETRANSMIT2'] = true,
+	['EAP-ERROR-CODE'] = true,
+	-- channel life cycle
+	['ACS-STARTED'] = true, ['ACS-COMPLETED'] = true, ['ACS-FAILED'] = true,
+	['DFS-CAC-START'] = true, ['DFS-CAC-COMPLETED'] = true,
+	['DFS-RADAR-DETECTED'] = true, ['DFS-NEW-CHANNEL'] = true,
+	['DFS-NOP-FINISHED'] = true, ['DFS-PRE-CAC-EXPIRED'] = true,
+	['AP-CSA-FINISHED'] = true, ['CTRL-EVENT-CHANNEL-SWITCH'] = true,
+	['CTRL-EVENT-STARTED-CHANNEL-SWITCH'] = true,
+	['CTRL-EVENT-REGDOM-CHANGE'] = true,
+	-- bss state
+	['AP-ENABLED'] = true, ['AP-DISABLED'] = true,
+	['INTERFACE-ENABLED'] = true, ['INTERFACE-DISABLED'] = true,
+	-- radio behaviour of a client, which explains sudden slowness
+	['STA-OPMODE-MAX-BW-CHANGED'] = true, ['STA-OPMODE-SMPS-MODE-CHANGED'] = true,
+	['STA-OPMODE-N_SS-CHANGED'] = true,
+	-- measurements and protection
+	['RRM-NEIGHBOR-REP-RECEIVED'] = true, ['BEACON-REQ-TX-STATUS'] = true,
+	['LINK-MSR-RESP-RX'] = true, ['OCV-FAILURE'] = true,
+	['CTRL-EVENT-UNPROT-BEACON'] = true,
+	['PMKSA-CACHE-ADDED'] = true, ['PMKSA-CACHE-REMOVED'] = true,
+	-- wps enrolment
+	['WPS-PBC-ACTIVE'] = true, ['WPS-PIN-NEEDED'] = true, ['WPS-SUCCESS'] = true,
+	['WPS-FAIL'] = true, ['WPS-TIMEOUT'] = true, ['WPS-OVERLAP-DETECTED'] = true,
+	['WPS-ENROLLEE-SEEN'] = true, ['WPS-REG-SUCCESS'] = true, ['WPS-CANCEL'] = true,
+}
+-- BEACON-RESP-RX is deliberately absent: the ubus beacon-report notification
+-- delivers the same measurement already decoded.
 -- Extra detail pulled from the control channel and folded into the periodic
 -- status. Both are cached and refreshed asynchronously, so building a status
 -- message never waits for hostapd: what arrives lands in the next message.
@@ -69,6 +127,7 @@ apman.ctrl_seq = 0
 -- association lasts, so only stations that are new or stale cost a request.
 apman.mib_interval = 60			-- s per bss, 0 = off
 apman.sta_ctrl_interval = 300		-- s per station, 0 = off
+apman.sta_ctrl_retry = 30		-- s, for stations that report no identity yet
 apman.mib_cache = {}			-- ifname -> { ts, values }
 apman.sta_ctrl_cache = {}		-- ifname -> mac -> { ts, values }
 -- what is kept from a MIB reply; the rest is either constant or noise
@@ -637,6 +696,15 @@ function apman.subscribe_ubus()
 	if apman.count < 1 then
 		return false
 	end
+	-- the same list drives the control channel monitors; hostapd loses them on
+	-- every restart, and this runs again on bss.add/bss.remove/bss.reload
+	local monitored = {}
+	for object in pairs(available) do
+		if apman.starts_with(object, 'hostapd.') then
+			monitored[object:gsub('^hostapd%.', '')] = true
+		end
+	end
+	apman.ctrl_monitor_sync(monitored)
 	-- the global 'hostapd' object only exists with the ucode based hostapd;
 	-- its bss.add/bss.remove/bss.reload notifications replace the poll
 	apman.have_bss_events = available['hostapd'] == true
@@ -1029,6 +1097,172 @@ function apman.ctrl_parse(reply)
 	return { raw = reply, values = values, lines = lines }
 end
 
+-- One line of the control channel event stream.
+--
+--   <3>AP-STA-CONNECTED 00:11:22:33:44:55 auth_alg=open keyid=17-anna vlanid=7
+--
+-- The number in brackets is the syslog priority, then the event name, then an
+-- optional station address and free "key=value" fields.
+function apman.ctrl_event_parse(msg)
+	local line = string.gsub(msg, '\n+$', '')
+	local priority, rest = string.match(line, '^<(%d)>(.*)$')
+	if rest == nil then
+		priority, rest = nil, line
+	end
+	local name, tail = string.match(rest, '^(%S+)%s*(.*)$')
+	if name == nil then
+		return nil
+	end
+
+	local event = {
+		event = name,
+		priority = priority and tonumber(priority) or nil,
+		fields = {},
+		raw = rest,
+		timestamp = socket.gettime(),
+	}
+	local address = string.match(tail, '^(%x%x:%x%x:%x%x:%x%x:%x%x:%x%x)')
+	if address ~= nil then
+		event['address'] = string.lower(address)
+	end
+	for key, value in string.gmatch(tail, '([%w_%-]+)=(%S+)') do
+		event['fields'][key] = value
+	end
+
+	return event
+end
+
+function apman.ctrl_event_wanted(name)
+	return apman.ctrl_event_all or apman.ctrl_event_allow[name] == true
+end
+
+-- read whatever is queued on a monitor socket and forward it
+function apman.ctrl_monitor_read(iface)
+	local monitor = apman.ctrl_monitors[iface]
+	if monitor == nil then
+		return
+	end
+	for _ = 1, 32 do
+		local msg = monitor.sock:receive(8192)
+		if msg == nil then
+			return
+		end
+		local event = apman.ctrl_event_parse(msg)
+		-- A station that (re)associates may have used a different key than the
+		-- one we cached for it, and the cached entry would otherwise stand for
+		-- up to sta_ctrl_interval seconds. Dropping it here is what keeps the
+		-- reported identity honest: the next status cycle asks hostapd again.
+		if event ~= nil and event['address'] ~= nil
+				and (event['event'] == 'AP-STA-CONNECTED'
+					or event['event'] == 'AP-STA-DISCONNECTED') then
+			local cache = apman.sta_ctrl_cache[iface]
+			if cache ~= nil then
+				cache[event['address']] = nil
+			end
+		end
+		if event ~= nil and apman.ctrl_event_wanted(event['event']) then
+			event['ifname'] = iface
+			apman.publish_mqtt(
+				apman.ap_topic('notifications/hostapd/' .. iface .. '/ctrl/' .. event['event']),
+				cjson.encode(event))
+		end
+	end
+end
+
+-- Sockets of an earlier run of this agent. The file name carries the pid, so a
+-- restart leaves one orphan per bss behind — harmless, but they pile up in the
+-- directory hostapd uses and it keeps sending to them until the writes fail.
+function apman.ctrl_cleanup_stale()
+	if apman.pid == nil then
+		return
+	end
+	os.execute(string.format(
+		"for f in %s/apman-*; do case \"$f\" in *-%d-*) ;; *) rm -f \"$f\";; esac; done 2>/dev/null",
+		apman.ctrl_dir, apman.pid))
+end
+
+-- attach to one bss; the reply socket has to live where the ujail can write
+function apman.ctrl_monitor_attach(iface)
+	if apman.ctrl_monitors[iface] ~= nil then
+		return true
+	end
+	if not apman.ctrl_events or not apman.ctrl_enabled or not have_unix then
+		return false
+	end
+
+	local path = string.format('%s/apman-mon-%d-%s', apman.ctrl_dir, apman.pid or 0, iface)
+	os.remove(path)
+	local sock = unix.dgram()
+	if sock == nil then
+		return false
+	end
+	local ok = sock:bind(path)
+	if not ok then
+		pcall(function() sock:close() end)
+		return false
+	end
+	os.execute("chmod 0777 '" .. path .. "' 2>/dev/null")
+	if not sock:connect(apman.ctrl_dir .. '/' .. iface) then
+		pcall(function() sock:close() end)
+		os.remove(path)
+		return false
+	end
+	sock:settimeout(0)
+	if not sock:send('ATTACH') then
+		pcall(function() sock:close() end)
+		os.remove(path)
+		return false
+	end
+
+	apman.ctrl_monitors[iface] = { sock = sock, path = path }
+	apman.ctrl_monitors[iface].ufd = uloop.fd_add(sock, function()
+		apman.ctrl_monitor_read(iface)
+	end, uloop.ULOOP_READ)
+	print(string.format('Attached to the control channel of %s', iface))
+
+	return true
+end
+
+function apman.ctrl_monitor_drop(iface)
+	local monitor = apman.ctrl_monitors[iface]
+	if monitor == nil then
+		return
+	end
+	apman.ctrl_monitors[iface] = nil
+	if monitor.ufd ~= nil then
+		pcall(function() monitor.ufd:delete() end)
+	end
+	-- DETACH is a courtesy: hostapd drops a monitor that stops answering
+	pcall(function() monitor.sock:send('DETACH') end)
+	pcall(function() monitor.sock:close() end)
+	os.remove(monitor.path)
+	print(string.format('Detached from the control channel of %s', iface))
+end
+
+-- called whenever the bss list changed: attach to what is new, let go of what
+-- disappeared. hostapd forgets its monitors when it restarts, and the same
+-- bss.reload notification that triggers the ubus resubscribe brings us here.
+function apman.ctrl_monitor_sync(wanted)
+	if not apman.ctrl_stale_cleaned then
+		apman.ctrl_stale_cleaned = true
+		apman.ctrl_cleanup_stale()
+	end
+	if not apman.ctrl_events then
+		for iface in pairs(apman.ctrl_monitors) do
+			apman.ctrl_monitor_drop(iface)
+		end
+		return
+	end
+	for iface in pairs(apman.ctrl_monitors) do
+		if wanted[iface] ~= true then
+			apman.ctrl_monitor_drop(iface)
+		end
+	end
+	for iface in pairs(wanted) do
+		apman.ctrl_monitor_attach(iface)
+	end
+end
+
 -- keep only the interesting keys of a control channel answer
 function apman.ctrl_pick(values, fields)
 	local out, found = {}, false
@@ -1087,7 +1321,16 @@ function apman.refresh_sta_ctrl(ifname, macs)
 		local key = string.lower(mac)
 		present[key] = true
 		local entry = cache[key]
-		if entry == nil or (now - entry.ts) >= apman.sta_ctrl_interval then
+		-- A station that has no identity yet is asked again far more often:
+		-- hostapd only assigns the keyid at authentication time, so a client
+		-- that just (re)joined would otherwise stay anonymous for a whole
+		-- interval — which is exactly the moment somebody is watching to see
+		-- whether a key they handed out works.
+		local interval = apman.sta_ctrl_interval
+		if entry ~= nil and (entry.values == nil or entry.values['keyid'] == nil) then
+			interval = math.min(interval, apman.sta_ctrl_retry)
+		end
+		if entry == nil or (now - entry.ts) >= interval then
 			cache[key] = { ts = now, values = entry and entry.values or nil }
 			apman.ctrl_request(ifname, 'STA ' .. key, function(reply, err)
 				if err ~= nil then
@@ -1321,6 +1564,7 @@ function apman.publish_agent()
 	feature('ctrl_proxy', apman.ctrl_enabled and have_unix)
 	feature('mib', apman.ctrl_enabled and have_unix and apman.mib_interval > 0)
 	feature('sta_ctrl', apman.ctrl_enabled and have_unix and apman.sta_ctrl_interval > 0)
+	feature('ctrl_events', apman.ctrl_events and apman.ctrl_enabled and have_unix)
 
 	local info = {
 		agent = 'apman',
@@ -1719,7 +1963,16 @@ function apman.apply_config()
 	apman.ctrl_timeout = apman.cfg_num('ctrl_timeout', 3)
 	apman.mib_interval = apman.cfg_num('mib_interval', 60)
 	apman.sta_ctrl_interval = apman.cfg_num('sta_ctrl_interval', 300)
+	apman.sta_ctrl_retry = apman.cfg_num('sta_ctrl_retry', 30)
 	apman.ctrl_dir = apman.cfg('ctrl_dir', apman.ctrl_dir)
+	apman.ctrl_events = apman.cfg_bool('ctrl_events', true)
+	apman.ctrl_event_all = apman.cfg_bool('ctrl_event_all', false)
+	for _, name in ipairs(apman.cfg_list('ctrl_event_allow', {})) do
+		apman.ctrl_event_allow[string.upper(name)] = true
+	end
+	for _, name in ipairs(apman.cfg_list('ctrl_event_deny', {})) do
+		apman.ctrl_event_allow[string.upper(name)] = nil
+	end
 	for _, verb in ipairs(apman.cfg_list('ctrl_allow', {})) do
 		apman.ctrl_allowed[string.upper(verb)] = true
 	end

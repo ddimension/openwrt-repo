@@ -306,6 +306,51 @@ separate ucode/C helper.
 subscriptions after `ubus_settle` seconds, and the object-list poll drops to
 `ubus_check_interval_slow` (30 s) as a safety net.
 
+### `notifications/hostapd/<ifname>/ctrl/<EVENT>` (agent ≥ 56-7)
+
+The agent keeps a permanent `ATTACH` on the control socket of every bss and
+forwards hostapd's own event stream. This is not a second copy of the ubus
+notifications — the two barely overlap:
+
+| | ubus notifications | control channel |
+|---|---|---|
+| volume, measured over 240 s on a busy ap | 171 (168 of them probe requests) | 4 |
+| probe / auth / assoc / disassoc | yes, decoded | not delivered at all |
+| why a station was refused | — | `AP-REJECTED-MAX-STA`, `AP-REJECTED-BLOCKED-STA`, `AP-STA-POSSIBLE-PSK-MISMATCH` |
+| eap server verdict | — | `CTRL-EVENT-EAP-SUCCESS2` / `-FAILURE2` / `-TIMEOUT-FAILURE2` |
+| identity of a station | — | `AP-STA-CONNECTED` carries `keyid`, `vlanid`, `ip_addr` |
+| steering answer | `status-code` arrives as a **boolean** | `BSS-TM-RESP` prints `status_code=%u` |
+| channel life cycle | radar and the finished switch | `ACS-*`, `DFS-CAC-*`, `DFS-NEW-CHANNEL`, `AP-CSA-FINISHED`, `CTRL-EVENT-STARTED-CHANNEL-SWITCH` |
+| bss state | — | `AP-ENABLED`, `AP-DISABLED`, `INTERFACE-ENABLED/DISABLED` |
+
+Because probe requests do not travel this way, the stream stays quiet and needs
+no throttling.
+
+```json
+{"event":"AP-STA-CONNECTED","ifname":"wap-knet0","address":"e2:9e:3f:09:7e:90",
+ "fields":{"auth_alg":"open","keyid":"17-anna","vlanid":"7"},
+ "priority":3,"raw":"AP-STA-CONNECTED e2:9e:… auth_alg=open keyid=17-anna",
+ "timestamp":1786907209.2}
+```
+
+`address` is the station of the event when the line carries one, `fields` the
+`key=value` pairs, `raw` the line as hostapd wrote it minus the syslog priority.
+
+Only allowlisted events are forwarded — stations, refusals, steering, eap,
+channel and bss life cycle, opmode changes, measurements, wps. `BEACON-RESP-RX`
+is deliberately not among them: the ubus `beacon-report` notification carries
+the same measurement already decoded. Adjust with `list ctrl_event_allow` /
+`list ctrl_event_deny`, or take everything with `option ctrl_event_all 1`.
+
+Two consequences worth knowing:
+
+* hostapd forgets its monitors when it restarts. The agent reattaches from the
+  same bss list that drives the ubus subscriptions, so a `bss.reload` repairs it
+  within the settle delay.
+* An answer can arrive here that the synchronous ubus path missed — observed
+  with a transition response that the command channel timed out on while
+  `BSS-TM-RESP` still came through.
+
 ### `notifications/network/interface/<method>` and `notifications/network/device/<method>`
 netifd's ubus notifications, subscribed via `list subscribe` (default: both).
 
@@ -526,6 +571,9 @@ controller runs `sysupgrade`, `logread`, `iw`, etc.
 | structured `stations` map | apman ≥ 56-2 | `v == 2` in the status payload |
 | `error{code,message,object,method}`, `ubus_status`, `command_result/<id>` | apman ≥ 56-2 | `properties/agent` `features[]` |
 | `properties/agent`, `survey/<ifname>` | apman ≥ 56-2 | retained topic present |
+| `mib`, `sta_ctrl` in the status payload | apman ≥ 56-4 | `properties/agent` `features[]` |
+| `keyid` per station (iPSK identity) | apman ≥ 56-5 | key present in `sta_ctrl` |
+| `notifications/hostapd/<ifname>/ctrl/<EVENT>` | apman ≥ 56-7 | `ctrl_events` in `properties/agent` |
 | `apup-newpeer` | OpenWrt patch `780-Implement-APuP` | notification arrives |
 
 Do not assume a topic exists because the device is online — an AP with no

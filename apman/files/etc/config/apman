@@ -64,3 +64,14 @@ config apman 'main'
 	# Seconds between refreshes, 0 switches the collection off.
 	#option mib_interval '60'
 	#option sta_ctrl_interval '300'
+	# forward the hostapd control channel event stream. It carries what ubus
+	# does not: the keyid and vlan of a station at connect time, the numeric
+	# status of a steering answer, why a client was refused, how the eap server
+	# answered, and the acs/dfs/channel life cycle. Probe requests do not come
+	# through here, so this is a quiet stream.
+	#option ctrl_events '1'
+	# only the built in list of events is forwarded; extend, remove, or take
+	# everything hostapd emits
+	#list ctrl_event_allow 'BEACON-RESP-RX'
+	#list ctrl_event_deny 'PMKSA-CACHE-ADDED'
+	#option ctrl_event_all '0'
