@@ -47,3 +47,20 @@ config apman 'main'
 	# reconnect backoff bounds in seconds (jittered, per host)
 	#option mqtt_retry_min '2'
 	#option mqtt_retry_max '120'
+	# hostapd control channel proxy: the command channel accepts
+	# {"method":"ctrl","params":["","<ifname>","<COMMAND>"]} and answers with
+	# the raw text plus the parsed key=value pairs. Reaches what ubus does not
+	# offer — RELOAD_WPA_PSK, WPS_PIN with an argument, MIB counters.
+	#option ctrl_enabled '1'
+	#option ctrl_timeout '3'
+	# only the commands on the built in allowlist are accepted; extend it
+	# here or switch it off entirely. Without authentication in front of the
+	# broker, ctrl_allow_all hands out everything hostapd can do.
+	#list ctrl_allow 'DISASSOCIATE'
+	#option ctrl_allow_all '0'
+	# extra detail folded into the periodic status, fetched over the control
+	# channel and cached: MIB counters per bss (4-way handshake failures,
+	# radius client statistics) and the negotiated AKM/cipher per station.
+	# Seconds between refreshes, 0 switches the collection off.
+	#option mib_interval '60'
+	#option sta_ctrl_interval '300'

@@ -362,6 +362,59 @@ The response is published **QoS 1, not retained** (it was retained up to agent
 A command sent to the fleet wide topic is answered by every device on its own
 `command_result` topic.
 
+### hostapd control channel (`method: "ctrl"`, agent ≥ 56-3)
+
+hostapd listens on a unix datagram socket per bss even while the ubus interface
+is up; the two are independent and several clients may talk at once. The agent
+proxies it, because a few things have no ubus equivalent:
+
+| | |
+|---|---|
+| `RELOAD_WPA_PSK` | reloads `wpa_psk_file` **without touching associations**. ubus only offers `reload`, which restarts the bss and drops every client |
+| `WPS_PIN <uuid\|any> <pin> [timeout]` | ubus `wps_start` is pushbutton only |
+| `BSS_TM_REQ` | the response event reports `status_code=<n>` as text, so the reject reason survives — over ubus it is a `blobmsg_add_u8` that libubox renders as a boolean |
+| `MIB` | `dot11RSNA4WayHandshakeFailures`, RADIUS client counters (server address, round trip time, accepts, rejects, timeouts) |
+| `STA <mac>` | `AKMSuiteSelector` and `dot11RSNAStatsSelectedPairwiseCipher` (what the client actually negotiated), `hostapdWPAPTKState`, `capability`, `listen_interval`, `supported_rates`, `timeout_next` |
+| `GET_CONFIG` | the **running** bss config (`wpa`, `key_mgmt`, ciphers), not the file on disk |
+
+```json
+{"jsonrpc":"2.0","id":42,"method":"ctrl","params":["","<ifname>","GET_CONFIG"]}
+```
+
+The answer arrives on the usual result topics:
+
+```json
+{"jsonrpc":"2.0","id":42,"ubus_status":0,"result":{
+   "raw":"bssid=…\nssid=kalnet\nwpa=2\n…",
+   "values":{"bssid":"…","ssid":"kalnet","wpa":"2"},
+   "lines":["bssid=…","ssid=kalnet","wpa=2"]}}
+```
+
+`raw` is the verbatim reply, `values` the `key=value` lines parsed, `lines`
+every line in order (a station dump starts with a bare address line).
+
+Notes for a controller:
+
+* The request is asynchronous — the agent does not block on it, and a bulk
+  batch containing `ctrl` entries is published once the last answer is in.
+  Every request carries its own deadline (`ctrl_timeout`, default 3 s) and
+  fails with code 7 rather than hanging.
+* Only allowlisted commands are accepted; anything else comes back as code 6.
+  The list covers the reading commands plus `RELOAD_WPA_PSK`, `BSS_TM_REQ`,
+  `WPS_PIN`/`WPS_PBC`, `REQ_BEACON` and `REQ_LINK_MEASUREMENT`. `DISASSOCIATE`
+  and the ACL modifications are deliberately not in it. Extend with
+  `list ctrl_allow`, or lift it entirely with `option ctrl_allow_all 1`.
+* Use the interface name (`wap-knet1`), not the ubus object name. `global`
+  addresses hostapd itself.
+* Code 4 means there is no control socket for that interface, code 8 that the
+  proxy is switched off or luasocket has no unix socket support — check
+  `ctrl_proxy` in `properties/agent` first.
+
+**Before `RELOAD_WPA_PSK`**: hostapd re-reads the file its *running* config
+points at. Write the psk file first, and make sure the uci `wifi-station`
+sections produce the same content — otherwise the next `wifi reload`
+regenerates the file from uci and silently reverts what was just distributed.
+
 ### Bulk command
 
 ```json
