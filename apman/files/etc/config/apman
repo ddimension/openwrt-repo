@@ -14,3 +14,36 @@ config apman 'main'
 	option ciphers ''
 	option enabled ''
 	option keyfile ''
+	# topic namespace, a trailing slash is added when missing
+	option topic_prefix 'apman/'
+	# seconds between full status publishes
+	option status_interval '10'
+	# publish the raw 'iw dev <dev> station dump' text per device
+	option station_dump '1'
+	# subscribe the fleet wide '<topic_prefix>command' topic in addition to
+	# the per host one
+	option command_topic_global '1'
+	# publish the global hostapd status (bss/radio/mld topology)
+	option hostapd_status '1'
+	# resend suppression: unchanged payloads are republished only after this
+	# many seconds (retained properties / wireless status), and probes are
+	# forwarded at most once per station and interval. 0 disables throttling
+	#option property_republish '300'
+	#option wireless_republish '60'
+	#option probe_interval '10'
+	# additional ubus objects whose notifications are forwarded
+	list subscribe 'network.interface'
+	list subscribe 'network.device'
+	# ubus broadcast events that are forwarded
+	list listen_event 'network.interface'
+	# seconds between hostapd object list checks / settle delay before
+	# resubscribing after a change. The fast interval is only used when
+	# hostapd does not provide bss.* notifications
+	#option ubus_check_interval '1'
+	#option ubus_check_interval_slow '30'
+	#option ubus_settle '5'
+	# milliseconds between mosquitto loop ticks
+	#option mqtt_loop_interval '200'
+	# reconnect backoff bounds in seconds (jittered, per host)
+	#option mqtt_retry_min '2'
+	#option mqtt_retry_max '120'

@@ -1,0 +1,421 @@
+# apman — controller API
+
+Everything a WLAN controller needs to fully manage an OpenWrt access point
+running `apman`. The agent is a thin, mostly generic bridge between the device's
+ubus bus and an MQTT broker: it forwards ubus notifications and periodic state
+to MQTT, and executes ubus calls received from MQTT. Almost every payload below
+is the **verbatim ubus reply**, so the ubus sources stay the authority for field
+level details.
+
+* Package: `apman` (feed `ddimension/openwrt-repo`), daemon `/usr/bin/apman-status`
+* Transport: MQTT 3.1.1 via lua-mosquitto, optional TLS
+* Configuration: `/etc/config/apman`, see [README](../README.md)
+
+## 1. Identity and topic layout
+
+The device identity is `<hostname>`: `apman.main.hostname` if set, otherwise the
+uci `system` hostname. It appears verbatim in every topic, so it must be unique
+per broker and stable across reboots.
+
+```
+<topic_prefix>ap/<hostname>/...        per device (default prefix: apman/)
+<topic_prefix>command                  fleet wide command topic
+```
+
+Conventions used below:
+
+* **QoS/retain** — unless stated otherwise a publish is QoS 0, not retained.
+* **`timestamp`** — float, seconds since the epoch, taken on the device
+  (`socket.gettime()`). Added to every payload that is a JSON object. Device
+  clocks may be unsynchronised early after boot.
+* Payloads are JSON. Numbers that cannot be represented (inf/nan) are encoded
+  as `null`.
+
+## 2. Lifecycle
+
+| Phase | What the controller sees |
+|---|---|
+| Device connects | `online` = `{"status":"online","timestamp":…}` |
+| First connect only | `booted` = `{}`, then the retained properties, then the first status |
+| Every (re)connect | `online`, `properties/system/board` (retained), `properties/system/info` |
+| Broker loses the device | Last will on `online`: `{"status":"offline"}`, QoS 1, **not retained** |
+
+A controller must therefore be subscribed *before* the disconnect to observe the
+last will; there is no retained offline marker to poll. Treat a missing status
+update for more than a few `status_interval` periods as an additional liveness
+signal.
+
+While the device is disconnected, publishes are **dropped**, not queued. After a
+reconnect the retained properties are republished, the periodic status resumes,
+and the command subscriptions are re-established. Reconnects use exponential
+backoff (2…120 s) with per host jitter.
+
+The ubus subscriptions (and therefore `properties/hostapd/*` and
+`properties/session/create`) are established once, on the first successful MQTT
+connect, and again whenever the hostapd object list changes.
+
+## 3. State and property topics
+
+All relative to `<topic_prefix>ap/<hostname>/`.
+
+### `properties/system/board` — retained, QoS 1
+`ubus call system board`: `kernel`, `hostname`, `system`, `model`, `board_name`,
+`rootfs_type`, `release{distribution,version,revision,target,description}`.
+The controller's source for model and firmware version.
+
+### `properties/system/info`
+`ubus call system info`: `localtime`, `uptime`, `load[3]`,
+`memory{total,free,shared,buffered,available,cached}`, `swap{total,free}`.
+Published on every connect and on every status tick.
+
+### `properties/hostapd/<ifname>/rrm_nr_get_own` — retained, QoS 1
+`ubus call hostapd.<ifname> rrm_nr_get_own`: this BSS's own neighbour report
+element, `{"value":["<bssid>","<ssid>","<hex nr element>"]}`. Collect these
+across the fleet and push the relevant subset back to each AP with `rrm_nr_set`
+to build 802.11k neighbour reports.
+
+### `properties/hostapd/<ifname>/bss_info` — retained, QoS 1
+`ubus call hostapd bss_info {"iface":"<ifname>"}`. Static BSS configuration:
+`hw_mode`, `channel`, `ieee80211ac`, `ieee80211ax`, `bssid`, `ssid`, `wpa`,
+`wpa_key_mgmt`, `wpa_pairwise`, `auth_algs`, `ieee80211w`,
+`owe_transition_ifname`. **Requires the ucode based hostapd** (OpenWrt 23.05+);
+absent otherwise.
+
+### `properties/agent` — retained, QoS 1
+Inventory of the agent itself, so a controller can gate features per AP instead
+of guessing from firmware versions:
+
+```json
+{"agent":"apman","version":"56-2","hostname":"ap-av-attic","started":1786747171.6,
+ "features":["command_v2","resend_suppression","bss_events","hostapd_status",
+             "bss_info","netifd_notifications","ubus_events","station_dump",
+             "survey","assoclist_device"],
+ "hostapd":{"ucode":true},
+ "intervals":{"status":10,"probe":10,"survey":300,
+              "wireless_republish":60,"property_republish":300}}
+```
+
+Absence of this topic means an agent older than 56-2: no `command_v2`, no
+`survey`, no `bss_info`, and probe requests are unthrottled.
+
+### `survey/<ifname>`
+`ubus call iwinfo survey`, published every `survey_interval` seconds (default
+300, `0` disables). Per channel: `mhz`, `noise`, `active_time`, `busy_time`,
+`busy_time_ext`, `rx_time`, `tx_time` — the input for fleet wide channel
+planning. Busy ratio is `busy_time / active_time`.
+
+### `properties/session/create`
+The ubus rpc session apman created for remote access, `{"ubus_rpc_session":
+"<32 hex chars>", …}`. The session is granted read/write/exec on `/*` and has no
+timeout. Use it as the first element of a JSON-RPC `params` array, or against
+the device's own `/ubus` endpoint if one is reachable. Republished whenever the
+ubus subscriptions are rebuilt — the controller should always use the most
+recent one.
+
+## 3a. Resend suppression (important for consumers)
+
+To keep the broker and the consumer from processing identical payloads over and
+over, apman suppresses unchanged messages on the topics where the payload is
+almost always the same:
+
+| Topic | Rule | Option |
+|---|---|---|
+| `properties/hostapd/<dev>/rrm_nr_get_own`, `properties/hostapd/<dev>/bss_info` | Published when changed, otherwise at most every 300 s | `property_republish` |
+| `wireless/status` | Published when changed, otherwise at most every 60 s | `wireless_republish` |
+| `notifications/hostapd/<dev>/probe` | At most one per station per 10 s | `probe_interval` |
+
+Consequences for a controller:
+
+* **Do not use these topics as a heartbeat.** `online` (every `status_interval`)
+  and `device/hostapd/<dev>/status` are the liveness signals; they are never
+  suppressed.
+* State is still guaranteed to converge: everything suppressed is either
+  retained on the broker (properties) or republished within its interval, so a
+  consumer that lost its state resyncs within `wireless_republish` seconds
+  without any action.
+* On every MQTT reconnect the suppression cache is cleared and all properties
+  are published once, so a broker restart cannot leave a consumer stale.
+* Setting any of the options to `0` disables the respective suppression.
+
+Log volume on the AP is bounded the same way: command payloads are truncated to
+`log_payload_len` characters (default 200, `0` logs them in full).
+
+## 4. Periodic status
+
+Published every `status_interval` seconds (default 10).
+
+### `device/hostapd/<ifname>/status`
+One message per master interface. VLAN slave interfaces (`Master (VLAN)` mode
+whose name is prefixed by the master's) are folded into their master.
+
+| Key | Source | Notes |
+|---|---|---|
+| `timestamp` | — | Time the payload was assembled |
+| `info` | `iwinfo info {device}` | phy mode, channel, txpower, country, hwmode, htmode, signal, noise, bitrate, encryption, hardware |
+| `clients` | `hostapd.<ifname> get_clients` | see below |
+| `assoclist` | `iwinfo assoclist {device}` | `{"results":[…]}`, **merged across master and slaves** |
+| `stations` | `iw dev <dev> station dump` | raw text, master then each slave, separated by `\n` |
+| `status` | `network.device status {name}` | link state, MTU, `statistics{rx_bytes,tx_bytes,rx_packets,…}` |
+| `ap_status` | `hostapd.<ifname> get_status` | see below |
+| `hostapd_status` | `hostapd status` → `interfaces[<ifname>]` | see below, ucode hostapd only |
+
+`clients` is `{"freq":…,"clients":{"<mac>":{…}}}`, per station:
+
+* flags `auth`, `assoc`, `authorized`, `preauth`, `wds`, `wmm`, `ht`, `vht`,
+  `he`, `wps`, `mfp`, plus `mbo` when built with MBO
+* `aid`, `rrm[5]`, `extended_capabilities[]`
+* `bytes{rx,tx}`, `packets{rx,tx}`, `airtime{rx,tx}`, `rate{rx,tx}` (kbit/s),
+  `signal` (dBm) — these come from the driver and are the cheapest per client
+  counters available
+* `signature` — client taxonomy fingerprint, only with `CONFIG_TAXONOMY`
+
+`ap_status` is `hostapd get_status`: `driver`, `status` (hostapd state, e.g.
+`ENABLED`), `bssid`, `ssid`, `freq`, `channel`, `op_class`, `beacon_interval`,
+`bss_color` (−1 when disabled), `phy`, plus
+
+* `airtime{time,time_busy,utilization}` — utilization is 0…255
+* `dfs{cac_seconds,cac_seconds_left,cac_active}`
+* `rrm{neighbor_report_tx}`
+* `wnm{bss_transition_query_rx,bss_transition_request_tx,bss_transition_response_rx}`
+
+The `rrm`/`wnm` counters are monotonic per hostapd run and are the direct
+measure of 802.11k/v steering activity.
+
+`assoclist` entries are the rpcd iwinfo plugin's verbatim output (`mac`,
+`signal`, `signal_avg`, `noise`, `inactive`, `connected_time`, `thr`,
+`authorized`, `authenticated`, `rx{…}`, `tx{…}` with rate/mcs/nss/mhz/he flags),
+extended by apman with:
+
+* **`device`** — the interface the station was seen on. For a plain BSS this is
+  the master; for `Master (VLAN)` setups it distinguishes the slave interfaces.
+  Stations of slave interfaces appear in the master's `assoclist` since
+  apman 56-2; before that they were only visible in the `stations` text.
+
+`stations` covers interfaces that never appear in `assoclist` (p2p, mesh peers),
+which is why it is kept in addition to `assoclist`.
+
+### `hostapd/status`
+`ubus call hostapd status`, the authoritative BSS topology:
+
+```json
+{"interfaces": {
+   "wlan0": {"wiphy":"phy0","macaddr":"…","running":true,"pending":false,"radio":0},
+   "wlan1": {"wiphy":"phy1","macaddr":"…","links":{"0":{"radio":0,"macaddr":"…","running":true,"pending":false}}}
+ },
+ "timestamp": …}
+```
+
+`links` is present for MLO/Wi-Fi 7 multi-link BSSes and is the only place the
+per-link MAC addresses are exposed. Requires the ucode based hostapd; disable
+the query with `option hostapd_status '0'`.
+
+### `wireless/status`
+`ubus call network.wireless status`: per radio `up`, `pending`, `autostart`,
+`disabled`, `retry_setup_failed`, `config{…}` and `interfaces[]` with
+`section`, `ifname`, `config{mode,ssid,encryption,…}`. This is the uci view;
+`hostapd/status` is the runtime view.
+
+## 5. Notifications
+
+Forwarded verbatim, with `timestamp` added. One MQTT message per ubus
+notification.
+
+### `notifications/hostapd/<ifname>/<method>`
+Every ubus object whose name starts with `hostapd` is subscribed, so the topic
+segment is the object name with the `hostapd.` prefix stripped
+(`hostapd.wlan0` → `wlan0`, `hostapd-auth` → `auth`, the global `hostapd`
+object → `hostapd`).
+
+| `<method>` | Payload | Meaning |
+|---|---|---|
+| `probe` | `address`, `ifname`, `target`, `signal`, `freq`, `ht_capabilities{…}`, `vht_capabilities{…}` | Probe request. High volume — consider filtering on the controller |
+| `auth` | as above | Authentication attempt |
+| `assoc` | as above | Association attempt |
+| `sta-authorized` | `address`, `ifname` | Station finished 4-way handshake — the "client is online" event |
+| `disassoc` | `address`, `ifname` | Station disassociated |
+| `deauth` | `address`, `ifname` | Station deauthenticated |
+| `local-deauth` | `address`, `ifname` | AP initiated deauth (e.g. `del_client`) |
+| `inactive-deauth` | `address`, `ifname` | Kicked for inactivity |
+| `key-mismatch` | `address`, `ifname` | PSK mismatch — wrong password |
+| `beacon-report` | `address`, `bssid`, `report{…}` | Answer to `rrm_beacon_req` |
+| `link-measurement-report` | `address`, `dialog-token`, `rx-antenna-id`, `tx-antenna-id`, `rcpi`, `rsni` | Answer to `link_measurement_req` |
+| `bss-transition-query` | `address`, `dialog-token`, `reason`, candidate list | Client asks where to roam (11v) |
+| `bss-transition-response` | `address`, `dialog-token`, `status-code`, `bss-termination-delay`, `target-bssid`, candidate list | Client's answer to a steering request |
+| `channel-switch` | `ifname`, `freq`, `bssid` | CSA completed |
+| `radar-detected` | `frequency`, `width`, `center1`, `center2` | DFS radar event |
+| `apup-newpeer` | `address`, `ifname` | APuP micro peering |
+| `bss.add` / `bss.remove` | `name` | BSS appeared/disappeared (global `hostapd` object) |
+| `bss.reload` | `name`, `reconf` | BSS reconfigured |
+
+`probe`, `auth` and `assoc` are notifications hostapd *waits on* — a subscriber
+that answers them can reject a client. apman cannot: the Lua ubus binding calls
+subscriber callbacks with no return path (`ubus/lua/ubus.c`, `lua_call(state, 2,
+0)`, no `ubus_send_reply`). The same limitation applies to the `hostapd-auth`
+object's `sta_auth`/`sta_connected` notifications, which would otherwise allow
+central authorisation. Implementing that requires a patched binding or a
+separate ucode/C helper.
+
+`bss.*` also drives apman itself: on such a notification it rebuilds its ubus
+subscriptions after `ubus_settle` seconds, and the object-list poll drops to
+`ubus_check_interval_slow` (30 s) as a safety net.
+
+### `notifications/network/interface/<method>` and `notifications/network/device/<method>`
+netifd's ubus notifications, subscribed via `list subscribe` (default: both).
+
+| Object | `<method>` | Payload |
+|---|---|---|
+| `network.interface` | `interface.update`, `interface.down` | `interface` plus the full interface status dump |
+| `network.device` | `add`, `remove`, `up`, `down`, `link_up`, `link_down`, `setup`, `teardown`, `auth_up`, `topo_change`, `vlan_update`, `update_ifname`, `update_ifindex` | `name`, `present`, `active`, `link_active`, `auth_status` |
+
+These make uplink and port state event driven instead of polled. Add further
+objects with `list subscribe '<object>'`; unknown objects are skipped with a log
+line, so a controller cannot rely on a topic existing without checking.
+
+### `events/<event>`
+ubus **broadcast** events (`ubus listen`), configured with `list listen_event`.
+Default: `network.interface` → topic `events/network/interface`, payload
+`{"action":"ifup"|"ifdown","interface":"<name>","event":"network.interface",
+"timestamp":…}`.
+
+Only exact event names work: the Lua binding does not pass the event name to the
+handler, so apman has to derive it from the registration — wildcard patterns
+would be ambiguous and are not supported.
+
+## 6. Command channel
+
+apman subscribes (QoS 1):
+
+| Topic | Handler |
+|---|---|
+| `<topic_prefix>command` | Fleet wide broadcast, single command. Disable with `option command_topic_global '0'` |
+| `<topic_prefix>ap/<hostname>/command` | Single command for this device |
+| `<topic_prefix>ap/<hostname>/command/bulk` | List of commands for this device |
+
+### Single command
+
+```json
+{"jsonrpc":"2.0","id":42,"method":"call",
+ "params":["<session>","<ubus object>","<ubus method>",{"<arg>":"<value>"}]}
+```
+
+`params` follows the OpenWrt ubus JSON-RPC convention. The first element (the
+session id) is **ignored** by apman — it calls ubus locally as root. Send the
+session from `properties/session/create` or an empty string.
+
+Requirements, otherwise the message is silently discarded (with a log line):
+`jsonrpc` == `"2.0"`, `method` == `"call"`, `params` is an array.
+
+The response is published **retained, QoS 1** to
+`<topic_prefix>ap/<hostname>/command_result`:
+
+```json
+{"jsonrpc":"2.0","id":42,"result":{…ubus reply…}}
+```
+
+A command sent to the fleet wide topic is answered by every device on its own
+`command_result` topic.
+
+### Bulk command
+
+```json
+{"list":[ {"jsonrpc":"2.0","id":1,"method":"call","params":[…]},
+          {"jsonrpc":"2.0","id":2,"method":"call","params":[…]} ]}
+```
+
+Executed in order, the responses are published as a JSON array (same order) to
+`command_result/bulk`, retained, QoS 1. If any entry fails validation, the
+**whole batch is aborted and nothing is published** — the controller must treat
+a missing result as a failure and time out.
+
+### Error semantics (command channel v2, agent >= 56-2)
+
+Every request produces a response, and success is distinguishable from failure:
+
+```json
+{"jsonrpc":"2.0","id":42,"result":{...},"ubus_status":0,"ts":1786747200.1}
+{"jsonrpc":"2.0","id":42,"error":{"code":4,"message":"not found",
+                                  "object":"hostapd.wlan9","method":"rrm_nr_set"},
+ "ts":1786747200.1}
+```
+
+`ubus_status: 0` marks a successful call even when `result` is absent — several
+ubus methods legitimately return nothing (`rrm_nr_set`), which older agents made
+indistinguishable from a failure. `code` is the ubus status (2 invalid argument,
+3 method not found, 4 not found, 6 permission denied, 7 timeout, 8 not
+supported).
+
+Responses are additionally published to **`command_result/<id>`** (not retained)
+so concurrent commands do not overwrite each other in the retained slot of the
+shared topic. Malformed requests now also produce an error response instead of
+being dropped silently, and in a bulk batch a bad entry no longer discards the
+whole batch — each entry gets its own result or error, in order.
+
+A crashing call still takes the daemon down; procd restarts it after ~10 s.
+Because the shared result topic is retained, a controller must match on `id`
+and ignore stale results left there.
+
+## 7. Controller cookbook
+
+All of these are plain ubus calls sent through the command channel.
+
+**Client steering (802.11v)** — `hostapd.<ifname>` `bss_transition_request`
+with `addr`, `disassociation_imminent`, `disassociation_timer`, `validity_period`,
+`neighbors` (list of neighbour report elements), `abridged`, `dialog_token`.
+The client's answer arrives as a `bss-transition-response` notification.
+
+**Neighbour reports (802.11k)** — collect `rrm_nr_get_own` from every AP, then
+`rrm_nr_set` with `list` = `[[bssid, ssid, nr], …]` on each AP.
+`rrm_nr_list` reads back what is configured.
+
+**Measurements** — `rrm_beacon_req` (`addr`, `op_class`, `channel`, `duration`,
+`mode`, `bssid`, `ssid`) → `beacon-report`; `link_measurement_req` (`addr`) →
+`link-measurement-report`.
+
+**Disconnect / ban** — `del_client` with `addr`, `reason`, `deauth` (bool),
+`ban_time` (ms). `list_bans` shows the active bans.
+
+**Channel / power** — `switch_chan` (`freq`, `bcn_count`, `sec_channel_offset`,
+`center_freq1`, `bandwidth`, `ht`, `vht`, `he`) on `hostapd.<ifname>`, or
+`switch_channel` on the global `hostapd` object. `update_beacon` after changing
+beacon contents, `set_vendor_elements` for custom IEs.
+
+**Airtime policy** — `update_airtime` with per station weights.
+
+**Configuration** — `uci` (`get`, `set`, `add`, `delete`, `commit`) plus
+`ubus call network reload` / `ubus call network.wireless up`. The global
+`hostapd` object also offers `config_add`, `config_set`, `config_remove`,
+`config_reset`, `reload` for direct hostapd config handling.
+
+**Files, packages, logs** — `file` (`read`, `write`, `exec`, `list`, `stat`) via
+rpcd, `system` (`reboot`), `log` (`read`, `write`). `file exec` is how a
+controller runs `sysupgrade`, `logread`, `iw`, etc.
+
+**Interfaces** — `network.interface.<name>` `up`/`down`/`status`,
+`network.device status`, `network reload`.
+
+## 8. Feature detection
+
+| Feature | Requires | Detect via |
+|---|---|---|
+| `hostapd/status`, `properties/…/bss_info`, `bss.*` notifications | ucode based hostapd (OpenWrt 23.05+) | topic present / `hostapd` in `ubus list` |
+| `rrm`/`wnm` counters in `ap_status` | OpenWrt patch `590-rrm-wnm-statistics` | keys present |
+| `signature` per client | hostapd built with `CONFIG_TAXONOMY` | key present |
+| `mbo` per client | hostapd built with `CONFIG_MBO` | key present |
+| `assoclist[].device`, slave stations in `assoclist` | apman ≥ 56-2 | key present |
+| `apup-newpeer` | OpenWrt patch `780-Implement-APuP` | notification arrives |
+
+Do not assume a topic exists because the device is online — an AP with no
+hostapd instance publishes no `device/hostapd/*` at all, and apman waits for the
+first hostapd object before it establishes any subscription.
+
+## 9. Limitations
+
+* No reply path from notifications, so no central authorisation or probe
+  filtering (see §5).
+* No queueing while offline: everything except the retained properties is lost
+  during a broker outage.
+* Commands are executed as root without authorisation checks. The broker is the
+  only security boundary — see the security section of the [README](../README.md).
+* Retained command results mean a controller sees the last result of the
+  previous session on subscribe; always match `id`.
+* `timestamp` is device local and unsynchronised right after boot.
