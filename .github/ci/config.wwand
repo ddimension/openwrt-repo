@@ -1,10 +1,12 @@
 # Kompletter wwand-Stack ins Image (built-in). Wird an .config angehaengt.
 CONFIG_PACKAGE_wwand=y
 CONFIG_PACKAGE_wwand-qmi=y
-# wwand-qmi ersetzt den Stock-QMI-Stack (CONFLICTS uqmi/qmi-advanced) -> aus,
-# sonst stuft defconfig wwand-qmi auf =m (nicht im Image).
+CONFIG_PACKAGE_wwand-mbim=y
+CONFIG_PACKAGE_wwand-ncm=y
+CONFIG_PACKAGE_wwand-mhi=y
+# wwand coexists with the stock WWAN stack (no CONFLICTS). uqmi is left out only
+# to keep the image lean — with both in, defconfig would drop wwand-qmi to =m.
 # CONFIG_PACKAGE_uqmi is not set
-# CONFIG_PACKAGE_qmi-advanced is not set
 CONFIG_PACKAGE_wwand-lpac=y
 CONFIG_PACKAGE_luci-app-wwand=y
 CONFIG_PACKAGE_luci-proto-wwand=y

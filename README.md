@@ -9,7 +9,7 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 
 | Package | Source |
 |---|---|
-| `wwand` (binary packages `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-esim`) | https://github.com/ddimension/wwand |
+| `wwand` (binary packages `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-mhi`, `wwand-esim`) | https://github.com/ddimension/wwand |
 | `luci-app-wwand` | https://github.com/ddimension/luci-app-wwand |
 | `luci-proto-wwand` | https://github.com/ddimension/luci-proto-wwand |
 | `wwand-lpac` | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) (bundled static wolfSSL/curl) |

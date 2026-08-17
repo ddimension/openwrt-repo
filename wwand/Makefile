@@ -9,11 +9,13 @@
 #                                              QMI-over-MBIM passthrough reuses
 #                                              qmi_backend)
 #   wwand-ncm        - NCM/ECM backend        (DEPENDS wwand)
+#   wwand-mhi        - PCIe/MHI transport + drivers (DEPENDS wwand; add a backend)
 #   wwand-esim       - eSIM management        (DEPENDS wwand-qmi + wwand-lpac)
 # A typical QMI router installs `wwand-qmi` (which pulls in `wwand`); add
-# `wwand-mbim` / `wwand-ncm` for those modems. The ucode tree ships precompiled
-# to bytecode by default — built by the repo-root CMakeLists.txt alongside
-# wwand_io.so (dev opt-out: CONFIG_WWAND_UCODE_SOURCE).
+# `wwand-mbim` / `wwand-ncm` for those modems, `wwand-mhi` for a PCIe/MHI modem.
+# The ucode tree ships precompiled to bytecode by default — built by the
+# repo-root CMakeLists.txt alongside wwand_io.so (dev opt-out:
+# CONFIG_WWAND_UCODE_SOURCE).
 #
 # NOTE: the split needs the ucode source that lazy-loads every backend
 # (qmi_lazy.uc + the backend-neutral daemon). Bump PKG_SOURCE_VERSION (and
@@ -22,13 +24,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=26
+PKG_RELEASE:=27
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=b2d81767aa3371ab28ad3f520b57ec0142dd36b0
-PKG_SOURCE_DATE:=2026-08-16
-PKG_MIRROR_HASH:=6477620dc3832d0f66f38a9286429d25724fc74b607c290dbf131a4ab622e040
+PKG_SOURCE_VERSION:=06cab7f01a40f22d4ed12b78696a70c9b908a68d
+PKG_SOURCE_DATE:=2026-08-17
+PKG_MIRROR_HASH:=d288a33692aa354eba5af7fe438e8158ea6f51207491654cf6844a398c0e2c62
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -59,6 +61,21 @@ CMAKE_OPTIONS += \
 WWAND_UCODE=$(if $(CONFIG_WWAND_UCODE_SOURCE),$(PKG_BUILD_DIR)/src-ucode,$(PKG_BUILD_DIR)/$(CMAKE_BINARY_SUBDIR)/ucode/wwand)
 
 UCDIR:=/usr/share/ucode/wwand
+
+# Base-package ucode set, listed explicitly per install dir. No glob-then-`rm`:
+# every module is owned by exactly one package, so a new backend file can never
+# silently ship in the base too. The per-backend install lists below carry the
+# QMI/MBIM/NCM/eSIM modules; main.uc/wwandctl.uc install as executables.
+WWAND_BASE_UC:=apndb.uc atcmd.uc atcmd_parse.uc atport.uc backend.uc board.uc \
+	client.uc config.uc config_check.uc context_common.uc context_monitor_qmi.uc \
+	ctx_settings.uc daemon.uc datapath_qmi.uc discovery.uc hwops.uc log.uc \
+	modem_common.uc modem_init_qmi.uc modem_quirks.uc modeswitch.uc ncm_vendors.uc \
+	netlink.uc netsel_ops.uc protocol_switch.uc reconnect.uc recovery.uc regdetail.uc \
+	sim.uc sim_plmn.uc simops.uc sms.uc sms_pdu.uc telemetry_mbim.uc telemetry_ncm.uc \
+	telemetry_qmi.uc transport.uc ubus.uc
+WWAND_BASE_CODEC:=arfcn_bands.uc hex.uc qmux.uc tlv.uc
+WWAND_BASE_SCHEMA:=ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc rat.uc \
+	uim.uc wda.uc wds.uc wms.uc wms_lazy.uc
 
 # DEVELOPERS: enable CONFIG_WWAND_UCODE_SOURCE (menuconfig, under this package)
 # to ship readable .uc source instead of bytecode — for editing modules live
@@ -109,33 +126,22 @@ define Package/wwand/install
 	# native transport module (built by the cmake step from io/)
 	$(INSTALL_DIR) $(1)/usr/lib/ucode
 	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/io/wwand_io.so $(1)/usr/lib/ucode/
+	# base ucode tree — explicit per-file lists (see WWAND_BASE_* above), so the
+	# base package owns exactly its own modules and nothing a backend ships.
 	$(INSTALL_DIR) $(1)$(UCDIR)/codec/schema
-	$(INSTALL_DATA) $(WWAND_UCODE)/*.uc $(1)$(UCDIR)/
-	$(INSTALL_DATA) $(WWAND_UCODE)/codec/*.uc $(1)$(UCDIR)/codec/
-	$(INSTALL_DATA) $(WWAND_UCODE)/codec/schema/*.uc $(1)$(UCDIR)/codec/schema/
+	$(INSTALL_DATA) $(addprefix $(WWAND_UCODE)/,$(WWAND_BASE_UC)) $(1)$(UCDIR)/
+	$(INSTALL_DATA) $(addprefix $(WWAND_UCODE)/codec/,$(WWAND_BASE_CODEC)) $(1)$(UCDIR)/codec/
+	$(INSTALL_DATA) $(addprefix $(WWAND_UCODE)/codec/schema/,$(WWAND_BASE_SCHEMA)) $(1)$(UCDIR)/codec/schema/
+	# daemon + CLI as executables (not under $(UCDIR))
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(WWAND_UCODE)/main.uc $(1)/usr/sbin/wwand
 	# wwandctl: the human-friendly CLI front-end over the ubus API
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(WWAND_UCODE)/wwandctl.uc $(1)/usr/bin/wwandctl
-	# strip out the files that belong to the per-backend + esim packages
-	rm -f $(1)$(UCDIR)/main.uc $(1)$(UCDIR)/wwandctl.uc
-	# QMI backend -> wwand-qmi
-	rm -f $(1)$(UCDIR)/modem.uc $(1)$(UCDIR)/context.uc \
-		$(1)$(UCDIR)/qmi_backend.uc $(1)$(UCDIR)/callend.uc $(1)$(UCDIR)/qmi_lazy.uc
-	# MBIM backend -> wwand-mbim (incl. the MBIM codec + schema)
-	rm -f $(1)$(UCDIR)/modem_mbim.uc $(1)$(UCDIR)/context_mbim.uc \
-		$(1)$(UCDIR)/mbim_backend.uc $(1)$(UCDIR)/mbim_client.uc \
-		$(1)$(UCDIR)/qmi_over_mbim.uc $(1)$(UCDIR)/mbim_lazy.uc \
-		$(1)$(UCDIR)/codec/mbim.uc
-	# NCM backend -> wwand-ncm
-	rm -f $(1)$(UCDIR)/modem_ncm.uc $(1)$(UCDIR)/context_ncm.uc $(1)$(UCDIR)/ncm_lazy.uc
-	# eSIM -> wwand-esim
-	rm -f $(1)$(UCDIR)/esim.uc $(1)$(UCDIR)/esim_bridge.uc
 	$(INSTALL_DIR) $(1)/lib/netifd/proto
 	# the shim registers `wwand`; the legacy `qmi` alias only when the global
 	# `option takeover` is set (default off, so uqmi keeps `proto qmi`). Install
-	# under the current name — the historical qmi.sh belonged to uqmi/qmi-advanced
+	# under the current name — the historical qmi.sh belonged to uqmi
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-proto.sh $(1)/lib/netifd/proto/wwand.sh
 	$(INSTALL_DIR) $(1)/usr/libexec/wwand
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-migrate $(1)/usr/libexec/wwand/migrate
@@ -158,10 +164,10 @@ define Package/wwand/install
 	# new_id bind / late kmodloader) re-kick a modem parked in no_at_port backoff
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/tty
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.tty $(1)/etc/hotplug.d/tty/20-wwand
-	# wwan-framework hotplug: PCIe/MHI (and some USB) modems expose their control
-	# port under /sys/class/wwan (/dev/wwanXqmiN|mbimN), not usbmisc/cdc-wdm
-	$(INSTALL_DIR) $(1)/etc/hotplug.d/wwan
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.wwan $(1)/etc/hotplug.d/wwan/20-wwand
+	# NOTE: the kernel-wwan-subsystem hotplug (/etc/hotplug.d/wwan/20-wwand) is
+	# NOT installed here — it belongs to wwand-mhi, which also pulls the MHI
+	# drivers that create /sys/class/wwan in the first place (procd only arms a
+	# subsystem whose hotplug dir exists). USB modems never need it.
 endef
 
 # ---------------------------------------------------------------------------
@@ -173,7 +179,7 @@ define Package/wwand-qmi
   SUBMENU:=WWAN
   TITLE:=QMI backend for wwand
   DEPENDS:=+wwand +kmod-usb-net-qmi-wwan +kmod-rmnet
-  # coexists with the stock OpenWrt QMI stack (uqmi + the qmi-advanced dialer):
+  # coexists with the stock OpenWrt QMI stack (uqmi):
   # by default wwand claims only `proto wwand` interfaces, so both can be
   # installed. Set the global `option takeover '1'` (or migrate interfaces from
   # the LuCI modem list) to hand `proto qmi` interfaces to wwand.
@@ -257,6 +263,41 @@ define Package/wwand-ncm/install
 endef
 
 # ---------------------------------------------------------------------------
+# wwand-mhi: PCIe/MHI transport bundle. Modems on the kernel `wwan` subsystem
+# (Foxconn T99W175/SDX, Quectel RM5xx-AE, Telit FN990, …) expose their QMI/MBIM
+# control port under /sys/class/wwan — not usbmisc/cdc-wdm — and need the MHI
+# driver stack instead of the USB kmods. This package pulls those drivers and
+# ships the wwan-subsystem hotplug that binds such a modem on cold-plug. It is
+# transport-only and backend-neutral: install ALONGSIDE wwand-qmi (QMI over MHI,
+# rmnet data) or wwand-mbim (MBIM over MHI) for the control protocol.
+# ---------------------------------------------------------------------------
+define Package/wwand-mhi
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=PCIe/MHI transport + drivers for wwand
+  DEPENDS:=+wwand +kmod-mhi-pci-generic +kmod-mhi-wwan-ctrl \
+	+kmod-mhi-wwan-mbim +kmod-mhi-net
+endef
+
+define Package/wwand-mhi/description
+  Support for cellular modems attached over PCIe/MHI (Foxconn T99W175 and
+  similar), whose control ports appear on the kernel wwan subsystem. Pulls the
+  MHI bus/PCI/control/data drivers and installs the wwan-subsystem hotplug so
+  wwand binds these modems on boot. Install together with a control backend
+  (wwand-qmi or wwand-mbim).
+endef
+
+define Package/wwand-mhi/install
+	# wwan-subsystem hotplug: MHI modems expose their control port under
+	# /sys/class/wwan (/dev/wwanXqmiN|mbimN). procd only dispatches the `wwan`
+	# subsystem once this directory exists — so it ships with the MHI drivers,
+	# not with the base package.
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/wwan
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.wwan $(1)/etc/hotplug.d/wwan/20-wwand
+endef
+
+# ---------------------------------------------------------------------------
 # wwand-esim: eSIM (eUICC) profile management. Needs a QMI UIM/APDU channel.
 # ---------------------------------------------------------------------------
 define Package/wwand-esim
@@ -301,4 +342,5 @@ $(eval $(call BuildPackage,wwand))
 $(eval $(call BuildPackage,wwand-qmi))
 $(eval $(call BuildPackage,wwand-mbim))
 $(eval $(call BuildPackage,wwand-ncm))
+$(eval $(call BuildPackage,wwand-mhi))
 $(eval $(call BuildPackage,wwand-esim))
