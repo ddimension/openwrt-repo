@@ -1239,6 +1239,31 @@ function apman.ctrl_monitor_drop(iface)
 	print(string.format('Detached from the control channel of %s', iface))
 end
 
+-- let go of every bss and take the reply sockets with us.
+--
+-- procd sends SIGTERM on stop and lua ends there, so without this the sockets
+-- of the dying process stay in ctrl_dir until the next start sweeps them up in
+-- ctrl_cleanup_stale(). They do not pile up across restarts, but they do
+-- outlive the service, and hostapd is left holding a monitor that will never
+-- answer again instead of being told we are going.
+function apman.ctrl_shutdown()
+	for iface in pairs(apman.ctrl_monitors) do
+		apman.ctrl_monitor_drop(iface)
+	end
+end
+
+-- Deliberately no signal handler here.
+--
+-- uloop.signal(callback, signum) does register on this build and returns a
+-- handle, but the callback is never invoked — and registering it stops the
+-- default action too, so a process with a "handler" survives SIGTERM instead
+-- of dying. Measured: a test that registers for SIGTERM, gets sent SIGTERM,
+-- and runs on to its own timeout. Using it would leave an agent that cannot be
+-- stopped, which is a great deal worse than a few socket files.
+--
+-- So the sockets are removed by the init script when the service stops, and
+-- ctrl_cleanup_stale() sweeps whatever survived that on the next start.
+
 -- called whenever the bss list changed: attach to what is new, let go of what
 -- disappeared. hostapd forgets its monitors when it restarts, and the same
 -- bss.reload notification that triggers the ubus resubscribe brings us here.
