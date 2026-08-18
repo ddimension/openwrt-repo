@@ -14,12 +14,12 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 | `luci-proto-wwand` | https://github.com/ddimension/luci-proto-wwand |
 | `wwand-lpac` | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) (bundled static wolfSSL/curl) |
 | `apman` | local (`files/`) — Lua AP manager (MQTT via lua-mosquitto, collectd integration) |
-| `homesync` | local (`files/`) — snapcast-client based audio sync setup |
+| `homesync` | local (`files/`) — UCI front end for `snapclient` from the packages feed |
 | `luacurl` | upstream [Lua-cURL/Lua-cURLv3](https://github.com/Lua-cURL/Lua-cURLv3) |
 | `lua-mosquitto` | upstream [flukso/lua-mosquitto](https://github.com/flukso/lua-mosquitto) |
-| `qfirehose` | upstream [nippynetworks/qfirehose](https://github.com/nippynetworks/qfirehose) (Quectel firmware flasher) |
+| `qfirehose` | bundled Quectel QFirehose V1.4.21 source zip (firmware flasher) |
+| `qflash` | bundled Quectel QFlash 2.0 source tarball (legacy firmware flasher) |
 | `qlog` | bundled Quectel QLog V1.5.8 source zip (modem debug logging) |
-| `snapcast` | upstream [badaix/snapcast](https://github.com/badaix/snapcast) |
 | `usb-relay-hid` | upstream [OzFalcon/usb-relay-hid](https://github.com/OzFalcon/usb-relay-hid) |
 
 ## Binary package repositories
@@ -243,7 +243,7 @@ version:
 
 CI runs gh-action-sdk in **per-package mode** (`PACKAGES`), which builds
 only the listed packages plus their real dependencies and enforces the
-mirror hash. Packages that exist in the feed but are not prebuilt
-(snapcast, homesync) are not in the `PACKAGES` list and
-additionally carry `@BROKEN` in their `DEPENDS` (build them locally with
-`CONFIG_BROKEN=y`).
+mirror hash. Every package in this feed is on that list. The hash check is
+a no-op for `homesync` and the `q*` packages, which build from `files/` in
+this repo and declare no `PKG_SOURCE`. `homesync` needs `snapclient` only
+at runtime (`EXTRA_DEPENDS`), so CI does not compile snapcast for it.
