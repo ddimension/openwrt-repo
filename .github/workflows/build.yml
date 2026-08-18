@@ -79,7 +79,7 @@ jobs:
           # scripts/update-hashes.sh and commit the Makefile change.
           # (snapcast, homesync stay out of the list and
           # additionally carry @BROKEN.)
-          PACKAGES: apman luacurl lua-mosquitto usb-relay-hid qfirehose qlog wwand wwand-lpac luci-app-wwand luci-proto-wwand
+          PACKAGES: apman luacurl lua-mosquitto usb-relay-hid wpad-ieee8021x wwand wwand-lpac luci-app-wwand luci-proto-wwand 
           INDEX: 1
           # not staged for openwrt.org upstream — skip patch-refresh and
           # shfmt hygiene checks; the hash check stays active
