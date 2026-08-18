@@ -12,7 +12,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand-lpac
 PKG_VERSION:=2.3.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_LICENSE:=AGPL-3.0-only GPL-3.0-or-later curl
 PKG_MAINTAINER:=
@@ -26,7 +26,7 @@ PKG_HASH:=661dffbd1e9e5732dab4a0bb0a9837d4906c8c66bd748bda262fe3e8d3e420f6
 PKG_BUILD_DIR:=$(BUILD_DIR)/wwand-lpac-$(PKG_VERSION)
 
 # bundled, statically-linked dependencies
-WOLFSSL_VERSION:=5.9.1-stable
+WOLFSSL_VERSION:=5.9.2-stable
 CURL_VERSION:=8.21.0
 
 PKG_BUILD_PARALLEL:=1
@@ -40,7 +40,7 @@ include $(INCLUDE_DIR)/package.mk
 define Download/wolfssl
   FILE:=wolfssl-$(WOLFSSL_VERSION).tar.gz
   URL:=https://github.com/wolfSSL/wolfssl/archive/v$(WOLFSSL_VERSION)
-  HASH:=d5ca7af48cd2d9a91d539e9baedeba55a0605a28d7ac8b01dc3d5254a13ca341
+  HASH:=2f4ef3d4fd387a9b3191d36a6316d69116c46ff69bb9583b6c82b36d7b8ca114
 endef
 $(eval $(call Download,wolfssl))
 
