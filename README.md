@@ -228,6 +228,32 @@ Images land in `./build/<device>-<release>/out/<target>-<subtarget>/`
 (override with `-o`); build logs in `…/src/logs/`. Expect several hours and
 ~40 GB for a first full toolchain build.
 
+## Backing up the fleet's configuration
+
+`scripts/backup-ap-configs.sh` fetches the sysupgrade config archive — the
+one LuCI offers as "Generate archive" — from every AP over ssh:
+
+```
+scripts/backup-ap-configs.sh <target-dir> [ap ...]
+
+scripts/backup-ap-configs.sh /srv/backup -b mqtt.example.net  # whole fleet
+scripts/backup-ap-configs.sh /srv/backup ap-attic ap-outdoor  # named APs
+scripts/backup-ap-configs.sh /srv/backup -f aps.txt -d .lan   # from a file
+```
+
+Name no AP and the list comes from the MQTT broker: apman publishes
+`properties/system/board` retained per AP, so subscribing to that pattern
+enumerates the fleet with no list to maintain (`-b`, or `APMAN_BROKER`;
+`APMAN_MQTT_OPTS` carries broker credentials). `-l` prints the list without
+fetching anything.
+
+The archive is pulled with `sysupgrade -b -`, which streams to stdout and
+suppresses its own status output, so nothing is written on the AP — this
+works on a full flash too. Each archive has to be valid gzip, valid tar and
+contain `etc/config/` before it is kept, so a truncated transfer cannot pass
+as a backup. Files land as `backup-<ap>-<timestamp>.tar.gz`; a failing AP
+does not stop the others, and the exit status is non-zero if any failed.
+
 ## Updating a package to a newer source commit
 
 The source repos are pinned via `PKG_SOURCE_VERSION`. To release a new
