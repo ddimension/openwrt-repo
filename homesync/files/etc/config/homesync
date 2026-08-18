@@ -1,8 +1,10 @@
 
+# One section per snapclient instance. 'server' is the Snapcast server,
+# 'port' its stream port (snapserver's default is 1704), 'device' an ALSA
+# PCM name or index (empty = default card), 'latency' a correction in ms.
 config instance 'main'
 	option server '192.168.203.4'
-	option port '8554'
-	option url 'rtsp://192.168.203.4:8554/stream1'
+	option port '1704'
 	option device ''
+	option latency '0'
 	option disabled 1
-

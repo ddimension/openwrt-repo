@@ -3,9 +3,14 @@
 START=90
 USE_PROCD=1
 
+# Counts the started instances: snapclient's --instance is a number, and it
+# has to differ per client running against the same server.
+INSTANCE_NR=0
+
 start_daemon() {
 	local cfg="$1"
 
+	local disabled
 	config_get_bool disabled "$cfg" disabled 0
 	[ "$disabled" -eq 1 ] && return
 
@@ -22,26 +27,31 @@ start_daemon() {
 	local latency
 	config_get latency "$cfg" latency "0"
 
-	local hostid=$(cat /proc/sys/kernel/hostname)	
-	local instance="$hostid:$cfg"
-	
-	[ "$latency" -gt 0 ] && latency="--latency $latency"
-	[ "$port" -gt 0 ] && port="--port $port"
+	local hostid
+	hostid=$(cat /proc/sys/kernel/hostname)
+
+	INSTANCE_NR=$((INSTANCE_NR + 1))
+
+	if [ "$latency" -gt 0 ] 2>/dev/null; then
+		latency="--latency $latency"
+	else
+		latency=""
+	fi
 	[ -n "$device" ] && device="--soundcard $device"
 	[ -n "$hostid" ] && hostid="--hostID $hostid"
-	[ -n "$instance" ] && instance="--instance $instance"
 
 	procd_open_instance
+	# The server goes in as the positional URL; --host/--port still work but
+	# upstream marks them deprecated.
 	procd_set_param command \
 		/usr/bin/snapclient \
 		--logsink stdout \
 		--logfilter '*:info' \
-		--host "$server" \
+		--instance "$INSTANCE_NR" \
 		$latency \
-		$port \
 		$device \
 		$hostid \
-		$instance
+		"tcp://${server}:${port}"
 	procd_set_param respawn 3600 10 0
 	procd_set_param stdout 1
 	procd_set_param stderr 1

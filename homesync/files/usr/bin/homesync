@@ -1,4 +1,8 @@
 #!/bin/sh
+#
+# Standalone RTSP player, kept from the pre-Snapcast setup: the homesync
+# service does not call it. It needs gst-launch-1.0, which this package does
+# not depend on — install gstreamer1-utils plus the rtsp/alsa plugins first.
 
 SERVER="$1"
 PORT="$2"
@@ -6,7 +10,7 @@ URL="$3"
 DEVICE="$4"
 
 # trap call
-function cleanup() {
+cleanup() {
 	if [ -n "$GSTPID" ]; then
 		echo "Killing client"
 		kill $GSTPID 2>/dev/null
