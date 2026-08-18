@@ -1,0 +1,22 @@
+--- a/Makefile
++++ b/Makefile
+@@ -2,15 +2,15 @@
+ SRC=firehose_protocol.c  qfirehose.c  sahara.c usb_linux.c stream_download_protocol.c md5.c usb2tcp.c 
+ 
+ CFLAGS += -Wall -Wextra -Werror -g #-s
+-LDFLAGS += -lpthread -ldl
++LIBS += -lpthread -ldl
+ BINPATH := ./out
+-ifeq ($(CC),cc)
++ifeq ($(origin CC),default)
+ CC=${CROSS_COMPILE}gcc
+ endif
+ 
+ linux: clean
+-	$(shell if [ -e  ${BINPATH}]; then echo "file existed";else mkdir ${BINPATH}; fi;)
+-	${CC} ${CFLAGS} ${SRC} -o ${BINPATH}/QFirehose ${LDFLAGS}
++	mkdir -p ${BINPATH}
++	${CC} ${CFLAGS} ${SRC} -o ${BINPATH}/QFirehose ${LDFLAGS} ${LIBS}
+ 	
+ android: clean
+ 	rm -rf android

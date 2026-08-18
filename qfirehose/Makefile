@@ -8,50 +8,60 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qfirehose
-PKG_VERSION:=2.0
-PKG_RELEASE:=1
+PKG_VERSION:=1.4.21
+PKG_RELEASE:=2
 # License: Quectel NOTICE in the source tree — binary redistribution to
 # Quectel customers permitted; source disclosure restricted by Quectel.
 PKG_LICENSE:=Quectel-Proprietary
+PKG_LICENSE_FILES:=NOTICE
+PKG_MAINTAINER:=André Valentin <a.valentin@ddimension.net>
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/nippynetworks/qfirehose.git
-PKG_SOURCE_VERSION:=f77d6729dcf72295e2c024782946cf8ac8a2d8c1
-PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_HASH:=1260897adee46bc320150503ef729294c3eec1d976b4e1230cb44961a38c76ba
+# Quectel ships QFirehose only as a zip; the release is not on any public
+# git remote, so the archive lives in files/ and is unpacked in Build/Prepare
+# instead of being fetched.
+PKG_SOURCE_FILE:=$(PKG_NAME)-$(PKG_VERSION).zip
+PKG_SOURCE_TOPDIR:=QFirehose_Linux_and_Android_V$(PKG_VERSION)
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/qfirehose-$(PKG_VERSION)
+# Link-time optimisation and dead-code stripping; package.mk turns these into
+# the matching TARGET_CFLAGS/TARGET_LDFLAGS.
+PKG_BUILD_FLAGS:=gc-sections lto
 
 include $(INCLUDE_DIR)/package.mk
 
 define Package/qfirehose
   SECTION:=net
   CATEGORY:=Network
-  DEPENDS:=+librt +libstdcpp
-  TITLE:=qfirehose firmware update tool for quectel devices
+  TITLE:=QFirehose firmware update tool for Quectel devices
+  DEPENDS:=+libpthread
 endef
 
 define Package/qfirehose/description
-  qfirehose firmware update tool for quectel devices
+  QFirehose firmware update tool for Quectel devices (sahara/firehose protocol)
 endef
 
-define Package/qfirehose/conffiles
+define Build/Prepare
+	rm -rf $(PKG_BUILD_DIR) $(PKG_BUILD_DIR).unpack
+	mkdir -p $(PKG_BUILD_DIR).unpack
+	unzip -q $(CURDIR)/files/$(PKG_SOURCE_FILE) -d $(PKG_BUILD_DIR).unpack
+	mv $(PKG_BUILD_DIR).unpack/$(PKG_SOURCE_TOPDIR) $(PKG_BUILD_DIR)
+	rm -rf $(PKG_BUILD_DIR).unpack
+	$(Build/Patch)
 endef
 
-
-TARGET_CFLAGS += -ffunction-sections $(FPIC)
-TARGET_CFLAGS += -flto
-TARGET_LDFLAGS += -flto=jobserver -fuse-linker-plugin
-TARGET_LDFLAGS += -Wno-error=format-truncation
-
+# 100-makefile-toolchain.patch moves -lpthread/-ldl into LIBS, so passing
+# LDFLAGS= here no longer drops them. The leading + hands the jobserver down
+# to GCC's LTO stage.
 define Build/Compile
-	$(MAKE) -C $(PKG_BUILD_DIR) CROSS_COMPILE=$(TARGET_CROSS) CFLAGS="$(TARGET_CFLAGS)" LDFLAGS="$(TARGET_LDFLAGS)"
+	+$(MAKE) -C $(PKG_BUILD_DIR) linux \
+		CROSS_COMPILE="$(TARGET_CROSS)" \
+		CC="$(TARGET_CC)" \
+		CFLAGS="$(TARGET_CFLAGS) $(TARGET_CPPFLAGS)" \
+		LDFLAGS="$(TARGET_LDFLAGS)"
 endef
 
 define Package/qfirehose/install
 	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/QFirehose $(1)/usr/sbin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/out/QFirehose $(1)/usr/sbin/
 endef
 
 $(eval $(call BuildPackage,qfirehose))
