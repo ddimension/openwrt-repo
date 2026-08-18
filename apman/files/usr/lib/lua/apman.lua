@@ -497,27 +497,38 @@ function apman.statusCallback()
 		end
 	end
 
-	for key, value in pairs(devices['devices']) do
-		local is_master = 1
-		iwinfo[value] = apman.conn:call("iwinfo", "info", { device = value })
-		if iwinfo[value]['mode'] ~= nil and iwinfo[value]['mode'] == 'Master (VLAN)' then
-			for k2, v2 in pairs(devices['devices']) do
-				local s = v2
-				if value ~= s and string.sub(value, 0, string.len(s)) == s then
-					local master = v2
-					is_master = 0
-					if slaves[master] == nil then
-						slaves[master] = {}
-					end
-					table.insert(slaves[master], value)
-					--print('added slave '..value..' to master '..master)
-				end
-			end
+	-- a bss can disappear between the two calls — hostapd tearing an
+	-- interface down leaves it in the device list while info already
+	-- answers nil — and an unchecked index there kills the whole agent
+	local devlist = {}
+	if type(devices) == 'table' and type(devices['devices']) == 'table' then
+		devlist = devices['devices']
+	end
 
-		end
-		if is_master then
-			--print('Add master '..value)
-			table.insert(masters, value)
+	for key, value in pairs(devlist) do
+		local info = apman.conn:call("iwinfo", "info", { device = value })
+		if type(info) == 'table' then
+			iwinfo[value] = info
+			local is_master = 1
+			if info['mode'] ~= nil and info['mode'] == 'Master (VLAN)' then
+				for k2, v2 in pairs(devlist) do
+					local s = v2
+					if value ~= s and string.sub(value, 0, string.len(s)) == s then
+						local master = v2
+						is_master = 0
+						if slaves[master] == nil then
+							slaves[master] = {}
+						end
+						table.insert(slaves[master], value)
+						--print('added slave '..value..' to master '..master)
+					end
+				end
+
+			end
+			if is_master then
+				--print('Add master '..value)
+				table.insert(masters, value)
+			end
 		end
 	end
 
