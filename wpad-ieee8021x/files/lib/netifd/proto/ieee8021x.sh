@@ -31,9 +31,18 @@ proto_ieee8021x_setup() {
 	}
 
 	[ -n "$bridge" ] && {
+		# Bounded wait: netifd retries the setup, so giving up here beats
+		# pinning the protocol handler to a bridge that never appears.
+		local waited=0
 		while ! [ -d "/sys/class/net/$bridge" ]; do
+			[ "$waited" -ge 30 ] && {
+				echo "$cfg" "Bridge $bridge did not appear within ${waited}s."
+				proto_notify_error "$cfg" NO_BRIDGE
+				return 1
+			}
 			echo "Waiting for bridge $bridge to come up."
 			sleep 1
+			waited=$((waited + 1))
 		done
 	}
 
@@ -45,10 +54,10 @@ proto_ieee8021x_setup() {
 		echo "Start wpa_supplicant instance for device $iface with config $wpad_config ."
 		local result="$(ubus call wpa_supplicant config_add '{ "driver": "wired", "ctrl": "/var/run/wpa_supplicant", "iface": "'$iface'", "config": "'$wpad_config'" }')"
 	fi
-        json_init
-        json_load "$result"
+	json_init
+	json_load "$result"
 	local pid
-        json_get_vars pid
+	json_get_vars pid
 	if [ -z "$pid" ] || [ "$pid" -lt 1 ]; then
 		echo "Failed to start wpa_supplicant instance for device $iface with config $wpad_config, result: $result."
 		#proto_notify_error "$cfg" 
