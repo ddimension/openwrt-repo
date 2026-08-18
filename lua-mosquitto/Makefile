@@ -2,16 +2,21 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lua-mosquitto
 PKG_VERSION:=0.4.1.9.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_LICENSE:=MIT
+PKG_LICENSE_FILES:=LICENSE
 PKG_MAINTAINER:=André Valentin <avalentin@marcant.net>
 
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/flukso/lua-mosquitto.git
 PKG_SOURCE_VERSION:=46422c4d498254001407073426744c294ef1ea47
-PKG_SOURCE_PROTO:=git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
+# The source version belongs in the tarball name: without it a version bump
+# that keeps PKG_VERSION would reuse the stale tarball sitting in dl/.
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 PKG_MIRROR_HASH:=de67c3a77553c11794dbc36ab8774f48a411e00ce3b1d6198735d2c20e4b78f2
+
+PKG_BUILD_FLAGS:=gc-sections lto
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -20,7 +25,7 @@ define Package/lua-mosquitto
 	SECTION:=lang
 	CATEGORY:=Languages
 	TITLE:=lua-mosquitto
-	URL:=https://github.com/flukso/lua-mosquitto.git
+	URL:=https://github.com/flukso/lua-mosquitto
 	DEPENDS:=+lua +libmosquitto-ssl
 endef
 
