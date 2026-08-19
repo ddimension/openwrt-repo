@@ -16,7 +16,11 @@ PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 PKG_MIRROR_HASH:=de67c3a77553c11794dbc36ab8774f48a411e00ce3b1d6198735d2c20e4b78f2
 
-PKG_BUILD_FLAGS:=gc-sections lto
+# LTO off: on mips_24kc/mipsel the LTO codegen re-emits non-PIC relocations
+# for the symbols this module deliberately leaves undefined at link time
+# (classic Lua C-module pattern — no -llua on the link line), and ld.bfd
+# rejects them in a shared object (R_MIPS_26/R_MIPS16_26).
+PKG_BUILD_FLAGS:=gc-sections
 
 include $(INCLUDE_DIR)/package.mk
 
