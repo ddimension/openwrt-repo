@@ -58,7 +58,7 @@ CMAKE_OPTIONS += \
 
 # every install section takes the ucode tree from here: the bytecode output of
 # the cmake build, or the plain sources when CONFIG_WWAND_UCODE_SOURCE is set.
-WWAND_UCODE=$(if $(CONFIG_WWAND_UCODE_SOURCE),$(PKG_BUILD_DIR)/src-ucode,$(PKG_BUILD_DIR)/$(CMAKE_BINARY_SUBDIR)/ucode/wwand)
+WWAND_UCODE=$(if $(CONFIG_WWAND_UCODE_SOURCE),$(PKG_BUILD_DIR)/src-ucode,$(CMAKE_BINARY_DIR)/ucode/wwand)
 
 UCDIR:=/usr/share/ucode/wwand
 
@@ -188,7 +188,8 @@ endef
 define Package/wwand-qmi/description
   QMI control backend for wwand: talks QMI natively over /dev/cdc-wdmX (qmi_wwan
   driver) with QMAP multiplexing (rmnet), without spawning uqmi/qmicli. This is
-  the common case for most cellular routers.
+  the common case for most cellular routers. Pair with wwand-mhi for modems
+  attached over PCIe/MHI.
 endef
 
 define Package/wwand-qmi/install
@@ -220,7 +221,8 @@ define Package/wwand-mbim/description
   MBIM control backend for wwand (cdc_mbim driver): native MS Basic Connect (+
   Extensions v2/v3) plus a QMI-over-MBIM passthrough that tunnels the whole QMI
   stack over the open MBIM channel for full CDC-level telemetry/config. The
-  passthrough reuses qmi_backend, hence the dependency on wwand-qmi.
+  passthrough reuses qmi_backend, hence the dependency on wwand-qmi. Pair
+  with wwand-mhi for modems attached over PCIe/MHI.
 endef
 
 define Package/wwand-mbim/install
