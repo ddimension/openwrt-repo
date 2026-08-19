@@ -245,7 +245,9 @@ define Package/wwand-ncm
   CATEGORY:=Network
   SUBMENU:=WWAN
   TITLE:=NCM/ECM backend for wwand
-  DEPENDS:=+wwand +kmod-usb-net-cdc-ncm +kmod-usb-net-cdc-ether
+  # +kmod-usb-net-rndis: the RNDIS datapath (rndis_host) used by e.g. the
+  # Fibocom FM350-GL (MediaTek T700) — same AT-driven backend, RNDIS netdev.
+  DEPENDS:=+wwand +kmod-usb-net-cdc-ncm +kmod-usb-net-cdc-ether +kmod-usb-net-rndis
   # coexists with the stock OpenWrt NCM stack (netifd `ncm` proto, package
   # comgt-ncm): wwand drives an AT/NCM modem only once its interface has been
   # migrated to `proto wwand` (LuCI modem list / migrate CLI), so both stacks can
