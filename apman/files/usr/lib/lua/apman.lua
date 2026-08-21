@@ -2367,7 +2367,28 @@ function apman.apply_config()
 	apman.radius_enabled = apman.cfg_bool('radius_enabled', false)
 	apman.radius_port = apman.cfg_num('radius_port', 1812)
 	apman.radius_bind = apman.cfg('radius_bind', '127.0.0.1')
-	apman.radius_keystore = apman.cfg('radius_keystore', '/etc/apman/keys.json')
+	-- /etc/apman/apman.keys, not /var: this is the store the agent starts from
+	-- after a reboot, and the package lists it as a conffile so a sysupgrade
+	-- carries it over. The old name is taken along once, so an access point
+	-- that has been running does not come up with an empty store.
+	apman.radius_keystore = apman.cfg('radius_keystore', '/etc/apman/apman.keys')
+	do
+		local legacy = '/etc/apman/keys.json'
+		if apman.radius_keystore ~= legacy then
+			local new_f = io.open(apman.radius_keystore, 'r')
+			if new_f == nil then
+				local old_f = io.open(legacy, 'r')
+				if old_f ~= nil then
+					old_f:close()
+					if os.rename(legacy, apman.radius_keystore) then
+						print(string.format('radius keystore: moved %s to %s', legacy, apman.radius_keystore))
+					end
+				end
+			else
+				new_f:close()
+			end
+		end
+	end
 	apman.radius_secret = apman.cfg('radius_secret', '')
 	apman.radius_wifi_config = apman.cfg('radius_wifi_config', '/etc/config/wireless')
 	apman.radius_reload_interval = apman.cfg_num('radius_reload_interval', 10)

@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
 PKG_VERSION:=56
-PKG_RELEASE:=14
+PKG_RELEASE:=15
 PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
@@ -34,7 +34,16 @@ define Build/Configure
 endef
 
 
+# Carried over by sysupgrade. The key store is the only thing on the access
+# point that the controller cannot simply reproduce on demand — it is what
+# lets the agent answer stations in the minutes between a reboot and the next
+# distribution — so it has to survive a firmware upgrade like a config file.
+define Package/apman/conffiles
+/etc/config/apman
+endef
+
 define Package/apman/install
+	$(INSTALL_DIR) $(1)/etc/apman
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/apman-status $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
@@ -47,6 +56,8 @@ define Package/apman/install
 	$(INSTALL_BIN) ./files/usr/lib/lua/apman.lua $(1)/usr/lib/lua
 	$(INSTALL_BIN) ./files/usr/lib/lua/apman-collectd.lua $(1)/usr/lib/lua
 	$(INSTALL_BIN) ./files/usr/lib/lua/apman-radius.lua $(1)/usr/lib/lua
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) ./files/lib/upgrade/keep.d/apman $(1)/lib/upgrade/keep.d/
 	$(INSTALL_DIR) $(1)/usr/share/collectd
 	$(INSTALL_BIN) ./files/usr/share/collectd/types.apman.db $(1)/usr/share/collectd/types.apman.db
 endef

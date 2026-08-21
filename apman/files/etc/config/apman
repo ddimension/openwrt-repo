@@ -57,7 +57,7 @@ config apman 'main'
 	#option radius_bind '127.0.0.1'
 	# keys as the controller ships them (apman keys command); while the file
 	# does not exist the wifi-station sections of radius_wifi_config answer
-	#option radius_keystore '/etc/apman/keys.json'
+	#option radius_keystore '/etc/apman/apman.keys'
 	#option radius_secret ''
 	#option radius_wifi_config '/etc/config/wireless'
 	#option radius_reload_interval '10'
