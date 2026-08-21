@@ -13,9 +13,15 @@
 #   wwand-esim       - eSIM management        (DEPENDS wwand-qmi + wwand-lpac)
 # A typical QMI router installs `wwand-qmi` (which pulls in `wwand`); add
 # `wwand-mbim` / `wwand-ncm` for those modems, `wwand-mhi` for a PCIe/MHI modem.
-# The ucode tree ships precompiled to bytecode by default — built by the
-# repo-root CMakeLists.txt alongside wwand_io.so (dev opt-out:
-# CONFIG_WWAND_UCODE_SOURCE).
+# The ucode tree ships as SOURCE by default. It can be precompiled to bytecode
+# (repo-root CMakeLists.txt, alongside wwand_io.so) via CONFIG_WWAND_UCODE_
+# PRECOMPILE, but that is opt-in and only sound when ucode and wwand are built
+# in the SAME tree: bytecode carries a format version (UCODE_BYTECODE_VERSION,
+# ucode's include/ucode/vm.h) that an interpreter upgraded past it refuses to
+# load, and no package relation can express that coupling — it is independent
+# of libucode's PKG_ABI_VERSION/SONAME, so an ABI-versioned dependency does not
+# capture it either. In a feed, where ucode is upgraded on its own, that is a
+# coupling we must not create.
 #
 # NOTE: the split needs the ucode source that lazy-loads every backend
 # (qmi_lazy.uc + the backend-neutral daemon). Bump PKG_SOURCE_VERSION (and
@@ -24,13 +30,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=30
+PKG_RELEASE:=32
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=890e0f1703ab28bf1843f829ecc8fbb171143b81
+PKG_SOURCE_VERSION:=fe50bd63b09aaa933434fd41b6efc987ac24150a
 PKG_SOURCE_DATE:=2026-08-21
-PKG_MIRROR_HASH:=58fc7b7450b7402576103e2c3dc70ffb8d5ca008e387040e751d23d50ef717d7
+PKG_MIRROR_HASH:=2d3aa8dd1d7f5073db0fe7dbb5c9f50abf38e97258a1d98a5b96c55b9d163d73
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -54,11 +60,12 @@ CMAKE_BINARY_SUBDIR:=build
 
 CMAKE_OPTIONS += \
 	-DUCODE_COMPILER=$(STAGING_DIR_HOSTPKG)/bin/ucode \
-	-DUCODE_PRECOMPILE=$(if $(CONFIG_WWAND_UCODE_SOURCE),OFF,ON)
+	-DUCODE_PRECOMPILE=$(if $(CONFIG_WWAND_UCODE_PRECOMPILE),ON,OFF)
 
 # every install section takes the ucode tree from here: the bytecode output of
-# the cmake build, or the plain sources when CONFIG_WWAND_UCODE_SOURCE is set.
-WWAND_UCODE=$(if $(CONFIG_WWAND_UCODE_SOURCE),$(PKG_BUILD_DIR)/src-ucode,$(CMAKE_BINARY_DIR)/ucode/wwand)
+# the plain sources, or the cmake bytecode output when CONFIG_WWAND_UCODE_
+# PRECOMPILE is set.
+WWAND_UCODE=$(if $(CONFIG_WWAND_UCODE_PRECOMPILE),$(CMAKE_BINARY_DIR)/ucode/wwand,$(PKG_BUILD_DIR)/src-ucode)
 
 UCDIR:=/usr/share/ucode/wwand
 
@@ -77,23 +84,30 @@ WWAND_BASE_CODEC:=arfcn_bands.uc hex.uc qmux.uc tlv.uc
 WWAND_BASE_SCHEMA:=ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc rat.uc \
 	uim.uc wda.uc wds.uc wms.uc wms_lazy.uc
 
-# DEVELOPERS: enable CONFIG_WWAND_UCODE_SOURCE (menuconfig, under this package)
+# DEVELOPERS: leave CONFIG_WWAND_UCODE_PRECOMPILE off (the default)
 # to ship readable .uc source instead of bytecode — for editing modules live
 # under /usr/share/ucode/wwand and for source-line tracebacks; bytecode
 # tracebacks report offsets only.
-PKG_CONFIG_DEPENDS:=CONFIG_WWAND_UCODE_SOURCE
+PKG_CONFIG_DEPENDS:=CONFIG_WWAND_UCODE_PRECOMPILE
 
 define Package/wwand/config
-config WWAND_UCODE_SOURCE
-	bool "Ship ucode sources instead of precompiled bytecode"
+config WWAND_UCODE_PRECOMPILE
+	bool "Precompile the ucode tree to bytecode"
 	depends on PACKAGE_wwand
 	default n
 	help
-	  wwand normally ships its ucode tree precompiled to bytecode
-	  (faster daemon start, no parse step on the device). Enable this
-	  for development builds: the readable sources are installed
-	  instead, runtime tracebacks carry source line numbers and the
-	  modules can be edited in place on the device.
+	  Compile the ucode tree to bytecode instead of shipping the
+	  readable sources. The daemon then starts without a parse step
+	  (measured 41 ms -> 5 ms for the core imports on x86; more on a
+	  router CPU).
+
+	  Only enable this when ucode and wwand come from the SAME build
+	  tree, e.g. a self-built image. Bytecode carries a format version
+	  that an interpreter upgraded past it refuses to load, and nothing
+	  in the package metadata can express that dependency, so a plain
+	  package upgrade of ucode would leave the daemon unable to start.
+	  The init script detects exactly that case and refuses with an
+	  explanatory log line rather than respawning forever.
 endef
 
 # ---------------------------------------------------------------------------
