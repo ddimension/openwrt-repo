@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
 PKG_VERSION:=56
-PKG_RELEASE:=12
+PKG_RELEASE:=13
 PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
@@ -19,7 +19,7 @@ define Package/apman
   CATEGORY:=Administration
   TITLE:=AP Management
   MAINTAINER:=Andre Valentin <avalentin@marcant.net>
-  DEPENDS:= +lua +libubox-lua +libubus-lua +luasocket +lua-cjson +lua-mosquitto +collectd-mod-lua
+  DEPENDS:= +lua +libubox-lua +libubus-lua +luasocket +lua-cjson +lua-mosquitto +collectd-mod-lua +lua-md5
   PKGARCH:=all
 endef
 

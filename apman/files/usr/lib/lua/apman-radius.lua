@@ -222,6 +222,35 @@ local function hmac_md5(key, message)
 		md5(xor_str(kp, string.rep(string.char(0x36), 64)) .. message))
 end
 
+-- The pure lua code above is correct and costs 9 ms per hash on an ipq60xx,
+-- because this lua has no bit library and every and/or/xor goes through the
+-- nibble tables. One Access-Accept needs three to five hashes, which is the
+-- 40-60 ms round trip hostapd reports. That matters: with macaddr_acl=2 the
+-- access point stays silent until the answer is in, and the station gives up
+-- on the authentication frame after three tries in ~330 ms — so those
+-- milliseconds decide whether a roam is a fast transition or a full
+-- reauthentication. The lua-md5 package does the same hash in 4 us.
+--
+-- Rebinding the locals is enough: hmac_md5 and the tunnel password encryption
+-- reach them as upvalues and follow along. Kept optional on purpose, so an
+-- access point that has not been updated yet still answers, only slowly.
+do
+	local ok, native = pcall(require, 'md5')
+	if ok and type(native) == 'table' and type(native.sum) == 'function' then
+		md5 = native.sum
+		if type(native.exor) == 'function' then
+			-- md5.exor insists on equal lengths; xor_str is called with a
+			-- short tail nowhere today, but the fallback keeps it true
+			local lua_xor = xor_str
+			xor_str = function(x, y)
+				if #x == #y then return native.exor(x, y) end
+				return lua_xor(x, y)
+			end
+		end
+		radius.native_md5 = true
+	end
+end
+
 local hexdigits = '0123456789abcdef'
 local function tohex(s)
 	return (s:gsub('.', function(c)
