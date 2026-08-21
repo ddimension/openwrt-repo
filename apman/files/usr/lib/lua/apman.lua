@@ -14,9 +14,14 @@ local mqtt = require("mosquitto")
 -- constructor here and let the feature report itself as unavailable instead
 local have_unix, unix = pcall(require, "socket.unix")
 have_unix = have_unix and type(unix) == 'table' and type(unix.dgram) == 'function'
+-- the optional minimal radius server (apman-radius.lua) answering hostapd
+-- wpa_psk_radius / sae psk mac queries; the feature reports itself absent
+-- when the module is not installed
+local have_radius, apman_radius = pcall(require, 'apman-radius')
+have_radius = have_radius and type(apman_radius) == 'table'
 
 local apman = {}
-apman.version = '56-9'			-- keep in sync with the package Makefile
+apman.version = '56-12'			-- keep in sync with the package Makefile
 apman.started_at = nil
 apman.conn = nil
 apman.hostname = nil
@@ -53,6 +58,23 @@ apman.probe_interval = 10		-- s per station, 0 = forward every probe
 apman.log_payload_len = 200		-- chars of a payload to log, 0 = full
 apman.survey_interval = 300		-- s between channel surveys, 0 = off
 apman.survey_last = 0
+
+-- minimal radius server answering hostapd wpa_psk_radius / sae psk queries
+-- (see apman-radius.lua); started from apman.init when enabled. The keys are
+-- the wifi-station sections of the wireless config, reloaded on hostapd-auth
+-- notifications and checked by a digest timer as a safety net
+apman.radius_enabled = false
+apman.radius_port = 1812
+apman.radius_secret = ''
+apman.radius_wifi_config = '/etc/config/wireless'
+apman.radius_reload_interval = 10	-- s between config change checks, 0 = off
+apman.radius_active = false
+apman.radius_server = nil
+apman.radius_bss_vlans = {}		-- bssid -> the vlan the bss lives on
+apman.radius_bss_ifaces = {}		-- bssid -> uci wifi-iface section name
+apman.radius_bss_digest = nil		-- gate for the bss map watchdog in radius_reload
+apman.radius_bss_ticks = 0		-- full map refreshes every 30 ticks (5 min)
+apman.config_digest = nil		-- /etc/config/apman content the watch saw last
 
 -- hostapd control channel (see apman.ctrl_request)
 apman.ctrl_dir = '/var/run/hostapd'
@@ -165,6 +187,11 @@ apman.ctrl_allowed = {
 	['SIGNATURE'] = true, ['SHOW_NEIGHBOR'] = true, ['GET_CAPABILITY'] = true,
 	['DENY_ACL'] = true, ['ACCEPT_ACL'] = true,
 	['RELOAD_WPA_PSK'] = true, ['BSS_TM_REQ'] = true,
+	-- withdrawing a key needs this: a station that was deauthenticated
+	-- comes back through its cached PMKSA without running SAE or the four
+	-- way handshake again, and would keep using the key that was just
+	-- taken away (measured 2026-08-21, auth_alg=open on an SAE bss)
+	['PMKSA_FLUSH'] = true,
 	['WPS_PIN'] = true, ['WPS_PBC'] = true, ['WPS_CANCEL'] = true,
 	['REQ_BEACON'] = true, ['REQ_LINK_MEASUREMENT'] = true,
 }
@@ -338,7 +365,13 @@ end
 
 function apman.ubusCheckCallback()
 	local c2 = 0
-	local objects = apman.conn:objects()
+	-- the connection can be gone right after boot; the poll must stay armed
+	-- or the whole resubscribe machinery dies quietly
+	local objects = apman.conn and apman.conn:objects()
+	if not objects then
+		apman.timers['ubus_check']:set(apman.ubus_check_interval)
+		return
+	end
 	for key, object in pairs(objects) do
 		if apman.starts_with(object, "hostapd") then
 			c2 = c2 + 1
@@ -691,7 +724,11 @@ end
 -- is present yet
 function apman.subscribe_ubus()
 	local topic, devices, data
-	local objects = apman.conn:objects()
+	-- gone right after boot; the caller retries a second later
+	local objects = apman.conn and apman.conn:objects()
+	if not objects then
+		return false
+	end
 	local available = {}
 
 	apman.count = 0
@@ -720,6 +757,28 @@ function apman.subscribe_ubus()
 	-- its bss.add/bss.remove/bss.reload notifications replace the poll
 	apman.have_bss_events = available['hostapd'] == true
 
+	-- hostapd-auth announces every applied wifi config (config_set ->
+	-- reload). The radius keys come from the wifi-station sections of that
+	-- config, so re-read them on the spot instead of waiting for the digest
+	-- timer; the other notifications it sends (sta_auth, sta_connected) are
+	-- not ours to forward here.
+	if available['hostapd-auth'] and apman.radius_active then
+		local ok, err = pcall(function()
+			apman.conn:subscribe('hostapd-auth', {
+				notify = function(msg, method)
+					if method == 'reload' then
+						apman.radius_reload()
+					end
+				end
+			})
+		end)
+		if ok then
+			print('Subscribing to hostapd-auth for radius key reloads.')
+		else
+			print(string.format('Failed to subscribe hostapd-auth: %s', tostring(err)))
+		end
+	end
+
 	-- additional objects (netifd and friends), published below their own
 	-- topic so nothing that exists today changes
 	for key, object in pairs(apman.subscribe_objects) do
@@ -740,14 +799,22 @@ function apman.subscribe_ubus()
 
 	apman.listen_ubus()
 
-	-- add rrm information
+	-- add rrm information; a bss can disappear between the object list and
+	-- these calls, and an unchecked index kills the whole agent (the same
+	-- guard statusCallback uses)
+	local devlist = {}
 	local devices = apman.conn:call("iwinfo", "devices", {})
-	for key, value in pairs(devices['devices']) do
+	if type(devices) == 'table' and type(devices['devices']) == 'table' then
+		devlist = devices['devices']
+	end
+	for key, value in pairs(devlist) do
 		local rrm = apman.conn:call("hostapd."..value, "rrm_nr_get_own", {})
-		topic = apman.ap_topic('properties/hostapd/' .. value .. '/rrm_nr_get_own')
-		-- resubscribes happen often, the neighbour report almost never
-		-- changes: do not republish it every time
-		apman.publish_property( topic , cjson.encode(rrm), 1, true, apman.property_republish)
+		if type(rrm) == 'table' then
+			topic = apman.ap_topic('properties/hostapd/' .. value .. '/rrm_nr_get_own')
+			-- resubscribes happen often, the neighbour report almost never
+			-- changes: do not republish it every time
+			apman.publish_property( topic , cjson.encode(rrm), 1, true, apman.property_republish)
+		end
 		-- static bss configuration (ssid, encryption, hw mode), ucode
 		-- based hostapd only
 		if available['hostapd'] then
@@ -766,12 +833,25 @@ function apman.subscribe_ubus()
 	topic = apman.ap_topic('properties/session/create')
 	apman.publish_mqtt( topic , cjson.encode(data))
 	apman.publish_agent()
+	-- this also runs after every bss.* change (wifi reloads, hostapd
+	-- restarts): the radius store picks up whatever the config change was
+	-- about, the digest guard keeps the common no-op cheap
+	apman.radius_reload()
 	return true
 end
 
 function apman.get_rpc_session_ubus()
 	local topic, session, opts
+	if not apman.conn then
+		return nil
+	end
 	session = apman.conn:call("session", "create", { timeout = 0 })
+	if type(session) ~= 'table' or session['ubus_rpc_session'] == nil then
+		-- the caller drops a nil answer; indexing a half answer must not
+		-- take the agent down at boot
+		print(string.format("Result of session create: %s", cjson.encode(session)))
+		return nil
+	end
 	print(string.format("Result of session create: %s", cjson.encode(session)))
 
 	local result
@@ -1476,6 +1556,29 @@ function apman.execute_rpc(cmd, done)
 	if type(args) ~= 'table' then
 		args = {}
 	end
+	-- the agent's own object: the radius keystore, one complete set per
+	-- ssid, answered with the versions in force (see radius.apply_keys)
+	if object == 'apman' then
+		if not apman.radius_active then
+			response['error'] = { code = 8, message = 'radius server not running', object = object, method = method }
+		elseif method == 'keys' then
+			local result, kerr = apman_radius.apply_keys(apman.radius_server, args)
+			if result == nil then
+				response['error'] = { code = 4, message = tostring(kerr), object = object, method = method }
+			else
+				response['result'] = result
+				response['ubus_status'] = 0
+			end
+		elseif method == 'keys_status' then
+			response['result'] = { versions = apman.radius_server.store.versions or {},
+				source = apman.radius_server.store.source,
+				keys = apman_radius.store_count(apman.radius_server.store) }
+			response['ubus_status'] = 0
+		else
+			response['error'] = { code = 2, message = 'unknown method', object = object, method = method }
+		end
+		return response
+	end
 	print(string.format("calling %s %s with %s", object, method, apman.trunc(cjson.encode(args))))
 
 	local result, status = apman.conn:call(object, method, args)
@@ -1598,6 +1701,7 @@ function apman.publish_agent()
 	feature('survey', apman.survey_interval > 0)
 	feature('assoclist_device', true)
 	feature('ctrl_proxy', apman.ctrl_enabled and have_unix)
+	feature('radius_psk', apman.radius_active)
 	feature('mib', apman.ctrl_enabled and have_unix and apman.mib_interval > 0)
 	feature('sta_ctrl', apman.ctrl_enabled and have_unix and apman.sta_ctrl_interval > 0)
 	feature('ctrl_events', apman.ctrl_events and apman.ctrl_enabled and have_unix)
@@ -1677,6 +1781,163 @@ function apman.publish_mqtt(topic, payload, qos, retain)
 --		print(string.format("Publish binary payload to mqtt topic '%s'.", topic))
 --	end
 	return apman.client:publish(topic, payload, qos, retain)
+end
+
+-- the vlan a bss lives on itself: its wifi interface as a bridge port with
+-- a pvid (netifd spells the ports "wlan1:*" in bridge-vlans). A station on
+-- that vlan must not get tunnel attributes back — hostapd would only put it
+-- where it already is.
+function apman.refresh_radius_bss_vlans()
+	local iface_map = {}
+	local wireless = apman.conn:call("network.wireless", "status", {})
+	if type(wireless) ~= 'table' then
+		apman.radius_bss_vlans = {}
+		apman.radius_bss_ifaces = {}
+		return
+	end
+	for _, radio in pairs(wireless) do
+		if type(radio) == 'table' and type(radio['interfaces']) == 'table' then
+			for section, iface in pairs(radio['interfaces']) do
+				if type(iface) == 'table' and iface['ifname'] ~= nil then
+					local entry = iface_map[iface['ifname']]
+					if entry == nil then
+						-- netifd's wireless status carries the uci section
+						-- name in the 'section' field; the map key is the
+						-- ifname and only a fallback
+						entry = { section = tostring(iface['section'] or section) }
+						iface_map[iface['ifname']] = entry
+					end
+				if iface['network'] ~= nil then
+					local st = apman.conn:call("network.interface", "status",
+						{ name = iface['network'] })
+					local bridge = type(st) == 'table' and st['device'] or nil
+					if bridge ~= nil and bridge ~= '' then
+						local dev = apman.conn:call("network.device", "status",
+							{ name = bridge })
+						if type(dev) == 'table' and type(dev['bridge-vlans']) == 'table' then
+							for _, vlan in ipairs(dev['bridge-vlans']) do
+								if type(vlan) == 'table' and vlan['id'] ~= nil
+										and type(vlan['ports']) == 'table' then
+									for _, port in ipairs(vlan['ports']) do
+										local p = tostring(port)
+										if string.match(p, '^[^:]+') == iface['ifname']
+												and string.find(p, '*', 1, true) ~= nil then
+											entry.vlan = vlan['id']
+										end
+									end
+								end
+							end
+						end
+					end
+				end
+				end
+			end
+		end
+	end
+
+	-- map the bssid of every wifi interface onto its vlan and its uci
+	-- section name — the radius key store is keyed by the latter
+	apman.radius_bss_vlans = {}
+	apman.radius_bss_ifaces = {}
+	for ifname, entry in pairs(iface_map) do
+		local info = apman.conn:call("iwinfo", "info", { device = ifname })
+		if type(info) == 'table' and type(info['bssid']) == 'string' then
+			local bssid = info['bssid']:gsub('[^%x]', ''):lower()
+			if #bssid == 12 then
+				apman.radius_bss_ifaces[bssid] = entry.section
+				if entry.vlan ~= nil then
+					apman.radius_bss_vlans[bssid] = tostring(entry.vlan)
+				end
+			end
+		end
+	end
+end
+
+-- one 'name:up' line per wireless interface, sorted and joined: the change
+-- gate for the bss map watchdog. Any interface going up or down changes the
+-- string, which is all the map cares about.
+function apman.radius_bss_status_digest()
+	local lines = {}
+	local wireless = apman.conn:call("network.wireless", "status", {})
+	if type(wireless) == 'table' then
+		for _, radio in pairs(wireless) do
+			if type(radio) == 'table' and type(radio['interfaces']) == 'table' then
+				for _, iface in pairs(radio['interfaces']) do
+					if type(iface) == 'table' and iface['ifname'] ~= nil then
+						lines[#lines + 1] = string.format('%s:%s',
+							tostring(iface['ifname']), tostring(iface['up']))
+					end
+				end
+			end
+		end
+	end
+	table.sort(lines)
+	return table.concat(lines, '|')
+end
+
+-- re-read the radius keys from the wireless config; a no-op when nothing
+-- changed (one read plus a digest comparison).
+--
+-- The bss map must follow the radios themselves, not just the config: BSSes
+-- that were down when the map was last built (boot churn, DFS CAC after a
+-- radar event) would otherwise answer every query with 'no key' forever.
+-- Every tick therefore re-checks the wireless status and rebuilds the map
+-- when an interface went up or down; the digest keeps the steady state at
+-- one ubus call per tick.
+function apman.radius_reload()
+	if apman.radius_server ~= nil then
+		apman_radius.reload(apman.radius_server)
+		local dig = apman.radius_bss_status_digest()
+		apman.radius_bss_ticks = (apman.radius_bss_ticks or 0) + 1
+		-- The status digest reacts to interfaces going up and down, but a
+		-- map that was built wrong once (iwinfo hiccup at boot, radios still
+		-- calibrating) can stay wrong forever because the status never
+		-- changes. A full rebuild every 30 ticks (~5 min) bounds the damage.
+		if dig ~= apman.radius_bss_digest or apman.radius_bss_ticks % 30 == 0 then
+			apman.radius_bss_digest = dig
+			apman.refresh_radius_bss_vlans()
+		end
+	end
+end
+
+-- 12 bare hex chars -> aa:bb:cc:dd:ee:ff, the format the controller and
+-- every log reader expects; anything else passes through untouched
+function apman.format_mac(hex)
+	if type(hex) == 'string' and #hex == 12 then
+		return hex:gsub('(%x%x)(%x%x)(%x%x)(%x%x)(%x%x)(%x%x)', '%1:%2:%3:%4:%5:%6')
+	end
+	return hex
+end
+
+-- a radius accept/reject/drop. Accepts and rejects go to the broker, one
+-- topic per bss: the controller can match the event against the bss it
+-- configured, and Called-Station-Id gives us the bssid for free. The key
+-- field names the wifi-station section the answer came from. Events from
+-- sources that do not carry a bssid (radtest, non hostapd clients) land on
+-- the bare topic. Drops (unauthenticated or malformed) only go to the log:
+-- they are not trustable enough to act on and a hostile source must not be
+-- able to flood the topic.
+function apman.on_radius_event(event)
+	-- built with plain concatenations on purpose: an and/or chain around
+	-- string.format once evaluated to nil for events without a vid and
+	-- killed every event (print, and with it the publish) silently
+	local line = 'radius ' .. tostring(event.decision) .. ' '
+		.. tostring(event.mac and apman.format_mac(event.mac) or '?')
+	if event.key then line = line .. ' key=' .. tostring(event.key) end
+	if event.bssid then line = line .. ' bss=' .. tostring(apman.format_mac(event.bssid)) end
+	if event.ssid then line = line .. ' ssid=' .. tostring(event.ssid) end
+	if event.akm then line = line .. ' akm=' .. tostring(event.akm) end
+	if event.vid then
+		line = line .. ' vid=' .. tostring(event.vid)
+		if event.vlan_suppressed then line = line .. ' (bss vlan, not sent)' end
+	end
+	if event.reason then line = line .. ' (' .. tostring(event.reason) .. ')' end
+	print(line)
+	if event.decision == 'accept' or event.decision == 'reject' then
+		local topic = apman.ap_topic('radius/auth' ..
+			(event.bssid ~= nil and ('/' .. event.bssid) or ''))
+		apman.publish_mqtt(topic, cjson.encode(event), 1, false)
+	end
 end
 
 function apman.on_mqtt_disconnect(success, rc, str)
@@ -1963,11 +2224,109 @@ function apman.init()
 
 	apman.timers['ubus_check']:set(apman.ubus_check_interval)
 	apman.timers['status']:set(apman.status_interval)
+
+	-- radius server for hostapd wpa_psk_radius / sae per station psk queries
+	apman.radius_apply()
+
+	-- the controller provisions the radius server by writing /etc/config/
+	-- apman; watch it so no restart is needed to pick the change up
+	if (apman.radius_reload_interval or 10) > 0 then
+		apman.timers['config'] = uloop.timer(apman.configCallback)
+		apman.timers['config']:set(apman.radius_reload_interval * 1000)
+	end
+
 	-- first connection attempt; ubus subscription and the initial status
 	-- publish follow from apman.on_mqtt_connect
 	apman.mqttCallback()
 
 	uloop.run()
+end
+
+-- start or stop the radius server to match the config; also runs when the
+-- config watch picks up a change
+function apman.radius_apply()
+	if not have_radius then
+		if apman.radius_enabled then
+			print('Radius server requested but the apman-radius module is not installed.')
+		end
+		return
+	end
+	if apman.radius_enabled and apman.radius_active
+		and (apman.radius_secret ~= apman.radius_server.secret
+			or apman.radius_port ~= apman.radius_server.opts.port
+			or apman.radius_bind ~= apman.radius_server.opts.bind) then
+		-- the secret changed: keep answering with the old one would strand
+		-- hostapd, so stop first and fall through to a fresh start
+		apman_radius.stop(apman.radius_server)
+		apman.radius_server = nil
+		apman.radius_active = false
+	end
+	if apman.radius_enabled and not apman.radius_active then
+		-- a failing start (bad socket, missing module) must never take the
+		-- whole agent down — radius is an add-on, not the reason to live
+		local ok, server, err = pcall(function()
+			return apman_radius.start({
+				port = apman.radius_port,
+				bind = apman.radius_bind,
+				secret = apman.radius_secret,
+				wifi_config = apman.radius_wifi_config,
+				keystore = apman.radius_keystore,
+				reload_interval = apman.radius_reload_interval,
+				-- B4: the periodic tick rebuilds the bssid map too, not
+				-- just the key store — a map built wrong once (iwinfo
+				-- hiccup at boot) otherwise rejects everybody forever
+				tick = apman.radius_reload,
+				onevent = apman.on_radius_event,
+				bss_vlan = function(bssid) return apman.radius_bss_vlans[bssid] end,
+				bss_iface = function(bssid) return apman.radius_bss_ifaces[bssid] end,
+			})
+		end)
+		if not ok then
+			print(string.format('Radius server failed to start: %s', tostring(server)))
+			return
+		end
+		if server == nil then
+			print(string.format('Radius server not started: %s', tostring(err)))
+		else
+			apman.radius_server = server
+			apman.radius_active = true
+			apman.refresh_radius_bss_vlans()
+			print(string.format('Radius server listening on %s:%d, %d keys from %s.',
+				apman.radius_bind, apman.radius_port,
+				apman_radius.store_count(server.store), tostring(server.store.source)))
+		end
+	elseif not apman.radius_enabled and apman.radius_active then
+		apman_radius.stop(apman.radius_server)
+		apman.radius_server = nil
+		apman.radius_active = false
+		print('Radius server stopped.')
+	end
+end
+
+-- re-read /etc/config/apman when it changes, so a controller that provisions
+-- the radius server over uci needs no restart command to take effect
+function apman.configCallback()
+	if apman.timers['config'] ~= nil then
+		apman.timers['config']:set(math.max(apman.radius_reload_interval, 1) * 1000)
+	end
+	local f = io.open('/etc/config/apman', 'r')
+	local content = f and f:read('*a') or ''
+	if f then f:close() end
+	if content == apman.config_digest then
+		return
+	end
+	apman.config_digest = content
+	-- apply_config() reads apman.config, which init() filled once: without
+	-- this re-read the change on disk would never reach the running values
+	local result = apman.conn:call("uci", "get", {["config"] = "apman", ["section"] = "main"})
+	if type(result) ~= 'table' or type(result.values) ~= 'table' then
+		print('apman config changed but uci would not hand it over, keeping the running values')
+		return
+	end
+	apman.config = result.values
+	print('apman config changed, re-applying.')
+	apman.apply_config()
+	apman.radius_apply()
 end
 
 function apman.apply_config()
@@ -1993,6 +2352,14 @@ function apman.apply_config()
 	apman.probe_interval = apman.cfg_num('probe_interval', 10)
 	apman.log_payload_len = apman.cfg_num('log_payload_len', 200)
 	apman.survey_interval = apman.cfg_num('survey_interval', 300)
+
+	apman.radius_enabled = apman.cfg_bool('radius_enabled', false)
+	apman.radius_port = apman.cfg_num('radius_port', 1812)
+	apman.radius_bind = apman.cfg('radius_bind', '127.0.0.1')
+	apman.radius_keystore = apman.cfg('radius_keystore', '/etc/apman/keys.json')
+	apman.radius_secret = apman.cfg('radius_secret', '')
+	apman.radius_wifi_config = apman.cfg('radius_wifi_config', '/etc/config/wireless')
+	apman.radius_reload_interval = apman.cfg_num('radius_reload_interval', 10)
 
 	apman.ctrl_enabled = apman.cfg_bool('ctrl_enabled', true)
 	apman.ctrl_allow_all = apman.cfg_bool('ctrl_allow_all', false)

@@ -47,6 +47,20 @@ config apman 'main'
 	# reconnect backoff bounds in seconds (jittered, per host)
 	#option mqtt_retry_min '2'
 	#option mqtt_retry_max '120'
+	# minimal radius server answering hostapd wpa_psk_radius / sae per
+	# station psk queries (access accept with tunnel-password, access reject).
+	# The keys are the wifi-station sections of the wireless config and are
+	# reloaded on hostapd-auth notifications; the secret has to match
+	# hostapd's auth_server_shared_secret.
+	#option radius_enabled '0'
+	#option radius_port '1812'
+	#option radius_bind '127.0.0.1'
+	# keys as the controller ships them (apman keys command); while the file
+	# does not exist the wifi-station sections of radius_wifi_config answer
+	#option radius_keystore '/etc/apman/keys.json'
+	#option radius_secret ''
+	#option radius_wifi_config '/etc/config/wireless'
+	#option radius_reload_interval '10'
 	# hostapd control channel proxy: the command channel accepts
 	# {"method":"ctrl","params":["","<ifname>","<COMMAND>"]} and answers with
 	# the raw text plus the parsed key=value pairs. Reaches what ubus does not

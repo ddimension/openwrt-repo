@@ -39,6 +39,11 @@ Two entry points share one Lua module (`/usr/lib/lua/apman.lua`):
 | `ubus_settle` | `5` | Seconds to wait after an object list change before resubscribing |
 | `mqtt_loop_interval` | `200` | Milliseconds between mosquitto loop ticks |
 | `mqtt_retry_min` / `mqtt_retry_max` | `2` / `120` | Reconnect backoff bounds in seconds |
+| `radius_enabled` | `0` | Run the minimal RADIUS server for hostapd per station PSK queries |
+| `radius_port` | `1812` | UDP port the server binds |
+| `radius_secret` | — | Shared secret, must match hostapd's `auth_server_shared_secret`; without it the server stays off |
+| `radius_wifi_config` | `/etc/config/wireless` | Config file the keys are read from (the `wifi-station` sections) |
+| `radius_reload_interval` | `10` | Seconds between config change checks, `0` = only on ubus notifications |
 
 Reconnects use exponential backoff with per-host jitter (the RNG is seeded from
 the hostname), so a fleet does not hammer the broker in lockstep after an
@@ -76,6 +81,52 @@ broadcast command topic; disable it per device with `command_topic_global '0'`.
 In `device/hostapd/<dev>/status`, `assoclist` holds the master interface and,
 for `Master (VLAN)` setups, the stations of its slave interfaces as well; every
 entry carries a `device` field naming the interface it was seen on.
+
+## RADIUS server for per station PSKs
+
+With `radius_enabled '1'` the agent runs a minimal RADIUS server on udp/1812.
+It speaks exactly the contract hostapd uses for `wpa_psk_radius` (1/2/3) and
+`sae_password_psk`: an Access-Request with the station MAC as User-Name is
+answered with Access-Accept carrying the PSK in an encrypted Tunnel-Password
+attribute, or Access-Reject. Every packet must carry a valid
+Message-Authenticator — anything else is dropped without an answer. Point
+hostapd's `auth_server` at the AP itself with a matching
+`auth_server_shared_secret` and configure `wpa_psk_radius=2` (or
+`sae_password_psk=1`) on the bss.
+
+The keys are the `wifi-station` sections of `/etc/config/wireless` — the same
+sections the firmware's hostapd.sh turns into the per bss psk/sae files:
+
+```
+config wifi-station 'anna'
+        list mac '00:11:22:33:44:55'
+        list mac 'aa:bb:cc:dd:ee:ff'
+        option key 'passphrase'
+        option vid '7'
+```
+
+The section name identifies the key (it is reported as `key` in the events),
+`mac` is a list of stations sharing the key — no `mac` at all means every
+station — `key` the passphrase (8–63 chars hashed with the SSID, or a 64 char
+hex PSK), `vid` an optional VLAN that is handed back to hostapd as tunnel
+attributes. When the bss already lives on that vlan itself (its wifi interface
+is a bridge port with that pvid), the tunnel attributes are withheld — hostapd
+would only put the station back where it already is — and the event reports
+`vlan_suppressed` instead of `vlan`. The store is re-read on every
+`hostapd-auth` ubus `reload` notification (each applied wifi config) and
+additionally checked every `radius_reload_interval` seconds by content digest,
+so a `uci commit` + `wifi reload` needs no restart and is visible within
+seconds either way.
+
+`/etc/config/apman` itself is watched the same way: when the file changes the
+agent re-applies its config and starts, stops, or restarts the RADIUS server
+to match (a secret change restarts it). A controller that flips an SSID to the
+on-AP server therefore only needs to write this file — no restart command,
+and the AP keeps answering while the controller is unreachable.
+
+Every decision is logged and published to `radius/auth/<bssid>` (QoS 1, not
+retained, feature flag `radius_psk` in `properties/agent`) — see
+[docs/controller-api.md](docs/controller-api.md).
 
 ## Security
 

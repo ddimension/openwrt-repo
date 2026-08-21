@@ -373,6 +373,35 @@ Only exact event names work: the Lua binding does not pass the event name to the
 handler, so apman has to derive it from the registration — wildcard patterns
 would be ambiguous and are not supported.
 
+### `radius/auth` and `radius/auth/<bssid>` (agent feature `radius_psk`)
+The minimal RADIUS server (`radius_enabled '1'`) answers hostapd's per station
+PSK queries (`wpa_psk_radius` 1/2/3, `sae_password_psk`) and reports every
+decision, QoS 1, not retained:
+
+```json
+{"decision":"accept","mac":"001122334455","bssid":"112233445566",
+ "ssid":"fleet-wlan","akm":"SAE","akm_suite":"000fac08",
+ "key":"anna","vid":"7","vlan":"7","src":"192.168.203.1","timestamp":…}
+```
+
+`decision` is `accept` or `reject`; `mac` is the station, `bssid` and `ssid`
+come from Called-Station-Id and name the bss the client asked (the topic path
+carries the same bssid, so a controller can subscribe per bss). `key` is the
+name of the `wifi-station` section the answer came from (accept only). `vid`
+is the vlan configured for that section; `vlan` repeats it when the tunnel
+attributes were actually sent back to hostapd, and `vlan_suppressed` is `true`
+when they were withheld because the bss already lives on that vlan (its wifi
+interface is a bridge port with that pvid). `akm`/`akm_suite` are the
+WLAN-AKM-Suite (WPA-PSK, SAE, …) when the request carried one. Requests
+without a Called-Station-Id (radtest, non hostapd clients) land on the bare
+`radius/auth` topic; unauthenticated or malformed packets are dropped without
+a topic publish.
+
+The keys come from the `wifi-station` sections of `/etc/config/wireless` and
+are re-read on every `hostapd-auth` ubus `reload` notification (each applied
+wifi config) plus a `radius_reload_interval` digest check — a `uci commit` +
+`wifi reload` updates the store within seconds without touching the agent.
+
 ## 6. Command channel
 
 apman subscribes (QoS 1):
@@ -459,6 +488,32 @@ Notes for a controller:
 points at. Write the psk file first, and make sure the uci `wifi-station`
 sections produce the same content — otherwise the next `wifi reload`
 regenerates the file from uci and silently reverts what was just distributed.
+
+### Agent object `apman` (`method: "call"`, object `"apman"`)
+
+Handled by the agent itself, never forwarded to ubus. Requires the radius
+server to be running (`radius_enabled`), otherwise error code 8.
+
+- `keys` — replace one ssid's key set in the keystore (`radius_keystore`,
+  default `/etc/apman/keys.json`, written tmp+rename, mode 600) and answer
+  from it immediately. While the file exists the wifi-station sections of
+  `radius_wifi_config` are no longer read. args:
+
+  ```json
+  {"ssid": "kalnet", "version": "3f9a1c…", "ifaces": ["wap_kalnet_r0", "wap_kalnet_r1"],
+   "network_key": "optional passphrase for stations without a key of their own",
+   "keys": [{"name": "ppsk_7_123", "mac": "aabbccddeeff", "psk": "…", "vid": "26"},
+            {"name": "ppsk_7_124", "mac": null, "psk": "…"}]}
+  ```
+
+  `ifaces` are the uci `wifi-iface` section names of that ssid on this
+  access point; `mac: null` (or all zeros) is a wildcard key. `keys: null`
+  removes the ssid. Result: `{"versions": {"<ssid>": "<version>"}, "keys": n,
+  "errors": [...]}`. The answer to a station: its own key, else every
+  wildcard key plus `network_key`; for SAE (AKM 000fac08/09) 64 hex raw psks
+  are left out. Several Tunnel-Password attributes, most specific last in
+  the packet (hostapd prepends). `radius/auth` events name the key.
+- `keys_status` — `{"versions": {...}, "source": "keystore"|"wireless", "keys": n}`.
 
 ### Bulk command
 

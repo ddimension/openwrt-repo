@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
 PKG_VERSION:=56
-PKG_RELEASE:=11
+PKG_RELEASE:=12
 PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
@@ -46,6 +46,7 @@ define Package/apman/install
 	$(INSTALL_DIR) $(1)/usr/lib/lua
 	$(INSTALL_BIN) ./files/usr/lib/lua/apman.lua $(1)/usr/lib/lua
 	$(INSTALL_BIN) ./files/usr/lib/lua/apman-collectd.lua $(1)/usr/lib/lua
+	$(INSTALL_BIN) ./files/usr/lib/lua/apman-radius.lua $(1)/usr/lib/lua
 	$(INSTALL_DIR) $(1)/usr/share/collectd
 	$(INSTALL_BIN) ./files/usr/share/collectd/types.apman.db $(1)/usr/share/collectd/types.apman.db
 endef
