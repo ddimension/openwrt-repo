@@ -1924,6 +1924,7 @@ function apman.on_radius_event(event)
 	local line = 'radius ' .. tostring(event.decision) .. ' '
 		.. tostring(event.mac and apman.format_mac(event.mac) or '?')
 	if event.key then line = line .. ' key=' .. tostring(event.key) end
+	if event.key_source then line = line .. ' from=' .. tostring(event.key_source) end
 	if event.bssid then line = line .. ' bss=' .. tostring(apman.format_mac(event.bssid)) end
 	if event.ssid then line = line .. ' ssid=' .. tostring(event.ssid) end
 	if event.akm then line = line .. ' akm=' .. tostring(event.akm) end
@@ -1933,6 +1934,16 @@ function apman.on_radius_event(event)
 	end
 	if event.reason then line = line .. ' (' .. tostring(event.reason) .. ')' end
 	print(line)
+	-- Only one key can ever be offered, so several unbound keys on one network
+	-- means the ones behind the first cannot be enrolled until it binds. The
+	-- access point cannot decide that; say it plainly here and let it travel
+	-- to the controller in the event below.
+	if event.unbound_keys ~= nil then
+		print('radius-error ' .. tostring(event.unbound_keys) .. ' unbound keys on ssid='
+			.. tostring(event.ssid) .. ', ' .. tostring(event.mac and apman.format_mac(event.mac) or '?')
+			.. ' was offered ' .. tostring(event.key)
+			.. ' — the others cannot enrol until it binds')
+	end
 	if event.decision == 'accept' or event.decision == 'reject' then
 		local topic = apman.ap_topic('radius/auth' ..
 			(event.bssid ~= nil and ('/' .. event.bssid) or ''))

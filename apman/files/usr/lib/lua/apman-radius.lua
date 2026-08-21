@@ -775,59 +775,85 @@ function radius.handle(server, data, ip, port)
 	end
 	local bucket = iface ~= nil and server.store.ifaces[iface] or nil
 
-	-- Candidates, most specific first: the station's own key, or every
-	-- wildcard key plus the network passphrase. SAE needs a passphrase —
-	-- a 64 hex raw psk (wps) is only a key for WPA2, so it is left out
-	-- there rather than handed to a station that cannot use it.
+	-- Exactly one key goes out, in this order: the station's own key, then a
+	-- wildcard key, then the network passphrase.
+	--
+	-- One, because a second one is at best dead weight and at worst hides the
+	-- first. hostapd's sae_get_password() walks sta->psk but breaks on the
+	-- first passphrase unless use_sta_psk is set, and use_sta_psk is only set
+	-- from the ucode sta_auth hook, which the RADIUS ACL path never reaches:
+	--
+	--     for (psk = sta->psk; psk; psk = psk->next) {
+	--             if (!psk->is_passphrase) continue;
+	--             password = psk->passphrase;
+	--             if (!sta->use_sta_psk) break;
+	--
+	-- Measured 2026-08-21 on kalclients: a station was sent its own key plus
+	-- the network key, hostapd tried only the first, the confirm failed and
+	-- the station walked away — which the access point reports as nothing more
+	-- helpful than "did not acknowledge authentication response". WPA2 would
+	-- iterate the list, but sending one key there too keeps both paths
+	-- answering the same thing, which is the whole point of the key store.
+	--
+	-- SAE needs a passphrase: a 64 hex raw psk (what WPS enrolment produces)
+	-- is a key for WPA2 only, so it is skipped rather than handed to a station
+	-- that cannot use it.
 	local sae = suite == '000fac08' or suite == '000fac09'
 		or (bucket ~= nil and bucket.sae == true)
-	local candidates = {}
 	local function usable(e)
 		return e ~= nil and not (sae and #e.psk == 64 and e.psk:match('^%x+$'))
 	end
+
+	local entry, from, wildcards = nil, nil, {}
 	if mac ~= nil and bucket ~= nil then
 		if usable(bucket.entries[mac]) then
-			candidates[1] = bucket.entries[mac]
+			entry, from = bucket.entries[mac], 'per-mac'
 		else
 			for _, e in ipairs(bucket.wildcards) do
 				if usable(e) then
-					candidates[#candidates + 1] = e
+					wildcards[#wildcards + 1] = e
 				end
 			end
-		end
-		if bucket.network_key ~= nil and #candidates < 8 then
-			local seen = false
-			for _, e in ipairs(candidates) do
-				if e.psk == bucket.network_key then seen = true end
-			end
-			if not seen then
-				candidates[#candidates + 1] = { psk = bucket.network_key, name = 'network' }
+			if wildcards[1] ~= nil then
+				entry, from = wildcards[1], 'wildcard'
+			elseif bucket.network_key ~= nil then
+				entry, from = { psk = bucket.network_key, name = 'network' }, 'network'
 			end
 		end
 	end
-	local entry = candidates[1]
 
-	-- TEMPORARY DEBUG — log the psk that is being delivered (phone SAE
-	-- investigation)
+	-- More than one unbound key on the same network is not decidable here:
+	-- only one can be offered, so the others cannot be enrolled until this one
+	-- binds itself. Say so loudly — in the log and, through the event, to the
+	-- controller, which is the only place that can resolve it.
+	local ambiguous = (from == 'wildcard') and #wildcards > 1 or false
+	if ambiguous then
+		local names = {}
+		for _, e in ipairs(wildcards) do
+			names[#names + 1] = tostring(e.name or '?')
+		end
+		print(string.format(
+			'radius-error %d unbound keys on ssid=%s, only %s can be offered to %s — '
+			.. 'the others cannot enrol until it binds: %s',
+			#wildcards, tostring(ssid or '-'), tostring(entry.name or '?'),
+			mac or '-', table.concat(names, ' ')))
+	end
+
 	if entry ~= nil then
-		local from = bucket.entries[mac] == entry and 'per-mac' or 'wildcard'
-		print(string.format('radius-debug psk=%s from=%s n=%d mac=%s bssid=%s ssid=%s akm=%s',
-			entry.psk, from, #candidates, mac or '-', bssid or '-', ssid or '-', tostring(akm)))
+		print(string.format('radius-debug psk=%s from=%s mac=%s bssid=%s ssid=%s akm=%s%s',
+			entry.psk, from, mac or '-', bssid or '-', ssid or '-', tostring(akm),
+			ambiguous and (' AMBIGUOUS(' .. #wildcards .. ')') or ''))
 	end
 
 	local own_vlan, answered_vlan, vlan_suppressed
 	local code, attrs = 3, {}
 	if entry ~= nil then
 		code = 2
-		-- least specific first in the packet: hostapd prepends every
-		-- Tunnel-Password to the station's list, so the last attribute is
-		-- the first key it tries — and with SAE the only one it tries
-		for i = #candidates, 1, -1 do
-			attrs[#attrs + 1] = {
-				type = ATTR_TUNNEL_PASSWORD,
-				value = radius.tunnel_password(candidates[i].psk, server.secret, pkt.auth),
-			}
-		end
+		-- one Tunnel-Password, see the decision above
+		attrs[#attrs + 1] = {
+			type = ATTR_TUNNEL_PASSWORD,
+			value = radius.tunnel_password(entry.psk, server.secret, pkt.auth),
+		}
 		-- the vlan trio radius_msg_get_vlanid() decodes back — unless the
 		-- station lives on the bss's own vlan, then hostapd would only put
 		-- it back where it already is
@@ -862,7 +888,10 @@ function radius.handle(server, data, ip, port)
 		akm = akm,
 		akm_suite = suite,
 		key = entry and entry.name or nil,
-		candidates = #candidates > 1 and #candidates or nil,
+		key_source = from or nil,
+		-- the controller is the only place that can resolve two unbound keys
+		-- competing for the same station, so the count travels with the event
+		unbound_keys = ambiguous and #wildcards or nil,
 		vid = entry and entry.vid or nil,
 		vlan = answered_vlan or nil,
 		vlan_suppressed = vlan_suppressed or nil,
