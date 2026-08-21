@@ -690,11 +690,17 @@ function radius.apply_keys(server, payload)
 			keys = payload.keys,
 		}
 	end
-	local dir = path:match('^(.*)/[^/]+$')
-	if dir ~= nil then
-		os.execute(string.format("mkdir -p '%s'", dir))
-	end
+	-- The directory is there on every run after the first, and mkdir -p forks
+	-- a shell for 2 ms to find that out. Try the write, make the directory
+	-- only when it actually fails.
 	local f, err = io.open(path .. '.tmp', 'w')
+	if f == nil then
+		local dir = path:match('^(.*)/[^/]+$')
+		if dir ~= nil then
+			os.execute(string.format("mkdir -p '%s'", dir))
+			f, err = io.open(path .. '.tmp', 'w')
+		end
+	end
 	if f == nil then
 		return nil, 'cannot write keystore: ' .. tostring(err)
 	end
@@ -702,9 +708,30 @@ function radius.apply_keys(server, payload)
 	f:close()
 	-- the file carries secrets; keep it to root before it gets its name
 	os.execute(string.format("chmod 600 '%s.tmp' && mv '%s.tmp' '%s'", path, path, path))
-	-- rebuilt through the merge, so the ssids that still keep their keys in
-	-- wifi-station sections keep answering
-	local store = radius.load_store(server.opts)
+
+	-- The running store is what answers RADIUS, and RADIUS is what decides —
+	-- the file is only there so a reboot does not start empty. So put the keys
+	-- into memory directly instead of writing them out and reading everything
+	-- back: load_store() re-parses the whole /etc/config/wireless, 14 ms of it,
+	-- for keys we are already holding.
+	--
+	-- Removing an ssid is the exception. Its interfaces have to fall back to
+	-- whatever the wifi-station sections say, and only the wireless config
+	-- knows that, so it takes the long way.
+	local store
+	if payload.keys == nil or payload.keys == cjson.null or server.store == nil
+		or type(server.store.ifaces) ~= 'table' then
+		store = radius.load_store(server.opts)
+	else
+		store = server.store
+		local ks = radius.load_keystore(data)
+		for iface, bucket in pairs(ks.ifaces) do
+			store.ifaces[iface] = bucket
+		end
+		store.versions = ks.versions
+		store.source = 'keystore+wireless'
+		store.error_lines = ks.error_lines or {}
+	end
 	server.store = store
 	server.store_digest = nil
 	print(string.format('radius keystore: %s at version %s, %d keys in store (%s)',
