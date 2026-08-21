@@ -30,13 +30,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=32
+PKG_RELEASE:=33
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=fe50bd63b09aaa933434fd41b6efc987ac24150a
+PKG_SOURCE_VERSION:=31d1325d7cee342af22e8343c691262e06f0ddc7
 PKG_SOURCE_DATE:=2026-08-21
-PKG_MIRROR_HASH:=2d3aa8dd1d7f5073db0fe7dbb5c9f50abf38e97258a1d98a5b96c55b9d163d73
+PKG_MIRROR_HASH:=926f8db6f6f074b9f14779e4835c0a4414a6b119fe6317c0c5a1232c316f6aa4
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -160,10 +160,13 @@ define Package/wwand/install
 	$(INSTALL_DIR) $(1)/usr/libexec/wwand
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-migrate $(1)/usr/libexec/wwand/migrate
 	# migration is user-triggered (LuCI modem list / the migrate CLI); the
-	# uci-defaults hook auto-migrates on install/upgrade ONLY when the global
-	# `option takeover` is set (default off — wwand does not touch existing configs)
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand.defaults $(1)/etc/uci-defaults/99-wwand-migrate
+	# Config migration is ALWAYS user-triggered: nothing is installed under
+	# /etc/uci-defaults, so installing or upgrading wwand never rewrites an
+	# existing configuration. The example below is shipped inert; copying it
+	# into /etc/uci-defaults/ runs the same migration once, at the next boot.
+	$(INSTALL_DIR) $(1)/usr/share/wwand/examples
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/examples/99-wwand-migrate \
+		$(1)/usr/share/wwand/examples/99-wwand-migrate
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand.init $(1)/etc/init.d/wwand
 	# no /etc/config/wwand for new installs — all config lives in
