@@ -8,6 +8,11 @@ CONFIG_PACKAGE_wwand-mhi=y
 # to keep the image lean — with both in, defconfig would drop wwand-qmi to =m.
 # CONFIG_PACKAGE_uqmi is not set
 CONFIG_PACKAGE_wwand-lpac=y
+# eSIM (eUICC) profile management. wwand-lpac alone only provides the lpac
+# binary -- without wwand-esim the esim.uc/esim_bridge.uc backend is missing and
+# the LuCI eSIM page has nothing to talk to. Depends on wwand-qmi (APDU over the
+# modem UIM channel) and on the virtual lpac, satisfied by wwand-lpac above.
+CONFIG_PACKAGE_wwand-esim=y
 CONFIG_PACKAGE_luci-app-wwand=y
 CONFIG_PACKAGE_luci-proto-wwand=y
 CONFIG_PACKAGE_luci=y

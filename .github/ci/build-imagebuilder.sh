@@ -35,7 +35,10 @@ FEED="${FEED_ROOT}/${GHP_DIR}/${ARCH}"
 echo "${FEED}/packages.adb" >> repositories
 echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
 
-PKGS="wwand wwand-lpac luci-app-wwand luci-proto-wwand \
+# wwand-qmi is the QMI backend (wwand itself is backend-neutral) and is also the
+# hard dependency of wwand-esim, which carries the eSIM/eUICC profile management
+# -- wwand-lpac only ships the lpac binary. Keep the two together.
+PKGS="wwand wwand-qmi wwand-esim wwand-lpac luci-app-wwand luci-proto-wwand \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
 kmod-usb-serial-option kmod-vrf luci"
 
