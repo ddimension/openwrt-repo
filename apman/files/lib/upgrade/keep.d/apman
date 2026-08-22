@@ -1,4 +1,0 @@
-# The agent's key store. It is what lets an access point answer stations in
-# the minutes between coming up and the next distribution, and the controller
-# cannot reproduce it without being asked — so it survives a firmware upgrade.
-/etc/apman
