@@ -8,8 +8,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
-PKG_VERSION:=60
-PKG_RELEASE:=2
+PKG_VERSION:=61
+PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 
 # The agent has its own repository; this package only installs it. A pinned
@@ -22,8 +22,8 @@ PKG_LICENSE:=GPL-2.0-only
 # entry.
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/apman-agent.git
-PKG_SOURCE_VERSION:=efa2daa328c1179543e99d3ad45cd546e595abfd
-PKG_MIRROR_HASH:=1c436bf868b1eed47157a0a3ffbd3577271bb879a6335cbf6b64e7bd6c1b7f54
+PKG_SOURCE_VERSION:=3967e239066afbcff72c95f9da5a7f34c3c8a1a3
+PKG_MIRROR_HASH:=a957d3093eb8877729b85e43111052d5dc5701dcd3c30f791891b8b82c6361d5
 
 include $(INCLUDE_DIR)/package.mk
 
