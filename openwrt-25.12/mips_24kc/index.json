@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "architecture": "mips_24kc",
+  "packages": {
+    "apman": "61-r1",
+    "homesync": "7-r2",
+    "libubus-lua-async": "2026.06.28~24864e78-r1",
+    "lua-mosquitto": "0.4.1.9.1-r2",
+    "luacurl": "0.3.13-r1",
+    "luci-app-wwand": "2026.08.21~b4dcc07a-r17",
+    "luci-proto-wwand": "2026.08.11~7d9ac0fe-r9",
+    "qfirehose": "1.4.21-r2",
+    "qflash": "2.0-r2",
+    "qlog": "1.5.8-r1",
+    "usb-relay-hid": "2.2.0.1-r0",
+    "wpad-ieee8021x": "1-r3",
+    "wwand": "2026.08.21~31d1325d-r33",
+    "wwand-esim": "2026.08.21~31d1325d-r33",
+    "wwand-lpac": "2.3.0-r4",
+    "wwand-mbim": "2026.08.21~31d1325d-r33",
+    "wwand-mhi": "2026.08.21~31d1325d-r33",
+    "wwand-ncm": "2026.08.21~31d1325d-r33",
+    "wwand-qmi": "2026.08.21~31d1325d-r33"
+  }
+}
