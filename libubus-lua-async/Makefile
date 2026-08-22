@@ -34,6 +34,14 @@
 # installed libubus is the one way to get this wrong quietly, so the commit is
 # pinned to the base package's rather than to a branch.
 #
+# On the two patches: 100- is the change itself and is offered upstream
+# (github.com/openwrt/ubus, branch lua-async on ddimension/ubus). 090- stays
+# ours on purpose. It puts cmake_minimum_required back into lua/CMakeLists.txt,
+# and upstream removed it deliberately in b462895 as redundant — the top level
+# inherits it, and configuring a subdirectory on its own is not something that
+# project wants to support. Proposing it would be reverting a merged decision.
+# We need it because this package configures lua/ alone, so we carry it here.
+#
 # This is free software, licensed under the GNU Lesser General Public License
 # version 2.1, like the source it patches.
 
