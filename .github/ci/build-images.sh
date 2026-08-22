@@ -73,6 +73,72 @@ grep -q '^CONFIG_PACKAGE_wwand=y' .config || { echo "FEHLER: wwand nicht selekti
 echo "device + wwand selection ok"
 echo "::endgroup::"
 
+# Stall-Wachhund. Am 2026-08-22 blieb der chateau-stable-Leg (Lauf 32545665275)
+# 90 s nach Baubeginn ohne jede Ausgabe stehen -- letzte Zeile
+# "make[4] scripts/config/conf" -- und lief 15 h ins Job-Timeout. Das kostet
+# nicht nur den Lauf: build-device-images haelt eine Concurrency-Gruppe, der
+# Haenger blockiert also jeden folgenden Image-Lauf mit. Dieselbe Signatur
+# (keine Ausgabe, keine CPU-Last) hatte der qca-ssdk-Deadlock weiter unten.
+# Statt stumm zu haengen: Diagnose ziehen und abbrechen.
+STALL_LIMIT="${STALL_LIMIT:-2700}"   # 45 min ohne neue Ausgabe = haengt
+STALL_POLL="${STALL_POLL:-15}"       # so oft nachsehen (kurz, damit fertige Stufen nicht warten)
+
+stall_diagnose() {
+	echo "=== Prozessbaum ==="
+	ps -eo pid,ppid,stat,etime,pcpu,args --forest 2>/dev/null | tail -80
+	echo "=== Load ==="
+	cat /proc/loadavg 2>/dev/null
+	echo "=== juengste Paket-Logs ==="
+	find logs -name '*.txt' -mmin -180 2>/dev/null | head -5 | while read -r f; do
+		echo "--- $f"
+		tail -n 20 "$f"
+	done
+}
+
+# run_watched <tag> <kommando...>: fuehrt das Kommando aus, streamt seine
+# Ausgabe und bricht ab, wenn STALL_LIMIT lang nichts mehr dazukommt.
+run_watched() {
+	local tag="$1"; shift
+	local log="/tmp/stage-${tag}.log" rcfile="/tmp/stage-${tag}.rc" mk tl age rc
+
+	rm -f "$rcfile"; : > "$log"
+	( "$@" >>"$log" 2>&1; echo "$?" > "$rcfile" ) &
+	mk=$!
+	tail -f -n +1 "$log" & tl=$!
+
+	while kill -0 "$mk" 2>/dev/null; do
+		sleep "$STALL_POLL"
+		age=$(( $(date +%s) - $(stat -c %Y "$log" 2>/dev/null || echo 0) ))
+		[ "$age" -gt "$STALL_LIMIT" ] || continue
+
+		# stdout allein reicht als Signal nicht: mit BUILD_LOG=1 landet die
+		# Paketausgabe in logs/, und ein einzelnes langes Paket (gcc im
+		# toolchain/install) schreibt minutenlang keine Zeile nach stdout.
+		# Zweite Meinung vom Dateisystem einholen -- ein laufender Build fasst
+		# staendig Dateien an. Der find laeuft nur, wenn stdout schon still ist.
+		if find logs build_dir/hostpkg build_dir/toolchain-* build_dir/target-* \
+			-type f -newermt "-${STALL_LIMIT} seconds" -print -quit 2>/dev/null | grep -q .; then
+			echo ">> ${tag}: stdout seit ${age}s still, aber der Baum arbeitet noch -- weiter"
+			continue
+		fi
+
+		if true; then
+			echo "::error::Stufe '${tag}' haengt: seit ${age}s keine Ausgabe (Limit ${STALL_LIMIT}s)"
+			stall_diagnose
+			pkill -9 -P "$mk" 2>/dev/null || true
+			kill -9 "$mk" 2>/dev/null || true
+			echo 124 > "$rcfile"
+			break
+		fi
+	done
+
+	wait "$mk" 2>/dev/null || true
+	sleep 1; kill "$tl" 2>/dev/null || true
+	rc="$(cat "$rcfile" 2>/dev/null || echo 1)"
+	[ "$rc" = 0 ] || echo "Stufe '${tag}' endete mit rc=${rc}"
+	return "$rc"
+}
+
 echo "::group::build"
 # MAKE_JOBS = vom Runner-CT freigegebene Kerne (im Workflow aus der cgroup-Quota
 # ermittelt). Fallback auf nproc, wenn nicht gesetzt -- ACHTUNG: nproc meldet im
@@ -88,11 +154,11 @@ echo "make -j${JOBS}"
 # wird uebersprungen). Auf Legs, die nicht haengen wuerden, ist das nur strukturiert.
 if [ -d package/kernel/qca-ssdk ]; then
 	echo ">> qca-ssdk: prereqs parallel, dann qca-ssdk -j1 (Deadlock-Vermeidung)"
-	make -j"${JOBS}" tools/install toolchain/install target/linux/compile BUILD_LOG=1
-	make -j1 package/kernel/qca-ssdk/compile BUILD_LOG=1
+	run_watched prereqs make -j"${JOBS}" tools/install toolchain/install target/linux/compile BUILD_LOG=1
+	run_watched qca-ssdk make -j1 package/kernel/qca-ssdk/compile BUILD_LOG=1
 fi
 
-make -j"${JOBS}" BUILD_LOG=1
+run_watched world make -j"${JOBS}" BUILD_LOG=1
 echo "::endgroup::"
 
 # Artefakte einsammeln
