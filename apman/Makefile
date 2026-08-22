@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
-PKG_VERSION:=59
+PKG_VERSION:=60
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 
@@ -22,8 +22,8 @@ PKG_LICENSE:=GPL-2.0-only
 # entry.
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/apman-agent.git
-PKG_SOURCE_VERSION:=fd790dc61029eb9950fb9e60e95bf7f80e61ea48
-PKG_MIRROR_HASH:=43300db14710e8b81345c957f93139cc9da83348a942b3dcb8f9bd298a18d651
+PKG_SOURCE_VERSION:=efa2daa328c1179543e99d3ad45cd546e595abfd
+PKG_MIRROR_HASH:=1c436bf868b1eed47157a0a3ffbd3577271bb879a6335cbf6b64e7bd6c1b7f54
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -69,6 +69,8 @@ define Package/apman/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman.lua $(1)/usr/lib/lua
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-collectd.lua $(1)/usr/lib/lua
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-radius.lua $(1)/usr/lib/lua
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-ctrl.lua $(1)/usr/lib/lua
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-parse.lua $(1)/usr/lib/lua
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/lib/upgrade/keep.d/apman $(1)/lib/upgrade/keep.d/
 	$(INSTALL_DIR) $(1)/usr/share/collectd
