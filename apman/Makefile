@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
 PKG_VERSION:=60
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_LICENSE:=GPL-2.0-only
 
 # The agent has its own repository; this package only installs it. A pinned
@@ -32,7 +32,7 @@ define Package/apman
   CATEGORY:=Administration
   TITLE:=AP Management
   MAINTAINER:=Andre Valentin <avalentin@marcant.net>
-  DEPENDS:= +lua +libubox-lua +libubus-lua +luasocket +lua-cjson +lua-mosquitto +collectd-mod-lua +lua-md5
+  DEPENDS:= +lua +libubox-lua +libubus-lua-async +luasocket +lua-cjson +lua-mosquitto +collectd-mod-lua +lua-md5
   PKGARCH:=all
 endef
 
