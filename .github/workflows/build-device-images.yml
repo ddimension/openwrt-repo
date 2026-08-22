@@ -155,6 +155,46 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
+      # Der Feed wird von GitHub Pages ausgeliefert, und dieser Workflow haengt
+      # per workflow_run am Feed-Build -- wir starten also typischerweise
+      # WAEHREND das Pages-Deployment mit dem neuen packages.adb noch laeuft.
+      # apk liest dann den alten Index, dessen .apk-Dateien der Publish bereits
+      # ersetzt hat: "wget: exited with error 8 / unexpected end of file"
+      # (Lauf 32545665275, zyxel master: wwand r28 statt r33). Also erst auf das
+      # Deployment warten, das den ausloesenden Feed-Lauf enthaelt.
+      - name: Wait for the package feed deployment
+        run: |
+          # Der Feed-Lauf, an dem wir haengen (leer bei workflow_dispatch):
+          # sein Abschlusszeitpunkt ist die Untergrenze fuer das Deployment.
+          after='${{ github.event.workflow_run.updated_at }}'
+          api="https://api.github.com/repos/${{ github.repository }}/pages/builds/latest"
+          for i in $(seq 1 20); do
+            json="$(curl -sf -H 'Accept: application/vnd.github+json' \
+                      -H 'Authorization: Bearer ${{ github.token }}' "$api")" || json=
+            status="$(printf '%s' "$json" | grep -o '"status": *"[^"]*"' | head -1 | cut -d'"' -f4)"
+            updated="$(printf '%s' "$json" | grep -o '"updated_at": *"[^"]*"' | head -1 | cut -d'"' -f4)"
+            case "$status" in
+              built)
+                # ISO-8601-UTC vergleicht sich lexikografisch korrekt.
+                if [ -z "$after" ] || [ "$updated" \> "$after" ] || [ "$updated" = "$after" ]; then
+                  echo "Feed-Deployment steht (status=built, updated=$updated)"
+                  exit 0
+                fi
+                echo "letztes Deployment ist aelter als der Feed-Lauf ($updated < $after) -- warte"
+                ;;
+              errored)
+                echo "WARNUNG: Pages-Deployment steht auf 'errored'; der Feed kann veraltet sein."
+                exit 0
+                ;;
+              *)
+                echo "Pages-Deployment laeuft (status=${status:-unbekannt}), warte 15 s"
+                ;;
+            esac
+            sleep 15
+          done
+          echo "WARNUNG: 5 min ohne passendes Pages-Deployment -- baue trotzdem;"
+          echo "der Retry in build-imagebuilder.sh faengt einen veralteten Index ggf. ab."
+
       - name: Build (ImageBuilder)
         run: |
           GHP_DIR='${{ matrix.base == 'master' && 'snapshot' || 'openwrt-25.12' }}'

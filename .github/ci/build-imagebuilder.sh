@@ -43,9 +43,33 @@ umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
 kmod-usb-serial-option kmod-vrf luci"
 
 # 3) je Geraet ein Image (Signaturpruefung aktiv)
+#
+# Retry gegen den Publish-Race: unmittelbar nach einem Feed-Publish kann der
+# Pages-CDN noch das vorherige packages.adb ausliefern, waehrend die darin
+# genannten .apk-Dateien bereits ersetzt sind -- apk bricht dann mit
+# "wget: exited with error 8" / "unexpected end of file" ab. Der Workflow wartet
+# vorher auf das Pages-Deployment; das hier faengt die Rest-Latenz ab. Jeder
+# Versuch laedt den Index neu, ein zweiter Anlauf sieht also den frischen Stand.
+make_image() {
+	local profile="$1" attempt rc
+
+	for attempt in 1 2 3; do
+		rc=0
+		make image PROFILE="$profile" PACKAGES="$PKGS" || rc=$?
+		[ "$rc" -eq 0 ] && return 0
+		if [ "$attempt" -eq 3 ]; then
+			echo "FEHLER: make image PROFILE=$profile nach $attempt Versuchen fehlgeschlagen"
+			return "$rc"
+		fi
+		echo "make image PROFILE=$profile fehlgeschlagen (Versuch $attempt/3, rc=$rc) --"
+		echo "vermutlich noch ein veralteter Feed-Index; 90 s warten und neu versuchen"
+		sleep 90
+	done
+}
+
 for d in $DEVICES; do
 	echo "::group::make image PROFILE=$d ($BASE)"
-	make image PROFILE="$d" PACKAGES="$PKGS"
+	make_image "$d"
 	echo "::endgroup::"
 done
 
