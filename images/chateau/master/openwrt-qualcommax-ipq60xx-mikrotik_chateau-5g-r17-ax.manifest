@@ -1,6 +1,6 @@
 apk-mbedtls - 3.0.5-r3
 ath11k-firmware-ipq6018 - 2024.10.14~15f05012-r1
-base-files - 1~a8fc3ab
+base-files - 1~9ad8eae
 busybox - 1.38.0-r2
 ca-bundle - 20260601-r1
 cgi-io - 2026.07.21~31cb3c89-r1
@@ -24,10 +24,10 @@ jansson4 - 2.15.0-r1
 jshn - 2026.07.08~7677b7a4-r1
 jsonfilter - 2026.03.16~b9034210-r1
 kernel - 6.18.41~988cb3106a546b4487917dfc2d1d5944-r1
-kmod-ath - 6.18.41.6.18.39-r6
-kmod-ath11k - 6.18.41.6.18.39-r6
-kmod-ath11k-ahb - 6.18.41.6.18.39-r6
-kmod-cfg80211 - 6.18.41.6.18.39-r6
+kmod-ath - 6.18.41.6.18.39-r5
+kmod-ath11k - 6.18.41.6.18.39-r5
+kmod-ath11k-ahb - 6.18.41.6.18.39-r5
+kmod-cfg80211 - 6.18.41.6.18.39-r5
 kmod-crypto-aead - 6.18.41-r1
 kmod-crypto-ccm - 6.18.41-r1
 kmod-crypto-cmac - 6.18.41-r1
@@ -53,7 +53,7 @@ kmod-i2c-core - 6.18.41-r1
 kmod-leds-gpio - 6.18.41-r1
 kmod-lib-crc-ccitt - 6.18.41-r1
 kmod-lib-crc16 - 6.18.41-r1
-kmod-mac80211 - 6.18.41.6.18.39-r6
+kmod-mac80211 - 6.18.41.6.18.39-r5
 kmod-mhi-bus - 6.18.41-r1
 kmod-mhi-net - 6.18.41-r1
 kmod-mhi-pci-generic - 6.18.41-r1
@@ -76,7 +76,7 @@ kmod-nls-base - 6.18.41-r1
 kmod-ppp - 6.18.41-r1
 kmod-pppoe - 6.18.41-r1
 kmod-pppox - 6.18.41-r1
-kmod-qcom-qmi-helpers - 6.18.41.6.18.39-r6
+kmod-qcom-qmi-helpers - 6.18.41.6.18.39-r5
 kmod-qrtr - 6.18.41-r1
 kmod-qrtr-smd - 6.18.41-r1
 kmod-rmnet - 6.18.41-r1
@@ -139,7 +139,7 @@ losetup - 2.42.2-r1
 luci - 26.231.21336~77dad3f
 luci-app-firewall - 26.231.21336~77dad3f
 luci-app-package-manager - 26.231.21336~77dad3f
-luci-app-wwand - 2026.08.13~1c03a023-r16
+luci-app-wwand - 2026.08.21~b4dcc07a-r17
 luci-base - 26.231.21336~77dad3f
 luci-lib-uqr - 26.231.21336~77dad3f
 luci-light - 26.231.21336~77dad3f
@@ -197,11 +197,12 @@ wifi-scripts - 1.0-r1
 wireless-regdb - 2026.05.30-r1
 wpad-basic-mbedtls - 2026.07.09~f08f2749-r1
 wwan - 2019.04.29-r7
-wwand - 2026.08.17~61f4c2dc-r28
+wwand - 2026.08.21~31d1325d-r33
+wwand-esim - 2026.08.21~31d1325d-r33
 wwand-lpac - 2.3.0-r4
-wwand-mbim - 2026.08.17~61f4c2dc-r28
-wwand-mhi - 2026.08.17~61f4c2dc-r28
-wwand-ncm - 2026.08.17~61f4c2dc-r28
-wwand-qmi - 2026.08.17~61f4c2dc-r28
+wwand-mbim - 2026.08.21~31d1325d-r33
+wwand-mhi - 2026.08.21~31d1325d-r33
+wwand-ncm - 2026.08.21~31d1325d-r33
+wwand-qmi - 2026.08.21~31d1325d-r33
 yafut - 2025.02.18~e342c939-r1
 zlib - 1.3.2-r1

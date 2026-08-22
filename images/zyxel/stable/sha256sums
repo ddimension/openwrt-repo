@@ -1,7 +1,7 @@
-9359a8ed720d0105cb94ebce49a4484a2617b745e2f464f156ee42e721ea1c6a *openwrt-25.12.5-ramips-mt7621-zyxel_lte3301-plus-squashfs-sysupgrade.bin
-6f25d8275a735b03311ea8da819d7934d91eeb21993b10a68f678e08629eb643 *openwrt-25.12.5-ramips-mt7621-zyxel_lte3301-plus.bom.cdx.json
-8f2da6c7a95fe2321de27a057e901ec070661290090ab39fa76e136953081844 *openwrt-25.12.5-ramips-mt7621-zyxel_lte3301-plus.manifest
-d3766f214ecc65c2de964fa85f5d555232f1260322883252272fbe26b09cf239 *openwrt-25.12.5-ramips-mt7621-zyxel_nr7101-squashfs-sysupgrade.bin
-2d0049debd6618e24920b2cc9b6340bd8fe46dd0b2f733c0870a8cdbf559b6a4 *openwrt-25.12.5-ramips-mt7621-zyxel_nr7101.bom.cdx.json
-269e1266a0f022a6b4c3da0367a4720bf8031bb9093dd7291a6b1759d4d4f882 *openwrt-25.12.5-ramips-mt7621-zyxel_nr7101.manifest
-38c6a48e9dc10efc01aed9a046c3323996eafd424d0ffa4e8746d82a93021cce *profiles.json
+edb6ad3c7040d4fa88f91cd122157a2d6e1759c17f9d55b2f6cdf66d9bad9ef4 *openwrt-25.12.5-ramips-mt7621-zyxel_lte3301-plus-squashfs-sysupgrade.bin
+d296825e25014c9a30439dbf5dc9f9c8f87203abe7c80294c27161aa732e7237 *openwrt-25.12.5-ramips-mt7621-zyxel_lte3301-plus.bom.cdx.json
+003376da06673a2365dfcbfa08bfde49b0e7d40ec72193102b3224bc06b44b2e *openwrt-25.12.5-ramips-mt7621-zyxel_lte3301-plus.manifest
+9345236a935cb2e5e1c95c4179462c59e93967f5021685815c6bc468abd91621 *openwrt-25.12.5-ramips-mt7621-zyxel_nr7101-squashfs-sysupgrade.bin
+73b1e8b37f35243199b3800df0c7411e4df130ad2b92e293745a9bce99ae6211 *openwrt-25.12.5-ramips-mt7621-zyxel_nr7101.bom.cdx.json
+f498d49752b7bc1103e6bc1acc4878ddbdc7e6a4514814d8fb98d591d4010f0d *openwrt-25.12.5-ramips-mt7621-zyxel_nr7101.manifest
+5e5496e0740a53ac2a4d3cb7c3b637f79e374b5d44c257019a07352819f2eb88 *profiles.json
