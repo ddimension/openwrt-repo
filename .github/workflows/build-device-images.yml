@@ -1,7 +1,7 @@
 # Baut Images auf den self-hosted Runnern, je fuer master und stable, mit komplettem
 # wwand-Stack.
-#   chateau : Voll-Buildroot (PR-Geraet + Kernel-Patch + DTS -> kein ImageBuilder
-#             moeglich). master aus dem PR-Branch, stable aus chateau-stable-backport.
+#   fullbuild: Voll-Buildroot je Geraet (PR-Geraet + Kernel-Patch + DTS -> kein
+#             ImageBuilder moeglich). chateau master/stable, nbg7815 nur master.
 #             dl/ccache + build_dir persistent (Named Volumes), node-lokal.
 #   zyxel   : nr7101 + lte3301-plus sind upstream -> ImageBuilder (kein Toolchain-
 #             Build). wwand kommt SIGNIERT aus dem gh-pages-Feed.
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       testing_kernel:
-        description: 'chateau master mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable wird dabei uebersprungen (25.12 hat kein 6.18)'
+        description: 'master-Legs mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable wird dabei uebersprungen (25.12 hat kein 6.18)'
         type: boolean
         default: false
   # Nach jedem erfolgreichen Feed-Lauf ("build") auf main automatisch Images bauen,
@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  chateau:
+  fullbuild:
     # manueller Dispatch immer; via workflow_run nur, wenn der Feed-Lauf gruen war
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: [self-hosted, openwrt]
@@ -38,20 +38,41 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - base: master
+          # slug benennt Volume und Artefakt: owrt-src-<slug>-<base> und
+          # images-<slug>-<base>. Fuer chateau bewusst unveraendert, sonst
+          # verliert der Leg sein warmes build_dir und baut ~12 h kalt neu.
+          - slug: chateau
+            base: master
             src_url: https://github.com/ddimension/openwrt.git
             # Integration branch: latest openwrt main + device support (#24335)
             # + QCA8081 2.5G TX-clock fix (#24566) + ath11k reboot fix (#24601).
             # The individual PR branches stay clean for upstream; this branch
             # carries all three so the built image actually works.
             src_branch: chateau-ci
-          - base: stable
+            target: qualcommax
+            subtarget: ipq60xx
+            devices: mikrotik_chateau-5g-r17-ax
+          - slug: chateau
+            base: stable
             src_url: https://github.com/ddimension/openwrt.git
             src_branch: chateau-stable-backport
+            target: qualcommax
+            subtarget: ipq60xx
+            devices: mikrotik_chateau-5g-r17-ax
+          # ZyXEL NBG7815: RGB-LED, Bluetooth, Luefter/Temperatursensor und der
+          # 160-MHz-Boardfile-Schalter, PR-Branch nbg7815-update. Vorerst nur
+          # master - fuer stable gibt es keinen Backport-Branch.
+          - slug: nbg7815
+            base: master
+            src_url: https://github.com/ddimension/openwrt.git
+            src_branch: nbg7815-update
+            target: qualcommax
+            subtarget: ipq807x
+            devices: zyxel_nbg7815
     env:
-      TARGET: qualcommax
-      SUBTARGET: ipq60xx
-      DEVICES: mikrotik_chateau-5g-r17-ax
+      TARGET: ${{ matrix.target }}
+      SUBTARGET: ${{ matrix.subtarget }}
+      DEVICES: ${{ matrix.devices }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,7 +81,7 @@ jobs:
 
       - name: Prepare volumes + output
         run: |
-          for v in "owrt-src-chateau-${{ matrix.base }}" owrt-dl owrt-ccache; do
+          for v in "owrt-src-${{ matrix.slug }}-${{ matrix.base }}" owrt-dl owrt-ccache; do
             docker volume create "$v" >/dev/null
             sudo chown 1000:1000 "$(docker volume inspect -f '{{.Mountpoint}}' "$v")"
           done
@@ -99,7 +120,7 @@ jobs:
             fi
           fi
           [ "${jobs:-0}" -ge 1 ] 2>/dev/null || jobs=1
-          echo "chateau build: -j${jobs} (freigegebene Kerne des Runner-CT)"
+          echo "${{ matrix.slug }} build: -j${jobs} (freigegebene Kerne des Runner-CT)"
           docker run --rm --user 1000:1000 \
             -e SRC_URL='${{ matrix.src_url }}' \
             -e SRC_BRANCH='${{ matrix.src_branch }}' \
@@ -109,7 +130,7 @@ jobs:
             -e TESTING_KERNEL='${{ github.event.inputs.testing_kernel == 'true' && '1' || '' }}' \
             -v "$GITHUB_WORKSPACE":/ci:ro \
             -v "$GITHUB_WORKSPACE/out":/out \
-            -v "owrt-src-chateau-${{ matrix.base }}":/src \
+            -v "owrt-src-${{ matrix.slug }}-${{ matrix.base }}":/src \
             -v owrt-dl:/dl -v owrt-ccache:/ccache \
             image-registry.ddimension.net/myadmin/openwrt-builder:latest \
             bash /ci/.github/ci/build-images.sh
@@ -117,7 +138,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: images-chateau-${{ matrix.base }}
+          name: images-${{ matrix.slug }}-${{ matrix.base }}
           path: out/**
           retention-days: 30
           if-no-files-found: warn
@@ -222,7 +243,7 @@ jobs:
   # from the current gh-pages so the package feed and other images survive; the
   # feed publish job keeps the images/ dir via its prune keep-list.
   publish-images:
-    needs: [chateau, zyxel]
+    needs: [fullbuild, zyxel]
     if: ${{ !cancelled() }}
     runs-on: [self-hosted, openwrt]
     permissions:
