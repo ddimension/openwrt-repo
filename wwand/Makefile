@@ -30,21 +30,26 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=33
+PKG_RELEASE:=36
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=31d1325d7cee342af22e8343c691262e06f0ddc7
-PKG_SOURCE_DATE:=2026-08-21
-PKG_MIRROR_HASH:=926f8db6f6f074b9f14779e4835c0a4414a6b119fe6317c0c5a1232c316f6aa4
+PKG_SOURCE_VERSION:=4701bcaa1b8e0ff6738cab57dbcf6081c48516cb
+PKG_SOURCE_DATE:=2026-08-24
+PKG_MIRROR_HASH:=8b72e33633bad29032c709b2a6f4aa859ba4cec4b339bd964c741655eaf1ef48
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
 
-# host ucode is the bytecode compiler for the precompile step (below). It is
-# built from the same ucode revision as the on-device runtime, so the bytecode
-# it emits always matches the target interpreter.
-PKG_BUILD_DEPENDS:=ucode/host
+# host ucode is the bytecode compiler, needed ONLY on the opt-in precompile
+# path — so a default build does not pay for a host ucode nothing consumes.
+#
+# SYMBOL:pkg, not $(if $(CONFIG_...),...): Build-Depends is emitted by the
+# metadata scan, which runs with DUMP=1, and rules.mk skips $(TOPDIR)/.config in
+# that case — a $(if ...) wrapper is always empty there and would drop the
+# dependency unconditionally, leaving the opt-in to silently fall back to
+# source. package-metadata.pl builds the conditional from the prefix instead.
+PKG_BUILD_DEPENDS:=WWAND_UCODE_PRECOMPILE:ucode/host
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
