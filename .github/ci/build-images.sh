@@ -84,14 +84,32 @@ STALL_LIMIT="${STALL_LIMIT:-2700}"   # 45 min ohne neue Ausgabe = haengt
 STALL_POLL="${STALL_POLL:-15}"       # so oft nachsehen (kurz, damit fertige Stufen nicht warten)
 
 stall_diagnose() {
-	echo "=== Prozessbaum ==="
-	ps -eo pid,ppid,stat,etime,pcpu,args --forest 2>/dev/null | tail -80
+	# Achtung: der Build-Container hat kein procps -- ein blankes `ps` bricht mit
+	# 127 ab und riss unter `set -e` die ganze Diagnose mit (Lauf 32640281922).
+	# Deshalb alles aus /proc, und der Aufrufer haengt ein `|| true` an.
 	echo "=== Load ==="
 	cat /proc/loadavg 2>/dev/null
+
+	echo "=== Prozesse (pid state wchan cmd) ==="
+	# state zeigt, ob noch jemand rechnet (R) oder alle warten (S/D);
+	# wchan nennt die Kernelfunktion, in der ein blockierter Task haengt.
+	for d in /proc/[0-9]*; do
+		[ -r "$d/stat" ] || continue
+		cmd=$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null | cut -c1-90)
+		[ -n "$cmd" ] || continue
+		# Status steht nach der letzten Klammer: comm darf Leerzeichen und
+		# Klammern enthalten, feste Feldnummern verrutschen daran.
+		st=$(sed 's/.*) //' "$d/stat" 2>/dev/null | cut -d' ' -f1)
+		echo "  ${d#/proc/} ${st:-?} $(cat "$d/wchan" 2>/dev/null || echo '?') $cmd"
+	done 2>/dev/null | head -60
+
+	echo "=== offene Netzverbindungen (haengender Download?) ==="
+	grep -c . /proc/net/tcp 2>/dev/null | sed 's/^/  tcp-Eintraege: /'
+
 	echo "=== juengste Paket-Logs ==="
 	find logs -name '*.txt' -mmin -180 2>/dev/null | head -5 | while read -r f; do
 		echo "--- $f"
-		tail -n 20 "$f"
+		tail -n 20 "$f" 2>/dev/null
 	done
 }
 
@@ -124,7 +142,7 @@ run_watched() {
 
 		if true; then
 			echo "::error::Stufe '${tag}' haengt: seit ${age}s keine Ausgabe (Limit ${STALL_LIMIT}s)"
-			stall_diagnose
+			stall_diagnose || true
 			pkill -9 -P "$mk" 2>/dev/null || true
 			kill -9 "$mk" 2>/dev/null || true
 			echo 124 > "$rcfile"
