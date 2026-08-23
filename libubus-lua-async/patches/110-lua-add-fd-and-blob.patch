@@ -1,0 +1,305 @@
+From: Andre Valentin <avalentin@marcant.net>
+Subject: [PATCH] lua: hand out the descriptor a request answered with, and let lua use it
+
+A ubus method may answer with a file descriptor instead of with data. 'log read'
+with stream:true is the case this exists for: the log is written down a pipe
+rather than returned, and `ubus call log read '{"stream":true}'` prints nothing
+because the CLI does not render one. libubus has carried the mechanism all
+along — libubus.h ubus_fd_handler_t, req->fd_cb, and ubus_process_req_msg()
+closes the descriptor itself if no handler claims it.
+
+call_async() now claims it and passes it to the callback as a third value.
+Third value rather than a second callback because Lua discards extra arguments:
+every existing cb(result, status) keeps working, and one that wants the
+descriptor takes cb(result, status, fd).
+
+A descriptor is of no use to Lua on its own, and this is not a matter of taste.
+On the access points this was written for there is no posix, no nixio and no
+lfs — checked on the fleet, not assumed — and luasocket, which is there, cannot
+wrap a descriptor either. io.* wants a FILE*. So a fd handed to Lua and nothing
+else would be a number nobody could read from, close, or make sense of. Three
+small functions come with it:
+
+  ubus.read_fd(fd [, bytes])  bytes, or nil plus 'eof' or 'again'. Never
+                              blocks: the descriptor is put into non-blocking
+                              mode on first use, which is what any reader driven
+                              by uloop wants.
+  ubus.close_fd(fd)           because whoever is handed one has to close it.
+  ubus.blob_decode(buffer)    one blob attribute out of a byte string, with the
+                              number of bytes it used.
+
+blob_decode is there because the stream is not text. logd writes blob
+attributes, each length prefixed and already carrying its fields — measured on
+an access point, 116 bytes holding msg, id, priority, source and time. That is
+better than the rendered syslog line, which would have to be picked apart with a
+regular expression, and the id is a sequence number, so a reader can tell that
+it missed something. It is only unusable from Lua, which has no idea what a blob
+is. Framing belongs in C because the format does; buffering stays in Lua, where
+a growing string is the whole of it.
+
+uloop needs nothing: libubox/lua/uloop.c get_sock_fd() already accepts a bare
+number, so uloop.fd_add(fd, cb, ULOOP_READ) works as it stands.
+
+Measured end to end on an OpenWrt 25.12 access point: call_async('log','read',
+{stream=true,lines=0}) delivers fd 7, uloop reports it readable, read_fd returns
+the bytes, blob_decode turns them into {id=10544, msg='fdtest: blob test eins',
+priority=28, source=1, time=1787514663721}, and close_fd returns true.
+
+Signed-off-by: Andre Valentin <avalentin@marcant.net>
+---
+diff --git a/lua/ubus.c b/lua/ubus.c
+--- a/lua/ubus.c
++++ b/lua/ubus.c
+@@ -15,6 +15,9 @@
+ 
+ #include <unistd.h>
+ #include <stdbool.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <string.h>
+ #include <libubus.h>
+ #include <libubox/blobmsg.h>
+ #include <libubox/blobmsg_json.h>
+@@ -736,6 +739,8 @@
+ 	struct ubus_context *ctx;
+ 	int cb_ref;
+ 	int result_ref;
++	int fd;
++	bool have_fd;
+ 	bool done;
+ };
+ 
+@@ -762,19 +767,37 @@
+ 			lua_pushnil(L);
+ 		}
+ 		lua_pushinteger(L, status);
++		/*
++		 * Third value rather than a second callback: Lua discards extra
++		 * arguments, so every existing cb(result, status) keeps working
++		 * unchanged and the ones that want the descriptor take a third
++		 * parameter. nil where there was none.
++		 */
++		if (call->have_fd)
++			lua_pushinteger(L, call->fd);
++		else
++			lua_pushnil(L);
+ 
+ 		/*
+ 		 * pcall, not call: this runs from a uloop callback, and an error
+ 		 * thrown out of here would longjmp past libubus' own bookkeeping
+ 		 * and take the process with it.
+ 		 */
+-		if (lua_pcall(L, 2, 0, 0) != 0) {
++		if (lua_pcall(L, 3, 0, 0) != 0) {
+ 			fprintf(stderr, "ubus: async callback failed: %s\n",
+ 				lua_tostring(L, -1));
+ 			lua_pop(L, 1);
+ 		}
+ 	} else {
+ 		lua_pop(L, 1);
++
++		/*
++		 * Nobody to hand it to. libubus would have closed it had we not
++		 * taken it, so not closing it here is a descriptor leaked for the
++		 * life of the process.
++		 */
++		if (call->have_fd && call->fd >= 0)
++			close(call->fd);
+ 	}
+ 
+ 	lua_getglobal(L, "__ubus_cb_async");
+@@ -805,6 +828,30 @@
+ 	lua_pop(L, 1);
+ }
+ 
++/*
++ * A peer may answer with a file descriptor rather than with data — 'log read'
++ * with stream:true is the case this exists for, and libubus already carries
++ * the mechanism (libubus.h ubus_fd_handler_t, req->fd_cb).
++ *
++ * ubus_process_req_msg() calls this on UBUS_MSG_STATUS, before the completion
++ * runs, and closes the descriptor itself if nobody claims it. Claiming it
++ * therefore means owning it: from here on it is ours to hand to Lua, and Lua's
++ * to close.
++ */
++static void
++ubus_lua_async_fd_cb(struct ubus_request *req, int fd)
++{
++	struct ubus_lua_async_call *call =
++		container_of(req, struct ubus_lua_async_call, req);
++
++	/* one descriptor per request; a second would leak the first */
++	if (call->have_fd && call->fd >= 0)
++		close(call->fd);
++
++	call->fd = fd;
++	call->have_fd = true;
++}
++
+ static void
+ ubus_lua_async_complete_cb(struct ubus_request *req, int ret)
+ {
+@@ -868,6 +915,7 @@
+ 	}
+ 	call->ctx = c->ctx;
+ 	call->result_ref = LUA_NOREF;
++	call->fd = -1;
+ 
+ 	rv = ubus_invoke_async(c->ctx, id, func, c->buf.head, &call->req);
+ 	if (rv != UBUS_STATUS_OK) {
+@@ -884,6 +932,7 @@
+ 	lua_pop(L, 1);
+ 
+ 	call->req.data_cb = ubus_lua_async_data_cb;
++	call->req.fd_cb = ubus_lua_async_fd_cb;
+ 	call->req.complete_cb = ubus_lua_async_complete_cb;
+ 	call->timeout.cb = ubus_lua_async_timeout_cb;
+ 	if (timeout > 0)
+@@ -896,6 +945,137 @@
+ }
+ 
+ 
++/*
++ * ubus.blob_decode(buffer) — one blobmsg record out of a byte string.
++ *
++ * What comes down the descriptor is not text. 'log read' with stream:true
++ * writes blob attributes, each one length prefixed and already carrying its
++ * fields — measured on an access point, a record is 116 bytes holding msg, id,
++ * priority and source. That is better than the rendered syslog line, which
++ * would have to be picked apart again with a regular expression; it is only
++ * unusable from Lua, which has no idea what a blob is.
++ *
++ * Framing belongs here because the format does; buffering stays in Lua, where
++ * a growing string is the whole of it. Returns the table and how many bytes it
++ * consumed, so the caller can cut them off the front and look again — or nil
++ * and 'incomplete' when the record has not all arrived yet, which on a stream
++ * is the ordinary case and not an error.
++ */
++static int
++ubus_lua_blob_decode(lua_State *L)
++{
++	int idx = lua_isstring(L, 1) ? 1 : 2;
++	size_t len = 0;
++	const char *buf = luaL_checklstring(L, idx, &len);
++	const struct blob_attr *attr = (const struct blob_attr *)buf;
++	size_t need;
++
++	if (len < sizeof(struct blob_attr)) {
++		lua_pushnil(L);
++		lua_pushstring(L, "incomplete");
++		return 2;
++	}
++	need = blob_pad_len(attr);
++	if (need < sizeof(struct blob_attr)) {
++		lua_pushnil(L);
++		lua_pushstring(L, "invalid");
++		return 2;
++	}
++	if (len < need) {
++		lua_pushnil(L);
++		lua_pushstring(L, "incomplete");
++		return 2;
++	}
++
++	ubus_lua_parse_blob_array(L, blob_data(attr), blob_len(attr), true);
++	lua_pushinteger(L, (lua_Integer)need);
++
++	return 2;
++}
++
++/*
++ * ubus.read_fd(fd [, bytes]) — read from a descriptor a callback was handed.
++ *
++ * Lua on an OpenWrt access point has no way to do this on its own. io.* wants a
++ * FILE*, and posix, nixio and lfs are on none of the devices in this fleet —
++ * checked, not assumed; luasocket is there and cannot wrap a descriptor
++ * either. Without this the fd delivered above is a number nobody can use.
++ *
++ * Never blocks. The descriptor is put into non-blocking mode on first use and
++ * left that way, which is what any reader driven by uloop wants: uloop says
++ * readable, this returns what is there, and a spurious wakeup costs an EAGAIN
++ * rather than a stalled daemon.
++ *
++ * Returns the bytes read; nil, 'eof' when the writer has closed; nil, 'again'
++ * when there was nothing to take. Those three are different answers and a
++ * caller that treats them alike will either spin or stop early.
++ */
++static int
++ubus_lua_read_fd(lua_State *L)
++{
++	char buf[4096];
++	int idx = lua_isnumber(L, 1) ? 1 : 2;
++	int fd = luaL_checkint(L, idx);
++	int want = luaL_optint(L, idx + 1, (int)sizeof(buf));
++	int flags;
++	ssize_t n;
++
++	if (fd < 0) {
++		lua_pushnil(L);
++		lua_pushstring(L, "bad descriptor");
++		return 2;
++	}
++	if (want < 1)
++		want = 1;
++	if (want > (int)sizeof(buf))
++		want = (int)sizeof(buf);
++
++	flags = fcntl(fd, F_GETFL, 0);
++	if (flags >= 0 && !(flags & O_NONBLOCK))
++		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
++
++	do {
++		n = read(fd, buf, (size_t)want);
++	} while (n < 0 && errno == EINTR);
++
++	if (n > 0) {
++		lua_pushlstring(L, buf, (size_t)n);
++		return 1;
++	}
++	lua_pushnil(L);
++	if (n == 0)
++		lua_pushstring(L, "eof");
++	else if (errno == EAGAIN || errno == EWOULDBLOCK)
++		lua_pushstring(L, "again");
++	else
++		lua_pushstring(L, strerror(errno));
++
++	return 2;
++}
++
++/*
++ * ubus.close_fd(fd) — or conn:close_fd(fd), the same table is both.
++ *
++ * A descriptor handed to a callback is the callback's to close, and Lua has no
++ * way to do it: io.* wants a FILE*, and posix and nixio are not on every
++ * device. Without this the only way to release one is to end the process, which
++ * for a daemon reading the log is not a way at all.
++ */
++static int
++ubus_lua_close_fd(lua_State *L)
++{
++	int idx = lua_isnumber(L, 1) ? 1 : 2;
++	int fd = luaL_checkint(L, idx);
++
++	if (fd < 0) {
++		lua_pushboolean(L, 0);
++		return 1;
++	}
++	lua_pushboolean(L, close(fd) == 0);
++
++	return 1;
++}
++
+ static void
+ ubus_event_handler(struct ubus_context *ctx, struct ubus_event_handler *ev,
+ 			const char *type, struct blob_attr *msg)
+@@ -1150,6 +1330,9 @@
+ 	{ "signatures", ubus_lua_signatures },
+ 	{ "call", ubus_lua_call },
+ 	{ "call_async", ubus_lua_call_async },
++	{ "blob_decode", ubus_lua_blob_decode },
++	{ "read_fd", ubus_lua_read_fd },
++	{ "close_fd", ubus_lua_close_fd },
+ 	{ "close", ubus_lua__gc },
+ 	{ "listen", ubus_lua_listen },
+ 	{ "send", ubus_lua_send },
