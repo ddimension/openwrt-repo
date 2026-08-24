@@ -9,7 +9,10 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
 PKG_VERSION:=62
-PKG_RELEASE:=1
+# 2: the source is the same agent commit; the packaging was wrong. Five lua
+# modules were listed by name and the sixth, apman-syslog.lua, was not — so
+# 62-r1 installs an agent whose syslog module is missing.
+PKG_RELEASE:=2
 PKG_LICENSE:=GPL-2.0-only
 
 # The agent has its own repository; this package only installs it. A pinned
@@ -55,6 +58,13 @@ define Package/apman/conffiles
 /etc/config/apman
 endef
 
+# The lua modules are installed with a glob and not as a list of names. The
+# agent is split by concern and a list is a thing you forget to extend on the
+# day it matters — which is exactly what happened: apman-syslog.lua arrived as
+# a sixth module, contrib/release.sh copied it because it globs, this did not
+# because it enumerated, and the two drifted apart. 62-r1 therefore installs an
+# agent that expects the module with the module absent. It degrades rather than
+# crashes, which is why it took a fleet-wide install to notice.
 define Package/apman/install
 	$(INSTALL_DIR) $(1)/etc/apman
 	$(INSTALL_DIR) $(1)/etc/init.d
@@ -66,11 +76,7 @@ define Package/apman/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/bin/apman-status $(1)/usr/bin
 	$(INSTALL_DIR) $(1)/usr/lib/lua
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman.lua $(1)/usr/lib/lua
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-collectd.lua $(1)/usr/lib/lua
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-radius.lua $(1)/usr/lib/lua
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-ctrl.lua $(1)/usr/lib/lua
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman-parse.lua $(1)/usr/lib/lua
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/usr/lib/lua/apman*.lua $(1)/usr/lib/lua
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/lib/upgrade/keep.d/apman $(1)/lib/upgrade/keep.d/
 	$(INSTALL_DIR) $(1)/usr/share/collectd
