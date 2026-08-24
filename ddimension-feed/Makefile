@@ -42,7 +42,9 @@ include $(INCLUDE_DIR)/version.mk
 
 PKG_NAME:=ddimension-feed
 PKG_VERSION:=1
-PKG_RELEASE:=1
+# 2: 1 never reached a device — it declared a dependency on apk-mbedtls and
+# that broke the build before any package came out of it.
+PKG_RELEASE:=2
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
 
@@ -55,7 +57,15 @@ define Package/ddimension-feed
   CATEGORY:=Base system
   TITLE:=ddimension package feed: address and signing key
   URL:=https://github.com/ddimension/openwrt-repo
-  DEPENDS:=+apk-mbedtls
+  # No DEPENDS. Depending on apk-mbedtls looked careful and was wrong twice
+  # over: a package that installs into /etc/apk is installed *by* apk, so apk
+  # is present by construction — OpenWrt packages do not declare the package
+  # manager any more than they declare libc's existence. And declaring it drags
+  # apk itself into the build, where the SDK cannot produce it:
+  #
+  #   ERROR: package/feeds/base/apk failed to build (build variant: mbedtls)
+  #
+  # which took the whole x86_64 leg of the feed build down.
 endef
 
 define Package/ddimension-feed/description
