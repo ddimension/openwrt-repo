@@ -85,7 +85,10 @@ jobs:
           # step degrades to shipping source if the SDK ucode cannot emit
           # bytecode, and wwand.init refuses to start on a mismatch rather than
           # crash-looping — but neither turns a stale snapshot device back on.
-          EXTRA_CONFIG: ${{ matrix.release != 'snapshot' && 'CONFIG_WWAND_UCODE_PRECOMPILE=y' || '' }}
+          # CONFIG_PACKAGE_wwand comes first on purpose: the precompile symbol is
+          # package-scoped (depends on PACKAGE_wwand), so defconfig drops it unless
+          # the package itself is selected — which per-package mode does not do.
+          EXTRA_CONFIG: ${{ matrix.release != 'snapshot' && 'CONFIG_PACKAGE_wwand=y CONFIG_WWAND_UCODE_PRECOMPILE=y' || '' }}
           # Per-package mode: builds exactly these source packages plus their
           # real dependencies — no whole-feed surface, no exposure to
           # unrelated upstream breakage (the perl parallel-build race cost us

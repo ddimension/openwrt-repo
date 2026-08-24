@@ -98,6 +98,24 @@ if [ -n "$EXTRA_CONFIG" ]; then
 		echo "$OPT" >> .config
 	done
 	make defconfig
+
+	# Verify every symbol SURVIVED. defconfig drops a symbol whose Kconfig is
+	# not in the tree or whose dependencies are unmet, and it does so in
+	# silence — a package-scoped option (one inside `define Package/x/config`,
+	# `depends on PACKAGE_x`) is dropped unless CONFIG_PACKAGE_x=y is set too.
+	# That failure mode is invisible in the build log and produces a package
+	# built with the DEFAULT, which is why this check is fatal rather than a
+	# warning: a silently ignored build option is worse than a failed build.
+	MISSING=""
+	for OPT in $EXTRA_CONFIG; do
+		grep -qxF "$OPT" .config || MISSING="$MISSING $OPT"
+	done
+
+	if [ -n "$MISSING" ]; then
+		echo "ERROR: EXTRA_CONFIG did not survive defconfig:$MISSING" >&2
+		echo "       (a package-scoped symbol also needs its CONFIG_PACKAGE_* selected)" >&2
+		exit 1
+	fi
 fi
 endgroup
 
