@@ -71,6 +71,21 @@ jobs:
           # embedded qemu binfmt pull, authenticated via the login step
           # above. Should a job still flake: gh run rerun --failed.
           FEEDNAME: wwand
+          # Ship the ucode tree as BYTECODE on the pinned release branches.
+          # The daemon then starts without a parse step (41 ms -> 5 ms for the
+          # core imports on x86, more on a router CPU).
+          #
+          # Deliberately NOT on snapshot. Bytecode carries a format version
+          # (UCODE_BYTECODE_VERSION) that an interpreter upgraded past it
+          # refuses to load, and that version is independent of libucode's
+          # PKG_ABI_VERSION, so no package relation expresses the coupling. On
+          # a pinned release the device's ucode and this SDK's ucode are the
+          # same package, so they agree; on snapshot ucode moves out from under
+          # an installed wwand and they need not. The package's own configure
+          # step degrades to shipping source if the SDK ucode cannot emit
+          # bytecode, and wwand.init refuses to start on a mismatch rather than
+          # crash-looping — but neither turns a stale snapshot device back on.
+          EXTRA_CONFIG: ${{ matrix.release != 'snapshot' && 'CONFIG_WWAND_UCODE_PRECOMPILE=y' || '' }}
           # Per-package mode: builds exactly these source packages plus their
           # real dependencies — no whole-feed surface, no exposure to
           # unrelated upstream breakage (the perl parallel-build race cost us

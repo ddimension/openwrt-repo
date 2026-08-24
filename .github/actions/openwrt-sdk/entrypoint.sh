@@ -88,6 +88,17 @@ group "make defconfig"
 # perl) end up in a per-package build.
 rm -f .config .config.old
 make defconfig
+
+# EXTRA_CONFIG: build-time symbols the caller wants set, one "CONFIG_X=y" per
+# whitespace-separated word. Appended AFTER defconfig (the rm above would eat
+# anything written earlier) and followed by a second defconfig so Kconfig
+# resolves the dependencies the new symbols pull in.
+if [ -n "$EXTRA_CONFIG" ]; then
+	for OPT in $EXTRA_CONFIG; do
+		echo "$OPT" >> .config
+	done
+	make defconfig
+fi
 endgroup
 
 if [ -z "$PACKAGES" ]; then

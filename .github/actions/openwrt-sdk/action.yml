@@ -53,6 +53,7 @@ runs:
           --env BUILD \
           --env BUILD_LOG \
           --env DDIMENSION_FEED_RELEASE \
+          --env EXTRA_CONFIG \
           --env EXTRA_FEEDS \
           --env FEEDNAME \
           --env IGNORE_ERRORS \
