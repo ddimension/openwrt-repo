@@ -34,9 +34,19 @@
 # installed libubus is the one way to get this wrong quietly, so the commit is
 # pinned to the base package's rather than to a branch.
 #
-# On the two patches: 100- is the change itself and is offered upstream
-# (github.com/openwrt/ubus, branch lua-async on ddimension/ubus). 090- stays
-# ours on purpose. It puts cmake_minimum_required back into lua/CMakeLists.txt,
+# On the three patches: 100- is the asynchronous invoke and 110- hands out the
+# file descriptor a request answered with, plus the three functions Lua needs
+# to do anything with one — read_fd, close_fd and blob_decode. Both are offered
+# upstream together (github.com/openwrt/ubus#26, branch lua-async on
+# ddimension/ubus); 110- sits on top of 100- and does not stand without it.
+#
+# 110- exists because 'log read' with stream:true answers with a descriptor
+# rather than with data, and because a descriptor alone is useless here: there
+# is no posix, no nixio and no lfs on these devices — checked on the fleet —
+# and luasocket cannot wrap one either. blob_decode is in there because what
+# comes down that descriptor is length prefixed blob attributes and not text.
+#
+# 090- stays ours on purpose. It puts cmake_minimum_required back into lua/CMakeLists.txt,
 # and upstream removed it deliberately in b462895 as redundant — the top level
 # inherits it, and configuring a subdirectory on its own is not something that
 # project wants to support. Proposing it would be reverting a merged decision.
@@ -49,7 +59,13 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=libubus-lua-async
 PKG_VERSION:=2026.06.28~24864e78
-PKG_RELEASE:=1
+# 2: the source is the same commit, only our patch set changed — 110- came
+# along and the module gained read_fd, close_fd and blob_decode. PKG_VERSION
+# names the upstream commit and must not move for that; PKG_RELEASE is what
+# says the package built from it is a different package. Without bumping it,
+# opkg on a device sees the same version string and never installs the new one,
+# and two builds that call themselves the same thing hold different code.
+PKG_RELEASE:=2
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://git.openwrt.org/project/ubus.git
