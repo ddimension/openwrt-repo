@@ -52,6 +52,7 @@ runs:
         docker run --rm \
           --env BUILD \
           --env BUILD_LOG \
+          --env DDIMENSION_FEED_RELEASE \
           --env EXTRA_FEEDS \
           --env FEEDNAME \
           --env IGNORE_ERRORS \

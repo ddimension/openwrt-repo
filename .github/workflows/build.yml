@@ -81,7 +81,11 @@ jobs:
           # build from files/ in this repo and declare no PKG_SOURCE.
           # homesync needs snapclient only at runtime (EXTRA_DEPENDS), so
           # this does not drag the snapcast C++ build into CI.
-          PACKAGES: apman homesync luacurl lua-mosquitto qfirehose qflash qlog usb-relay-hid wpad-ieee8021x wwand wwand-lpac luci-app-wwand luci-proto-wwand
+          # ddimension-feed carries this feed's own address and key, so a
+          # device can be pointed at it once and then follow it like any other
+          # package. It is built per release and architecture because the URL
+          # it installs names both.
+          PACKAGES: apman ddimension-feed homesync luacurl lua-mosquitto qfirehose qflash qlog usb-relay-hid wpad-ieee8021x wwand wwand-lpac luci-app-wwand luci-proto-wwand
           INDEX: 1
           # not staged for openwrt.org upstream — skip patch-refresh and
           # shfmt hygiene checks; the hash check stays active
@@ -91,6 +95,11 @@ jobs:
           # snapshot/25.12+. Empty secrets simply leave the index unsigned.
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          # ddimension-feed can work this out from the buildroot version, but
+          # here it need not guess: this is the directory the publish step
+          # below writes to, so the .list it installs and the tree it points
+          # at cannot disagree.
+          DDIMENSION_FEED_RELEASE: ${{ matrix.release }}
 
       - name: Collect repository
         run: |

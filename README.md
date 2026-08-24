@@ -14,6 +14,7 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 | `luci-proto-wwand` | https://github.com/ddimension/luci-proto-wwand |
 | `wwand-lpac` | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) (bundled static wolfSSL/curl) |
 | `apman` | local (`files/`) — Lua AP manager (MQTT via lua-mosquitto, collectd integration) |
+| `ddimension-feed` | local (`files/`) — this feed's own address and signing key, so a device can be pointed at it once and then follow it |
 | `homesync` | local (`files/`) — UCI front end for `snapclient` from the packages feed |
 | `luacurl` | upstream [Lua-cURL/Lua-cURLv3](https://github.com/Lua-cURL/Lua-cURLv3) |
 | `lua-mosquitto` | upstream [flukso/lua-mosquitto](https://github.com/flukso/lua-mosquitto) |
@@ -50,17 +51,55 @@ URL scheme.
 | `mipsel_24kc` | ramips/mt7621 |
 | `x86_64` | x86/64 (VMs, APU, router PCs) |
 
-On the device — apk (OpenWrt 25.12 and later, snapshots):
+### On the device
+
+The feed's address and key are themselves a package, `ddimension-feed`. Install
+it once and the device follows this feed from then on — including any later
+change to the address or the key, which arrives as an ordinary upgrade rather
+than as a note somebody has to act on.
+
+```
+# once, from the tree matching the installed release and architecture
+wget https://ddimension.github.io/openwrt-repo/openwrt-25.12/aarch64_cortex-a53/ddimension-feed-1-r1.apk
+apk add --allow-untrusted ./ddimension-feed-1-r1.apk
+apk add wwand luci-app-wwand
+```
+
+`--allow-untrusted` is needed exactly once and only for this package: it is the
+moment the key is established. Everything afterwards, this package included, is
+signed and verified. The `apk update` is done for you by its post-install.
+
+It installs two files, neither of them a conffile:
+
+| | |
+|---|---|
+| `/etc/apk/keys/ddimension.pem` | the public half the indexes are signed with |
+| `/etc/apk/repositories.d/ddimension.list` | the tree for this release and architecture |
+
+Not conffiles on purpose — a feed address that an update cannot correct is the
+problem the package exists to avoid. To follow another feed as well, add a
+second file in `/etc/apk/repositories.d`; apk reads all of them. Do not edit
+this one, it is replaced on upgrade.
+
+The package is built per release and per architecture, because the URL it
+installs names both. After upgrading a device to a new OpenWrt release, install
+it again from that release's tree — the old `.list` keeps pointing at the old
+tree, which `apk update` says out loud rather than hiding.
+
+<details>
+<summary>By hand, without the package</summary>
 
 ```
 wget -O /etc/apk/keys/ddimension.pem https://ddimension.github.io/openwrt-repo/keys/ddimension.pem
 echo "https://ddimension.github.io/openwrt-repo/snapshot/aarch64_cortex-a53/packages.adb" \
-  > /etc/apk/repositories.d/wwand.list
+  > /etc/apk/repositories.d/ddimension.list
 apk update
 apk add wwand luci-app-wwand
 ```
 
-Pick the `<release>/<arch>` matching the installed system.
+Pick the `<release>/<arch>` matching the installed system. Done this way the
+address is a fact about that one device and nothing keeps it current.
+</details>
 
 ### Signing
 
