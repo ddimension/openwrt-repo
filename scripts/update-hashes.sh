@@ -48,12 +48,22 @@ make defconfig >/logs/defconfig.log 2>&1
 : >/logs/hashes.txt
 for pkg in $PKGS; do
 	rm -f dl/"$pkg"-* 2>/dev/null
-	out=$( (make "package/feeds/wwand/$pkg/download" V=s 2>&1;
-	        make "package/feeds/wwand/$pkg/check" V=s 2>&1) |
+	raw=$( (make "package/feeds/wwand/$pkg/download" V=s 2>&1;
+	        make "package/feeds/wwand/$pkg/check" V=s 2>&1) )
+	out=$(printf '%s\n' "$raw" |
 		grep -oE "(set to|got) [0-9a-f]{64}" | tail -1 | awk '{print $NF}')
+
 	if [ -n "$out" ]; then
 		echo "$pkg $out" >>/logs/hashes.txt
 		echo "COMPUTED: $pkg $out"
+	elif printf '%s\n' "$raw" | grep -qE "No space left on device|Error [0-9]+|^ERROR:"; then
+		# A run that DIED prints no hash either, and reporting that as
+		# "already correct" is how a stale hash reaches a commit: seen for
+		# real when /var/lib/docker filled up mid-run. Absence of a mismatch
+		# is only good news when the run actually finished.
+		echo "$pkg FAILED" >>/logs/hashes.txt
+		echo "FAILED: $pkg — the SDK run errored, hash NOT verified:" >&2
+		printf '%s\n' "$raw" | grep -E "No space left on device|Error [0-9]+|^ERROR:" | tail -3 >&2
 	else
 		echo "$pkg KEEP" >>/logs/hashes.txt
 		echo "UNCHANGED: $pkg (current hash already correct)"
@@ -67,6 +77,12 @@ docker run --rm --ulimit nofile=1024:1048576 \
 	-v "$FEED:/feed:ro" \
 	-v "$LOGDIR:/logs" \
 	"openwrt/sdk:$SDK_TAG" sh /logs/inner.sh
+
+if grep -q " FAILED$" "$LOGDIR/hashes.txt"; then
+	echo "ERROR: at least one package could not be verified — no Makefile was touched." >&2
+	grep " FAILED$" "$LOGDIR/hashes.txt" >&2
+	exit 1
+fi
 
 # write results into the Makefiles
 while read -r pkg hash; do
