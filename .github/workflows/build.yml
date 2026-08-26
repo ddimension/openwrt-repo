@@ -71,24 +71,26 @@ jobs:
           # embedded qemu binfmt pull, authenticated via the login step
           # above. Should a job still flake: gh run rerun --failed.
           FEEDNAME: wwand
-          # Ship the ucode tree as BYTECODE on the pinned release branches.
-          # The daemon then starts without a parse step (41 ms -> 5 ms for the
-          # core imports on x86, more on a router CPU).
+          # Bytecode shipping is OFF again — see the note below. EXTRA_CONFIG
+          # itself stays wired (and is verified after the feeds are installed),
+          # so the next attempt is one value away.
           #
-          # Deliberately NOT on snapshot. Bytecode carries a format version
-          # (UCODE_BYTECODE_VERSION) that an interpreter upgraded past it
-          # refuses to load, and that version is independent of libucode's
-          # PKG_ABI_VERSION, so no package relation expresses the coupling. On
-          # a pinned release the device's ucode and this SDK's ucode are the
-          # same package, so they agree; on snapshot ucode moves out from under
-          # an installed wwand and they need not. The package's own configure
-          # step degrades to shipping source if the SDK ucode cannot emit
-          # bytecode, and wwand.init refuses to start on a mismatch rather than
-          # crash-looping — but neither turns a stale snapshot device back on.
-          # CONFIG_PACKAGE_wwand comes first on purpose: the precompile symbol is
-          # package-scoped (depends on PACKAGE_wwand), so defconfig drops it unless
-          # the package itself is selected — which per-package mode does not do.
-          EXTRA_CONFIG: ${{ matrix.release != 'snapshot' && 'CONFIG_PACKAGE_wwand=y CONFIG_WWAND_UCODE_PRECOMPILE=y' || '' }}
+          # Enabling CONFIG_WWAND_UCODE_PRECOMPILE from here turned the whole
+          # openwrt-25.12 matrix red: defconfig dropped both the symbol and the
+          # CONFIG_PACKAGE_wwand it depends on. The ordering half of that is
+          # fixed (EXTRA_CONFIG now runs after `feeds install`), but whether a
+          # per-package SDK build can select CONFIG_PACKAGE_wwand at all is
+          # untested, and stable staying green outranks finding out in CI.
+          #
+          # The remaining obstacle if someone picks this up: the Makefile reads
+          # $(CONFIG_WWAND_UCODE_PRECOMPILE) as a plain make variable, so
+          # `make package/wwand/compile CONFIG_WWAND_UCODE_PRECOMPILE=y` would
+          # set it without Kconfig — but PKG_BUILD_DEPENDS resolves
+          # WWAND_UCODE_PRECOMPILE:ucode/host from .config during the metadata
+          # scan, so that route needs package/utils/ucode/host/compile run
+          # explicitly first, or the compiler is simply absent and the build
+          # falls back to shipping source.
+          EXTRA_CONFIG: ''
           # Per-package mode: builds exactly these source packages plus their
           # real dependencies — no whole-feed surface, no exposure to
           # unrelated upstream breakage (the perl parallel-build race cost us

@@ -81,6 +81,42 @@ group "feeds update -a"
 ./scripts/feeds update -a
 endgroup
 
+# EXTRA_CONFIG: build-time symbols the caller wants set, one "CONFIG_X=y" per
+# whitespace-separated word.
+#
+# Called AFTER the feeds are installed, never before: a package's Kconfig only
+# exists once its feed is in the tree, so both CONFIG_PACKAGE_<pkg> and any
+# symbol scoped to it (`depends on PACKAGE_<pkg>`) are silently dropped by a
+# defconfig that runs earlier. That ordering cost a red stable matrix once.
+apply_extra_config() {
+	[ -n "$EXTRA_CONFIG" ] || return 0
+
+	group "apply EXTRA_CONFIG"
+
+	for OPT in $EXTRA_CONFIG; do
+		echo "$OPT" >> .config
+	done
+
+	make defconfig
+
+	# Verify every symbol SURVIVED. defconfig drops a symbol whose Kconfig is
+	# not in the tree or whose dependencies are unmet, and it does so in
+	# silence — a build option that is silently ignored is worse than a build
+	# that fails, because the result looks correct and is not.
+	MISSING=""
+	for OPT in $EXTRA_CONFIG; do
+		grep -qxF "$OPT" .config || MISSING="$MISSING $OPT"
+	done
+
+	if [ -n "$MISSING" ]; then
+		echo "ERROR: EXTRA_CONFIG did not survive defconfig:$MISSING" >&2
+		echo "       (is the feed installed, and is CONFIG_PACKAGE_* selected?)" >&2
+		exit 1
+	fi
+
+	endgroup
+}
+
 group "make defconfig"
 # Fresh selection on every run: a leftover .config (persistent volume or
 # reused builder) keeps old CONFIG_PACKAGE_* selections alive — defconfig
@@ -89,34 +125,6 @@ group "make defconfig"
 rm -f .config .config.old
 make defconfig
 
-# EXTRA_CONFIG: build-time symbols the caller wants set, one "CONFIG_X=y" per
-# whitespace-separated word. Appended AFTER defconfig (the rm above would eat
-# anything written earlier) and followed by a second defconfig so Kconfig
-# resolves the dependencies the new symbols pull in.
-if [ -n "$EXTRA_CONFIG" ]; then
-	for OPT in $EXTRA_CONFIG; do
-		echo "$OPT" >> .config
-	done
-	make defconfig
-
-	# Verify every symbol SURVIVED. defconfig drops a symbol whose Kconfig is
-	# not in the tree or whose dependencies are unmet, and it does so in
-	# silence — a package-scoped option (one inside `define Package/x/config`,
-	# `depends on PACKAGE_x`) is dropped unless CONFIG_PACKAGE_x=y is set too.
-	# That failure mode is invisible in the build log and produces a package
-	# built with the DEFAULT, which is why this check is fatal rather than a
-	# warning: a silently ignored build option is worse than a failed build.
-	MISSING=""
-	for OPT in $EXTRA_CONFIG; do
-		grep -qxF "$OPT" .config || MISSING="$MISSING $OPT"
-	done
-
-	if [ -n "$MISSING" ]; then
-		echo "ERROR: EXTRA_CONFIG did not survive defconfig:$MISSING" >&2
-		echo "       (a package-scoped symbol also needs its CONFIG_PACKAGE_* selected)" >&2
-		exit 1
-	fi
-fi
 endgroup
 
 if [ -z "$PACKAGES" ]; then
@@ -126,6 +134,8 @@ if [ -z "$PACKAGES" ]; then
 		./scripts/feeds install -p "$FEED" -f -a
 		endgroup
 	done
+
+	apply_extra_config
 
 	RET=0
 
@@ -137,6 +147,18 @@ if [ -z "$PACKAGES" ]; then
 		V="$V" \
 		-j "$(nproc)" || RET=$?
 else
+	# Install everything that will be built BEFORE touching .config, so a
+	# package-scoped Kconfig symbol from EXTRA_CONFIG has something to attach
+	# to. The per-package installs below then repeat harmlessly (-f forces).
+	for FEED in $ALL_CUSTOM_FEEDS; do
+		group "feeds install -p $FEED -f $PACKAGES"
+		# shellcheck disable=SC2086  # word splitting is the point
+		./scripts/feeds install -p "$FEED" -f $PACKAGES
+		endgroup
+	done
+
+	apply_extra_config
+
 	# compile specific packages with checks
 	for PKG in $PACKAGES; do
 		for FEED in $ALL_CUSTOM_FEEDS; do
