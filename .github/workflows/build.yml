@@ -199,18 +199,40 @@ jobs:
             {
               printf '<!doctype html><meta charset="utf-8">'
               printf '<title>openwrt-repo/%s</title>' "$rel"
-              printf '<style>body{font:14px/1.5 monospace;margin:2em}td{padding:0 1.5em 0 0}</style>'
+              printf '<style>body{font:14px/1.5 monospace;margin:2em}'
+              printf 'td{padding:0 1.5em 0 0}td.n{text-align:right}'
+              printf 'th{text-align:left;padding:0 1.5em .3em 0;border-bottom:1px solid #ccc}</style>'
               printf '<h2>openwrt-repo/%s</h2><table>' "$rel"
-              [ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td><td></td></tr>'
+              printf '<tr><th>Name</th><th>Version</th><th>Size</th><th>Date</th><th>Time (UTC)</th></tr>'
+              [ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td><td></td><td></td><td></td><td></td></tr>'
               for e in "$d"/*; do
                 [ -e "$e" ] || continue
                 n="$(basename "$e")"
                 [ "$n" = index.html ] && continue
+                # mtime, not a field from the index: apk's ADB carries no
+                # timestamp at all (arch/depends/description/file-size/hashes/
+                # installed-size/license/maintainer/origin/provides/url/version
+                # and nothing else). It is honest here because the matrix
+                # rebuilds every arch on every run and the arch directory is
+                # REPLACED wholesale above, so nothing is carried over from an
+                # older publish that could show a stale date.
+                dt="$(date -u -r "$e" '+%Y-%m-%d')"
+                tm="$(date -u -r "$e" '+%H:%M')"
                 if [ -d "$e" ]; then
-                  printf '<tr><td><a href="%s/">%s/</a></td><td></td></tr>' "$n" "$n"
+                  printf '<tr><td><a href="%s/">%s/</a></td><td></td><td></td><td>%s</td><td>%s</td></tr>' \
+                    "$n" "$n" "$dt" "$tm"
                 else
-                  printf '<tr><td><a href="%s">%s</a></td><td>%s</td></tr>' \
-                    "$n" "$n" "$(du -h "$e" | cut -f1)"
+                  # apk names an artifact <name>-<version>-r<release>.apk, so the
+                  # trailing two dash-separated fields ARE the version — which is
+                  # why the name itself may contain dashes (luci-app-wwand,
+                  # python3-edlclient) without ambiguity. Anything that does not
+                  # match that shape (a stray file, a signature) gets no version
+                  # rather than a guessed one. The authoritative source would be
+                  # the index.json the SDK writes beside the packages; it is not
+                  # used here because the filename already answers it exactly.
+                  v="$(printf '%s' "$n" | sed -n 's/^.*-\([^-]*-r[0-9][0-9]*\)\.apk$/\1/p')"
+                  printf '<tr><td><a href="%s">%s</a></td><td>%s</td><td class="n">%s</td><td>%s</td><td>%s</td></tr>' \
+                    "$n" "$n" "$v" "$(LC_ALL=C numfmt --to=iec --suffix=B "$(stat -c%s "$e")")" "$dt" "$tm"
                 fi
               done
               printf '</table>'
