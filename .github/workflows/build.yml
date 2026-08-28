@@ -101,7 +101,7 @@ jobs:
           # device can be pointed at it once and then follow it like any other
           # package. It is built per release and architecture because the URL
           # it installs names both.
-          PACKAGES: apman ddimension-feed homesync luacurl lua-mosquitto qfirehose qflash qlog usb-relay-hid wpad-ieee8021x wwand wwand-lpac luci-app-wwand luci-proto-wwand
+          PACKAGES: apman ddimension-feed homesync luacurl lua-mosquitto qfirehose qflash qlog usb-relay-hid wpad-ieee8021x wpad-saeradh2e wwand wwand-lpac luci-app-wwand luci-proto-wwand
           INDEX: 1
           # not staged for openwrt.org upstream — skip patch-refresh and
           # shfmt hygiene checks; the hash check stays active

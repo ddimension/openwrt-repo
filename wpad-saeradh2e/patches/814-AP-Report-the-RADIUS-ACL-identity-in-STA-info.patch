@@ -1,0 +1,105 @@
+From 2c171fbf338171edcd1ab3f2122d1556ac968236 Mon Sep 17 00:00:00 2001
+From: André Valentin <avalentin@marcant.net>
+Date: Fri, 28 Aug 2026 21:53:46 +0200
+Subject: [PATCH] AP: Report the RADIUS ACL identity in STA info
+
+When the credential of a station comes from a RADIUS server rather than
+from a local wpa_psk_file entry, ap_sta_wpa_get_keyid() finds no matching
+struct hostapd_wpa_psk and no keyid is reported. There is no keyid on
+that path, but hostapd does store the User-Name attribute of the
+Access-Accept as sta->identity, which names the credential in the same
+way, and that is already used as the User-Name for RADIUS accounting.
+
+Report it as an identity field in the STA info of the control interface
+and in the AP-STA-CONNECTED event, so that the credential a station used
+can also be seen locally on the AP. The value comes from the RADIUS
+server and is printf_encode()d for that reason.
+
+Signed-off-by: André Valentin <avalentin@marcant.net>
+
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index 488992c..18a79f1 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -462,6 +462,18 @@ static int hostapd_ctrl_iface_sta_mib(struct hostapd_data *hapd,
+ 			len += ret;
+ 	}
+ 
++	if (sta->identity) {
++		char identity[4 * 255 + 1];
++
++		printf_encode(identity, sizeof(identity),
++			      (const u8 *) sta->identity,
++			      os_strlen(sta->identity));
++		ret = os_snprintf(buf + len, buflen - len, "identity=%s\n",
++				  identity);
++		if (!os_snprintf_error(buflen - len, ret))
++			len += ret;
++	}
++
+ 	dpp_pkhash = ap_sta_wpa_get_dpp_pkhash(hapd, sta);
+ 	if (dpp_pkhash) {
+ 		ret = os_snprintf(buf + len, buflen - len, "dpp_pkhash=");
+diff --git a/src/ap/sta_info.c b/src/ap/sta_info.c
+index 426e16f..367dc57 100644
+--- a/src/ap/sta_info.c
++++ b/src/ap/sta_info.c
+@@ -1822,11 +1822,13 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+ 		char ip_addr[100];
+ 		char vlanid_buf[20];
+ 		char alg_buf[100];
++		char identity_buf[4 * 255 + 16];
+ 
+ 		dpp_pkhash_buf[0] = '\0';
+ 		keyid_buf[0] = '\0';
+ 		ip_addr[0] = '\0';
+ 		vlanid_buf[0] = '\0';
++		identity_buf[0] = '\0';
+ 		alg_buf[0] = '\0';
+ 
+ #ifdef CONFIG_P2P
+@@ -1852,6 +1854,21 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+ 				    " keyid=%s", keyid);
+ 		}
+ 
++		if (sta->identity) {
++			size_t plen;
++
++			os_strlcpy(identity_buf, " identity=\"",
++				   sizeof(identity_buf));
++			plen = os_strlen(identity_buf);
++			printf_encode(identity_buf + plen,
++				      sizeof(identity_buf) - plen - 1,
++				      (const u8 *) sta->identity,
++				      os_strlen(sta->identity));
++			plen = os_strlen(identity_buf);
++			os_snprintf(identity_buf + plen,
++				    sizeof(identity_buf) - plen, "\"");
++		}
++
+ 		dpp_pkhash = ap_sta_wpa_get_dpp_pkhash(hapd, sta);
+ 		if (dpp_pkhash) {
+ 			const char *prefix = " dpp_pkhash=";
+@@ -1871,15 +1888,18 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+ #endif /* CONFIG_NO_VLAN */
+ 
+ 		hostapd_ubus_notify_authorized(hapd, sta, auth_alg);
+-		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED "%s%s%s%s%s%s",
+-			buf, ip_addr, keyid_buf, dpp_pkhash_buf, vlanid_buf, alg_buf);
++		wpa_msg(hapd->msg_ctx, MSG_INFO,
++			AP_STA_CONNECTED "%s%s%s%s%s%s%s",
++			buf, ip_addr, keyid_buf, dpp_pkhash_buf, vlanid_buf,
++			alg_buf, identity_buf);
+ 
+ 		if (hapd->msg_ctx_parent &&
+ 		    hapd->msg_ctx_parent != hapd->msg_ctx)
+ 			wpa_msg_no_global(hapd->msg_ctx_parent, MSG_INFO,
+-					  AP_STA_CONNECTED "%s%s%s%s%s%s",
++					  AP_STA_CONNECTED "%s%s%s%s%s%s%s",
+ 					  buf, ip_addr, keyid_buf,
+-					  dpp_pkhash_buf, vlanid_buf, alg_buf);
++					  dpp_pkhash_buf, vlanid_buf, alg_buf,
++					  identity_buf);
+ 	} else {
+ 		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_DISCONNECTED "%s", buf);
+ 		hostapd_ubus_notify(hapd, "disassoc", sta->addr);

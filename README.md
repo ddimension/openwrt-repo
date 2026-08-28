@@ -22,6 +22,7 @@ their own repositories and are fetched via `PKG_SOURCE_URL`.
 | `qflash` | bundled Quectel QFlash 2.0 source tarball (legacy firmware flasher) |
 | `qlog` | bundled Quectel QLog V1.5.8 source zip (modem debug logging) |
 | `usb-relay-hid` | upstream [OzFalcon/usb-relay-hid](https://github.com/OzFalcon/usb-relay-hid) |
+| `wpad-saeradh2e` | OpenWrt's `hostapd` package (full/OpenSSL wpad only) plus our SAE-over-RADIUS patches; the patches also live in [ddimension/hostapd](https://github.com/ddimension/hostapd) branch `sae-radius-h2e` |
 
 ## Binary package repositories
 

@@ -1,0 +1,62 @@
+From 4e89dd5b41c836eedaaba997086365fe37eeed87 Mon Sep 17 00:00:00 2001
+From: André Valentin <avalentin@marcant.net>
+Date: Fri, 28 Aug 2026 20:18:48 +0200
+Subject: [PATCH] AP: Do not clear is_passphrase in the shared RADIUS PSK list
+
+hostapd_copy_psk_list() takes a reference instead of making a copy and
+hostapd_acl_cache_get() copies struct radius_sta by value, so the
+struct hostapd_sta_wpa_psk_short entries reachable through sta->psk are
+the very same objects that are stored in the RADIUS ACL cache in
+hapd->acl_cache.
+
+hostapd_wpa_auth_get_psk() converted a passphrase from the
+Tunnel-Password attribute into a PSK in place and then cleared
+is_passphrase to avoid running pbkdf2_sha1() again for the following
+handshakes. That modification is visible through the ACL cache entry as
+well. sae_get_password() uses a RADIUS-provided password only if
+is_passphrase is set, so once a station had completed a WPA-PSK
+four-way handshake, SAE authentication for the same station failed with
+"SAE: No password available" until the cache entry expired after
+RADIUS_ACL_TIMEOUT (30 seconds). This is reachable with a BSS that
+enables both WPA-PSK and SAE and uses wpa_psk_radius.
+
+Keep is_passphrase untouched and record the availability of the derived
+PSK in a separate psk_set bit instead. The PSK is still derived only
+once per entry.
+
+Signed-off-by: André Valentin <avalentin@marcant.net>
+
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index ae2138e..3c39a28 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -156,6 +156,7 @@ struct hostapd_vlan {
+ struct hostapd_sta_wpa_psk_short {
+ 	struct hostapd_sta_wpa_psk_short *next;
+ 	unsigned int is_passphrase:1;
++	unsigned int psk_set:1;
+ 	u8 psk[PMK_LEN];
+ 	char passphrase[MAX_PASSPHRASE_LEN + 1];
+ 	int ref; /* (number of references held) - 1 */
+diff --git a/src/ap/wpa_auth_glue.c b/src/ap/wpa_auth_glue.c
+index 969c63b..bafdddb 100644
+--- a/src/ap/wpa_auth_glue.c
++++ b/src/ap/wpa_auth_glue.c
+@@ -551,7 +551,7 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
+ 		if (vlan_id)
+ 			sta->psk_idx = psk_idx;
+ 		for (pos = sta->psk; pos; pos = pos->next, psk_idx++) {
+-			if (pos->is_passphrase) {
++			if (pos->is_passphrase && !pos->psk_set) {
+ 				if (pbkdf2_sha1(pos->passphrase,
+ 						hapd->conf->ssid.ssid,
+ 						hapd->conf->ssid.ssid_len, 4096,
+@@ -560,7 +560,7 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
+ 						   "Error in pbkdf2_sha1()");
+ 					continue;
+ 				}
+-				pos->is_passphrase = 0;
++				pos->psk_set = 1;
+ 			}
+ 			if (pos->psk == prev_psk) {
+ 				psk = pos->next ? pos->next->psk : NULL;
