@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From:=?UTF-8?q?Andr=C3=A9=20Valentin?= <avalentin@marcant.net>
+Date: Sat, 29 Aug 2026 10:05:00 +0200
+Subject: [PATCH] AP: Report the station RSNXE in STA info
+
+The RSN Extension element a station sent is kept in the WPA state machine
+for the whole association, but it is not reported anywhere. Add it as an
+rsnxe field to the STA info of the control interface, hex encoded.
+
+The element answers what a station can do rather than what it did: SAE
+hash-to-element, SAE-PK, protected TWT, secure LTF and secure RTT all
+live in its capability bits. Without it the only way to tell whether a
+station supports SAE-PK is to switch SAE-PK on and see who stops
+connecting.
+
+It is reported as raw hex rather than decoded flags on purpose. The bit
+assignments keep growing, and a management system can decode what it
+knows and keep the rest, while a decoded string would have to be taught
+every new bit here first.
+
+Signed-off-by:=?UTF-8?q?Andr=C3=A9=20Valentin?= <avalentin@marcant.net>
+---
+diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
+--- a/src/ap/wpa_auth.c
++++ b/src/ap/wpa_auth.c
+@@ -6742,6 +6742,15 @@
+ }
+ 
+ 
++const u8 * wpa_auth_get_rsnxe(struct wpa_state_machine *sm, size_t *len)
++{
++	if (!sm || !sm->rsnxe || !sm->rsnxe_len)
++		return NULL;
++	*len = sm->rsnxe_len;
++	return sm->rsnxe;
++}
++
++
+ int wpa_auth_sta_key_mgmt(struct wpa_state_machine *sm)
+ {
+ 	if (!sm)
+diff --git a/src/ap/wpa_auth.h b/src/ap/wpa_auth.h
+--- a/src/ap/wpa_auth.h
++++ b/src/ap/wpa_auth.h
+@@ -512,6 +512,7 @@
+ int wpa_auth_get_pairwise(struct wpa_state_machine *sm);
+ const u8 * wpa_auth_get_pmk(struct wpa_state_machine *sm, int *len);
+ const u8 * wpa_auth_get_dpp_pkhash(struct wpa_state_machine *sm);
++const u8 * wpa_auth_get_rsnxe(struct wpa_state_machine *sm, size_t *len);
+ int wpa_auth_sta_key_mgmt(struct wpa_state_machine *sm);
+ bool wpa_auth_get_first_sta_seen(struct wpa_authenticator *wpa_auth,
+ 				 int vlan_id);
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -500,6 +500,22 @@
+ 			len += ret;
+ 	}
+ 
++	{
++		size_t rsnxe_len;
++		const u8 *rsnxe = wpa_auth_get_rsnxe(sta->wpa_sm, &rsnxe_len);
++
++		if (rsnxe) {
++			ret = os_snprintf(buf + len, buflen - len, "rsnxe=");
++			if (!os_snprintf_error(buflen - len, ret))
++				len += ret;
++			len += wpa_snprintf_hex(buf + len, buflen - len,
++						rsnxe, rsnxe_len);
++			ret = os_snprintf(buf + len, buflen - len, "\n");
++			if (!os_snprintf_error(buflen - len, ret))
++				len += ret;
++		}
++	}
++
+ 	dpp_pkhash = ap_sta_wpa_get_dpp_pkhash(hapd, sta);
+ 	if (dpp_pkhash) {
+ 		ret = os_snprintf(buf + len, buflen - len, "dpp_pkhash=");
