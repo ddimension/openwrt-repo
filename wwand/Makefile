@@ -397,9 +397,55 @@ define Package/wwand-esim/install
 	$(INSTALL_DATA) $(WWAND_UCODE)/esim_bridge.uc $(1)$(UCDIR)/
 endef
 
+# ---------------------------------------------------------------------------
+# wwand-datapath-rmnet_nss: Qualcomm NSS offload behind the VENDOR qmi_wwan_q.
+# A datapath add-on, not a control backend — it plugs into wwand's datapath
+# interface (`option mux 'rmnet_nss'`, or picked up on its own under 'auto').
+# Underscore in the name on purpose: the datapath name doubles as the ucode
+# module name (wwand.datapath_rmnet_nss), and the daemon's "package not
+# installed" note is built from it, so the two must read alike.
+# ---------------------------------------------------------------------------
+define Package/wwand-datapath-rmnet_nss
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=NSS-offloaded QMAP datapath (vendor qmi_wwan_q) for wwand
+  # +wwand-qmi: it is a QMI datapath. The vendor driver and the NSS shim are
+  # NOT dependencies — they come from the board's own kernel tree (QSDK/NSS
+  # builds), and this package must stay installable next to them rather than
+  # try to name them.
+  DEPENDS:=+wwand-qmi
+endef
+
+define Package/wwand-datapath-rmnet_nss/description
+  Datapath add-on for Qualcomm NSS builds (ipq807x and friends), where the modem
+  datapath is offloaded to the NSS cores. The attach point is a global callback
+  contract: rmnet_nss publishes rmnet_nss_callbacks and the vendor qmi_wwan_q
+  driver calls nss_create() on each QMAP netdev it registers. Mainline rmnet
+  makes no such call, so wwand's built-in rmnet/qmimux datapaths produce children
+  that never reach the NSS shim — traffic forwards, but on the CPU.
+
+  This datapath therefore creates nothing: qmi_wwan_q registers the children in
+  its USB probe, one per its qmap_mode module parameter, and wwand adopts them,
+  drives the per-channel link_state gate and binds each WDS session to the QMAP
+  id the driver expects (0x81 upwards, not the config channel number).
+
+  Requires rmnet_nss to be LOADED BEFORE the modem's driver binds — qmi_wwan_q
+  captures whether NSS is available at the moment it creates each child, so a
+  module loaded afterwards leaves them without an NSS context. Install it on a
+  QSDK/NSS build with the vendor qmi_wwan_q driver; on any other box it probes
+  false and changes nothing.
+endef
+
+define Package/wwand-datapath-rmnet_nss/install
+	$(INSTALL_DIR) $(1)$(UCDIR)
+	$(INSTALL_DATA) $(WWAND_UCODE)/datapath_rmnet_nss.uc $(1)$(UCDIR)/
+endef
+
 $(eval $(call BuildPackage,wwand))
 $(eval $(call BuildPackage,wwand-qmi))
 $(eval $(call BuildPackage,wwand-mbim))
 $(eval $(call BuildPackage,wwand-ncm))
 $(eval $(call BuildPackage,wwand-mhi))
 $(eval $(call BuildPackage,wwand-esim))
+$(eval $(call BuildPackage,wwand-datapath-rmnet_nss))
