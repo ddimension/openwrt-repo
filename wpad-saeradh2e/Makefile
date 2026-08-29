@@ -34,12 +34,12 @@ PKG_CPE_ID:=cpe:/a:w1.fi:hostapd
 PKG_BUILD_PARALLEL:=1
 PKG_ASLR_PIE_REGULAR:=1
 
+# The three DRIVER_11*_SUPPORT symbols are gone from here on purpose: they are
+# forced below, so a change to them no longer changes this build and listing
+# them would claim a dependency that does not exist.
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_wpad-saeradh2e \
 	CONFIG_WPA_RFKILL_SUPPORT \
-	CONFIG_DRIVER_11AC_SUPPORT \
-	CONFIG_DRIVER_11AX_SUPPORT \
-	CONFIG_DRIVER_11BE_SUPPORT \
 	CONFIG_WPA_ENABLE_WEP
 
 PKG_BUILD_FLAGS:=gc-sections lto
@@ -58,19 +58,8 @@ TARGET_LDFLAGS_C:=$(TARGET_LDFLAGS)
 
 STAMP_CONFIGURED:=$(STAMP_CONFIGURED)_$(CONFIG_WPA_MSG_MIN_PRIORITY)
 
-ifneq ($(CONFIG_DRIVER_11AC_SUPPORT),)
-  HOSTAPD_IEEE80211AC:=y
-endif
-
-ifneq ($(CONFIG_DRIVER_11AX_SUPPORT),)
-  HOSTAPD_IEEE80211AX:=y
-endif
-
-ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
-  HOSTAPD_IEEE80211BE:=y
-endif
-
-# Both forced on, rather than left to the symbols above.
+# Every radio capability forced on, rather than derived from the
+# CONFIG_DRIVER_11??_SUPPORT symbols the stock package follows.
 #
 # Those symbols are selected by the wifi driver packages (ath.mk and friends
 # carry +@DRIVER_11AX_SUPPORT in DEPENDS), and this package is built in an
@@ -78,13 +67,22 @@ endif
 # today - the binary from build 33211744602 carries he_bss_color and the
 # ieee80211ax strings, checked on 2026-08-29 by unpacking the published apk on
 # ap-av-attic - but that is the SDK's target defaults doing it, not anything
-# this package asks for, and a fleet where every radio is 11ax should not
-# depend on that.
+# this package asks for. A build whose radio capabilities depend on whether
+# somebody happened to select a kernel module is a build that can quietly come
+# out as 802.11n.
 #
-# 11be follows because hostapd requires CONFIG_IEEE80211AX for it
-# ("CONFIG_IEEE80211AX is mandatory for setting CONFIG_IEEE80211BE"), and no
-# phy in the fleet reports EHT today: it is built for the hardware that comes,
-# and costs nothing until a driver offers it.
+# What the fleet actually runs, measured the same day: VHT20/VHT80 on every
+# radio (11ac), 11ax on every radio, and mbo=1 on five bsses. All three are
+# therefore requirements here, not options.
+#
+# 11be is the exception to that reasoning: no phy reports EHT today. It is
+# forced because it is free until a driver offers it, and because hostapd
+# requires CONFIG_IEEE80211AX for it anyway ("CONFIG_IEEE80211AX is mandatory
+# for setting CONFIG_IEEE80211BE").
+#
+# Not forced, deliberately: CONFIG_WPA_RFKILL_SUPPORT, which is about a
+# hardware switch no access point here has, and CONFIG_WPA_ENABLE_WEP.
+HOSTAPD_IEEE80211AC:=y
 HOSTAPD_IEEE80211AX:=y
 HOSTAPD_IEEE80211BE:=y
 
@@ -100,7 +98,7 @@ DRIVER_MAKEOPTS= \
 	CONFIG_IEEE80211AC=$(HOSTAPD_IEEE80211AC) \
 	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
 	CONFIG_IEEE80211BE=$(HOSTAPD_IEEE80211BE) \
-	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT) \
+	CONFIG_MBO=y \
 	CONFIG_UCODE=y CONFIG_APUP=y \
 	$(if $(HOSTAPD_IEEE80211BE),CONFIG_OCV=y)
 
@@ -144,7 +142,24 @@ DRIVER_MAKEOPTS += CONFIG_SAE_PK=y
 # already on, which is what the shared-key variant needs.
 DRIVER_MAKEOPTS += CONFIG_FILS=y
 
-# Pre-Association Security Negotiation.
+# Pre-Association Security Negotiation: a key between a station and an access
+# point it is not associated with, established over Authentication frames
+# (ECDH, group 19 mandatory) without any association taking place.
+#
+# This is here for the planned client localisation. Locating a station means
+# measuring it from several access points at once, and a station is associated
+# with exactly one of them - IEEE 802.11az Fine Timing Measurement against the
+# others has no key to protect the exchange, and an unprotected ranging result
+# is one anybody can forge. PASN is what supplies that key. The 802.11az
+# options in hostapd.conf sit right next to it and urnm_mfpr demands a PTKSA
+# for unassociated measurement, which is the same statement from the other end.
+#
+# Inert until asked for: handle_auth() answers a PASN frame only when
+# wpa_key_mgmt carries PASN (ieee802_11.c, the WLAN_AUTH_PASN branch;
+# config_file.c:717 parses the string), and without it hostapd replies
+# "Unsupported authentication algorithm". Note for whoever switches it on:
+# pasn_noauth defaults to 1, which permits PASN without mutual authentication.
+# That default deserves a decision rather than acceptance.
 DRIVER_MAKEOPTS += CONFIG_PASN=y
 
 # Deliberately NOT built: CONFIG_ENC_ASSOC and CONFIG_IEEE8021X_AUTH, the
