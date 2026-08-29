@@ -145,16 +145,15 @@ DRIVER_MAKEOPTS += CONFIG_FILS=y
 # Pre-Association Security Negotiation.
 DRIVER_MAKEOPTS += CONFIG_PASN=y
 
-# IEEE P802.11bi: encrypted association frames, and 802.1X carried in
-# authentication frames. IEEE8021X_AUTH needs ENC_ASSOC, so they go together.
-#
-# hostapd's own defconfig says of these: "These features are experimental and
-# still changing; do not enable for production use." Enabled deliberately
-# anyway, on 2026-08-29. Nothing offers them unless a bss is configured for
-# them, so the cost of carrying the code is size and attack surface, not
-# behaviour - but the warning is upstream's, not a guess, and it is the first
-# thing to undo if this build ever misbehaves in a way nothing else explains.
-DRIVER_MAKEOPTS += CONFIG_ENC_ASSOC=y CONFIG_IEEE8021X_AUTH=y
+# Deliberately NOT built: CONFIG_ENC_ASSOC and CONFIG_IEEE8021X_AUTH, the
+# encrypted association frames and 802.1X-in-authentication-frames of
+# IEEE P802.11bi. They were in this file for about an hour on 2026-08-29 and
+# were taken back out the same day. hostapd's own defconfig is the reason:
+# "These features are experimental and still changing; do not enable for
+# production use." Nothing in this fleet asks for them, and carrying draft
+# code that upstream itself will keep changing buys attack surface and a
+# future merge conflict for no working feature. Written down rather than
+# silently absent, so the question does not get asked a third time.
 
 # hostapd's own RADIUS server, out. /etc/config/radius carries disabled '1' on
 # every access point, no bss configures radius_server_clients, and udp/1812 is
