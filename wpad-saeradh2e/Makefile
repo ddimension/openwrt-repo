@@ -19,7 +19,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wpad-saeradh2e
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_URL:=https://w1.fi/hostap.git
 PKG_SOURCE_PROTO:=git
@@ -70,6 +70,24 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
   HOSTAPD_IEEE80211BE:=y
 endif
 
+# Both forced on, rather than left to the symbols above.
+#
+# Those symbols are selected by the wifi driver packages (ath.mk and friends
+# carry +@DRIVER_11AX_SUPPORT in DEPENDS), and this package is built in an
+# SDK against a package list that contains no kmod at all. It happens to work
+# today - the binary from build 33211744602 carries he_bss_color and the
+# ieee80211ax strings, checked on 2026-08-29 by unpacking the published apk on
+# ap-av-attic - but that is the SDK's target defaults doing it, not anything
+# this package asks for, and a fleet where every radio is 11ax should not
+# depend on that.
+#
+# 11be follows because hostapd requires CONFIG_IEEE80211AX for it
+# ("CONFIG_IEEE80211AX is mandatory for setting CONFIG_IEEE80211BE"), and no
+# phy in the fleet reports EHT today: it is built for the hardware that comes,
+# and costs nothing until a driver offers it.
+HOSTAPD_IEEE80211AX:=y
+HOSTAPD_IEEE80211BE:=y
+
 CORE_DEPENDS = +ucode +libucode \
 	+ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop \
 	+libubus +libblobmsg-json \
@@ -97,6 +115,55 @@ endif
 ifdef CONFIG_WPA_ENABLE_WEP
   DRIVER_MAKEOPTS += CONFIG_WEP=y
 endif
+
+# --- what this build does that the stock full/openssl one does not ----------
+#
+# Kept here and not in files/hostapd-full.config on purpose: that file is a
+# straight copy of upstream's, and the header of this Makefile says re-syncing
+# means copying files/ over. A change made there would be reverted by the next
+# sync without anyone noticing; a change made here survives it.
+
+# TKIP is not merely unused in this fleet, it is absent: all ten bsses render
+# wpa_pairwise=CCMP, measured 2026-08-29. Removing it takes out cryptography
+# that is broken rather than old, and makes the binary smaller.
+DRIVER_MAKEOPTS += CONFIG_NO_TKIP=y
+
+# SAE Public Key. An access point proves its identity with a key pair, so a
+# twin that knows the password cannot pass for it. The reason it is worth the
+# space here: a station with a duplicated MAC has been knocking at ap-outdoor
+# since 17.08.2026 and is handed another device's iPSK for its trouble, because
+# with per-MAC keys the address is the whole identity. Building it in does not
+# switch it on - that needs a key pair per network - but nothing can until the
+# code is present.
+DRIVER_MAKEOPTS += CONFIG_SAE_PK=y
+
+# Fast Initial Link Setup, IEEE 802.11ai. Association in fewer frames for
+# stations that can do it; the ones that cannot are unaffected. CONFIG_ERP is
+# already on, which is what the shared-key variant needs.
+DRIVER_MAKEOPTS += CONFIG_FILS=y
+
+# Pre-Association Security Negotiation.
+DRIVER_MAKEOPTS += CONFIG_PASN=y
+
+# IEEE P802.11bi: encrypted association frames, and 802.1X carried in
+# authentication frames. IEEE8021X_AUTH needs ENC_ASSOC, so they go together.
+#
+# hostapd's own defconfig says of these: "These features are experimental and
+# still changing; do not enable for production use." Enabled deliberately
+# anyway, on 2026-08-29. Nothing offers them unless a bss is configured for
+# them, so the cost of carrying the code is size and attack surface, not
+# behaviour - but the warning is upstream's, not a guess, and it is the first
+# thing to undo if this build ever misbehaves in a way nothing else explains.
+DRIVER_MAKEOPTS += CONFIG_ENC_ASSOC=y CONFIG_IEEE8021X_AUTH=y
+
+# hostapd's own RADIUS server, out. /etc/config/radius carries disabled '1' on
+# every access point, no bss configures radius_server_clients, and udp/1812 is
+# held by the agent's own Lua server - measured on ap-av-grwz 2026-08-29. The
+# files that drove it are dropped from the install below, because an init
+# script for a server that is no longer in the binary is worse than an unused
+# one. This is the built-in server only; the RADIUS *client*, which everything
+# on this fleet depends on and which CONFIG_NO_RADIUS would remove, stays.
+DRIVER_MAKEOPTS += CONFIG_RADIUS_SERVER=
 
 # Every hostapd/wpa_supplicant provider of the base package. Installing this
 # one has to replace whichever of them is on the device.
@@ -136,11 +203,6 @@ define Package/wpad-saeradh2e/description
    (sae_password_radius=1)
  - the credential a station used is reported as identity= and
    sae_password_id= in the STA info and in the AP-STA-CONNECTED event
-endef
-
-define Package/wpad-saeradh2e/conffiles
-/etc/config/radius
-/etc/radius
 endef
 
 define Build/Configure
@@ -211,12 +273,6 @@ define Package/wpad-saeradh2e/install
 	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/share/hostap
 	$(INSTALL_DATA) ./files/hostapd.uc $(1)/usr/share/hostap/
 	$(INSTALL_DATA) ./files/wpa_supplicant.uc $(1)/usr/share/hostap/
-	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/radius
-	ln -sf hostapd $(1)/usr/sbin/hostapd-radius
-	$(INSTALL_BIN) ./files/radius.init $(1)/etc/init.d/radius
-	$(INSTALL_DATA) ./files/radius.config $(1)/etc/config/radius
-	$(INSTALL_DATA) ./files/radius.clients $(1)/etc/radius/clients
-	$(INSTALL_DATA) ./files/radius.users $(1)/etc/radius/users
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/wpad $(1)/usr/sbin/
 	$(LN) wpad $(1)/usr/sbin/hostapd
 	$(LN) wpad $(1)/usr/sbin/wpa_supplicant
