@@ -123,10 +123,12 @@ endif
 # means copying files/ over. A change made there would be reverted by the next
 # sync without anyone noticing; a change made here survives it.
 
-# TKIP is not merely unused in this fleet, it is absent: all ten bsses render
-# wpa_pairwise=CCMP, measured 2026-08-29. Removing it takes out cryptography
-# that is broken rather than old, and makes the binary smaller.
-DRIVER_MAKEOPTS += CONFIG_NO_TKIP=y
+# Deliberately NOT set: CONFIG_NO_TKIP. Nothing in this fleet uses TKIP - all
+# ten bsses render wpa_pairwise=CCMP, measured 2026-08-29 - so the option
+# would be safe, and it was set for about an hour that day before being taken
+# back out on request. Leaving it unset keeps this build's crypto identical to
+# the stock one, which is one fewer difference to reason about when something
+# behaves unlike wpad-openssl. If it is ever wanted it is one line.
 
 # SAE Public Key. An access point proves its identity with a key pair, so a
 # twin that knows the password cannot pass for it. The reason it is worth the
