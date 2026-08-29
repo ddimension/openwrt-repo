@@ -430,10 +430,15 @@ define Package/wwand-datapath-rmnet_nss/description
   drives the per-channel link_state gate and binds each WDS session to the QMAP
   id the driver expects (0x81 upwards, not the config channel number).
 
-  Requires rmnet_nss to be LOADED BEFORE the modem's driver binds — qmi_wwan_q
-  captures whether NSS is available at the moment it creates each child, so a
-  module loaded afterwards leaves them without an NSS context. Install it on a
-  QSDK/NSS build with the vendor qmi_wwan_q driver; on any other box it probes
+  It claims any parent carrying those vendor children, with or without the NSS
+  shim: they need adopting either way, and leaving a non-NSS vendor box to
+  mainline rmnet makes it build a second set of children on a parent that
+  already demuxes QMAP itself. For the offload, rmnet_nss must be LOADED BEFORE
+  the modem's driver binds — qmi_wwan_q captures whether NSS is available at the
+  moment it creates each child, so a module loaded afterwards leaves them
+  without an NSS context; that case is logged and shown on the status page.
+
+  Install it on a box with the vendor qmi_wwan_q driver; anywhere else it probes
   false and changes nothing.
 endef
 
