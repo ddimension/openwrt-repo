@@ -329,12 +329,14 @@ define Package/wwand-mhi/description
   wwand binds these modems on boot. Install together with a control backend
   (wwand-qmi or wwand-mbim).
 
-  Adding wwand-mbim is worthwhile even on a QMI-driven MHI modem: many of them
+  Adding wwand-mbim is worth weighing on a QMI-driven MHI modem: many of them
   expose no DUN channel and therefore no AT port at all, and wwand can then
-  carry AT over the modem's MBIM channel instead (Quectel QDU). Without that
-  package the capability is simply absent — vendor AT commands, the protocol
-  switch and AT telemetry are unavailable, which is a limitation rather than a
-  failure.
+  carry AT over the modem's MBIM channel instead (Quectel QDU). The cost is
+  that wwand-mbim currently pulls the USB MBIM transport with it, which this
+  path does not use — and on a target built without USB support it cannot be
+  selected at all. Without it the capability is simply absent: vendor AT
+  commands, the protocol switch and AT telemetry are unavailable, which is a
+  limitation rather than a failure.
 endef
 
 define Package/wwand-mhi/install
