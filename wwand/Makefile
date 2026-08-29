@@ -214,7 +214,11 @@ define Package/wwand-qmi
   CATEGORY:=Network
   SUBMENU:=WWAN
   TITLE:=QMI backend for wwand
-  DEPENDS:=+wwand +kmod-usb-net-qmi-wwan +kmod-rmnet
+  # kmod-rmnet is the QMAP demuxer and is needed on BOTH transports (an MHI
+  # modem multiplexes through it too); only the USB glue is conditional, so a
+  # target built without USB support can still select this backend and drive a
+  # PCIe/MHI modem. On a USB target nothing changes.
+  DEPENDS:=+wwand +USB_SUPPORT:kmod-usb-net-qmi-wwan +kmod-rmnet
   # coexists with the stock OpenWrt QMI stack (uqmi):
   # by default wwand claims only `proto wwand` interfaces, so both can be
   # installed. Set the global `option takeover '1'` (or migrate interfaces from
@@ -246,7 +250,10 @@ define Package/wwand-mbim
   CATEGORY:=Network
   SUBMENU:=WWAN
   TITLE:=MBIM backend for wwand
-  DEPENDS:=+wwand-qmi +kmod-usb-net-cdc-mbim
+  # conditional for the same reason as wwand-qmi: the ucode side is
+  # transport-neutral, and on MHI the transport is kmod-mhi-wwan-mbim, which
+  # wwand-mhi already pulls
+  DEPENDS:=+wwand-qmi +USB_SUPPORT:kmod-usb-net-cdc-mbim
   # coexists with the stock OpenWrt MBIM stack (netifd `mbim` proto, package
   # umbim): wwand manages a cdc_mbim modem only once its interface has been
   # migrated to `proto wwand` (LuCI modem list / migrate CLI), so both stacks can
@@ -285,7 +292,8 @@ define Package/wwand-ncm
   TITLE:=NCM/ECM backend for wwand
   # +kmod-usb-net-rndis: the RNDIS datapath (rndis_host) used by e.g. the
   # Fibocom FM350-GL (MediaTek T700) — same AT-driven backend, RNDIS netdev.
-  DEPENDS:=+wwand +kmod-usb-net-cdc-ncm +kmod-usb-net-cdc-ether +kmod-usb-net-rndis
+  DEPENDS:=+wwand +USB_SUPPORT:kmod-usb-net-cdc-ncm \
+	+USB_SUPPORT:kmod-usb-net-cdc-ether +USB_SUPPORT:kmod-usb-net-rndis
   # coexists with the stock OpenWrt NCM stack (netifd `ncm` proto, package
   # comgt-ncm): wwand drives an AT/NCM modem only once its interface has been
   # migrated to `proto wwand` (LuCI modem list / migrate CLI), so both stacks can
