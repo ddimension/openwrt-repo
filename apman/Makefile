@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apman
-PKG_VERSION:=63
+PKG_VERSION:=64
 # 2: the source is the same agent commit; the packaging was wrong. Five lua
 # modules were listed by name and the sixth, apman-syslog.lua, was not — so
 # 62-r1 installs an agent whose syslog module is missing.
@@ -25,7 +25,7 @@ PKG_LICENSE:=GPL-2.0-only
 # entry.
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/apman-agent.git
-PKG_SOURCE_VERSION:=1cf550761d792b5d231cca763904e520f82ae86f
+PKG_SOURCE_VERSION:=87d76a4e542b3c6fb8c97bdd081fade1d562a11f
 PKG_MIRROR_HASH:=365a501a400648edf6f6198a7efb71ebb85f1c576499fbc7f4e9af11931c1a50
 
 include $(INCLUDE_DIR)/package.mk
