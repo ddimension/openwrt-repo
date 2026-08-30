@@ -172,9 +172,10 @@ define Package/wwand/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(WWAND_UCODE)/wwandctl.uc $(1)/usr/bin/wwandctl
 	$(INSTALL_DIR) $(1)/lib/netifd/proto
-	# the shim registers `wwand`; the legacy `qmi` alias only when the global
-	# `option takeover` is set (default off, so uqmi keeps `proto qmi`). Install
-	# under the current name — the historical qmi.sh belonged to uqmi
+	# the shim registers `wwand` and nothing else — netifd sources every handler
+	# in this directory, so two of them claiming `qmi` would be settled by load
+	# order. `proto qmi` therefore stays uqmi's qmi.sh; migrating an interface is
+	# the user's explicit act.
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-proto.sh $(1)/lib/netifd/proto/wwand.sh
 	$(INSTALL_DIR) $(1)/usr/libexec/wwand
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-migrate $(1)/usr/libexec/wwand/migrate
@@ -219,10 +220,10 @@ define Package/wwand-qmi
   # target built without USB support can still select this backend and drive a
   # PCIe/MHI modem. On a USB target nothing changes.
   DEPENDS:=+wwand +USB_SUPPORT:kmod-usb-net-qmi-wwan +kmod-rmnet
-  # coexists with the stock OpenWrt QMI stack (uqmi):
-  # by default wwand claims only `proto wwand` interfaces, so both can be
-  # installed. Set the global `option takeover '1'` (or migrate interfaces from
-  # the LuCI modem list) to hand `proto qmi` interfaces to wwand.
+  # coexists with the stock OpenWrt QMI stack (uqmi): wwand claims only
+  # `proto wwand` interfaces, so both can be installed. To hand an existing
+  # `proto qmi` interface to wwand, migrate it — from the LuCI modem list or
+  # with `/usr/libexec/wwand/migrate --apply` — which rewrites it in place.
 endef
 
 define Package/wwand-qmi/description
