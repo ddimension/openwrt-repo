@@ -201,6 +201,13 @@ define Package/wwand/install
 	# new_id bind / late kmodloader) re-kick a modem parked in no_at_port backoff
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/tty
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.tty $(1)/etc/hotplug.d/tty/20-wwand
+	# usb hotplug: bind qmi_wwan to the Huawei E1820's ethernet function. The
+	# kernel hands the device to qmi_wwan (cdc_ether blacklists it) but its
+	# table entry wants a vendor-specific class this old 802.3 layout does not
+	# carry, so a scoped dynamic new_id is what makes the control channel appear
+	# at all — and it is volatile, so it has to be re-created on every replug.
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/usb
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug.e1820 $(1)/etc/hotplug.d/usb/21-wwand-e1820
 	# NOTE: the kernel-wwan-subsystem hotplug (/etc/hotplug.d/wwan/20-wwand) is
 	# NOT installed here — it belongs to wwand-mhi, which also pulls the MHI
 	# drivers that create /sys/class/wwan in the first place (procd only arms a

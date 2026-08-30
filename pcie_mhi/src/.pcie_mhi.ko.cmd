@@ -1,0 +1,1 @@
+savedcmd_pcie_mhi.ko := aarch64-openwrt-linux-ld -r -EL  -maarch64elf --fatal-warnings -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T /vol/release/chateau/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq60xx/linux-6.18.41/scripts/module.lds -o pcie_mhi.ko pcie_mhi.o pcie_mhi.mod.o .module-common.o

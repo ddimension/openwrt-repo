@@ -1,0 +1,1 @@
+savedcmd_Module.symvers :=  /vol/release/chateau/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq60xx/linux-6.18.41/scripts/mod/modpost -M          -o Module.symvers -n -T modules.order -i /vol/release/chateau/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq60xx/linux-6.18.41/Module.symvers -e 
