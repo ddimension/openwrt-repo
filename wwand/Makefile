@@ -454,4 +454,37 @@ $(eval $(call BuildPackage,wwand-mbim))
 $(eval $(call BuildPackage,wwand-ncm))
 $(eval $(call BuildPackage,wwand-mhi))
 $(eval $(call BuildPackage,wwand-esim))
+define Package/wwand-datapath-rmnet_nss_mhi
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=NSS-offloaded QMAP datapath (vendor PCIe/MHI) for wwand
+  # +wwand: it serves both control protocols, so it names neither backend
+  # package. The vendor pcie_mhi driver and the NSS shim come from the board's
+  # own kernel tree and are deliberately not named here.
+  DEPENDS:=+wwand
+endef
+
+define Package/wwand-datapath-rmnet_nss_mhi/description
+  The PCIe/MHI sibling of wwand-datapath-rmnet_nss, for Quectel's vendor
+  pcie_mhi driver (mhi_netdev_quectel). That driver registers the QMAP children
+  itself and calls the rmnet_nss callbacks on each, so wwand adopts them rather
+  than creating any -- mainline rmnet would build a second set on a parent that
+  already demuxes.
+
+  It serves QMI and MBIM alike, because the driver does. The wire id differs:
+  QMAP framing uses 0x81 upwards, MBIM framing uses the MBIM session id, which
+  equals wwand's channel number on ordinary hardware and is offset by 112 on an
+  SDX7x (PCI 17cb:0309).
+
+  NOT hardware-verified: written from the driver sources. On any board without
+  that driver it probes false and changes nothing.
+endef
+
+define Package/wwand-datapath-rmnet_nss_mhi/install
+	$(INSTALL_DIR) $(1)$(UCDIR)
+	$(INSTALL_DATA) $(WWAND_UCODE)/datapath_rmnet_nss_mhi.uc $(1)$(UCDIR)/
+endef
+
 $(eval $(call BuildPackage,wwand-datapath-rmnet_nss))
+$(eval $(call BuildPackage,wwand-datapath-rmnet_nss_mhi))
