@@ -96,8 +96,8 @@ WWAND_BASE_UC:=apndb.uc atcmd.uc atcmd_parse.uc atport.uc backend.uc board.uc \
 	sim.uc sim_plmn.uc simops.uc sms.uc sms_pdu.uc telemetry_mbim.uc telemetry_ncm.uc \
 	telemetry_qmi.uc transport.uc ubus.uc
 WWAND_BASE_CODEC:=arfcn_bands.uc hex.uc qmux.uc tlv.uc
-WWAND_BASE_SCHEMA:=ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc rat.uc \
-	uim.uc wda.uc wds.uc wms.uc wms_lazy.uc
+WWAND_BASE_SCHEMA:=cat.uc ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc rat.uc \
+	tmd.uc uim.uc wda.uc wds.uc wms.uc wms_lazy.uc
 
 # DEVELOPERS: set CONFIG_WWAND_UCODE_SOURCE to ship readable .uc source
 # instead of bytecode — for editing modules live under /usr/share/ucode/wwand
