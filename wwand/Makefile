@@ -89,14 +89,14 @@ UCDIR:=/usr/share/ucode/wwand
 # silently ship in the base too. The per-backend install lists below carry the
 # QMI/MBIM/NCM/eSIM modules; main.uc/wwandctl.uc install as executables.
 WWAND_BASE_UC:=apndb.uc atcmd.uc atcmd_parse.uc atport.uc backend.uc board.uc \
-	client.uc config.uc config_check.uc context_common.uc context_monitor_qmi.uc \
+	carrier_config.uc client.uc config.uc config_check.uc context_common.uc context_monitor_qmi.uc \
 	ctx_settings.uc daemon.uc discovery.uc hwops.uc log.uc modem_datapath_qmi.uc \
 	modem_common.uc modem_init_qmi.uc modem_quirks.uc modeswitch.uc ncm_vendors.uc \
 	netlink.uc netsel_ops.uc protocol_switch.uc reconnect.uc recovery.uc regdetail.uc \
 	sim.uc sim_plmn.uc simops.uc sms.uc sms_pdu.uc telemetry_mbim.uc telemetry_ncm.uc \
 	telemetry_qmi.uc transport.uc ubus.uc
 WWAND_BASE_CODEC:=arfcn_bands.uc hex.uc qmux.uc tlv.uc
-WWAND_BASE_SCHEMA:=cat.uc ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc rat.uc \
+WWAND_BASE_SCHEMA:=cat.uc ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc pdc.uc rat.uc \
 	tmd.uc uim.uc wda.uc wds.uc wms.uc wms_lazy.uc
 
 # DEVELOPERS: set CONFIG_WWAND_UCODE_SOURCE to ship readable .uc source
