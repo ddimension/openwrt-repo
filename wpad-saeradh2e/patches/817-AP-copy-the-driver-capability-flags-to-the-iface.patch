@@ -3,21 +3,26 @@ From: Andre Valentin <avalentin@marcant.net>
 Subject: [PATCH] AP: copy the driver capability flags to the interface
 
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index ffa791fd7..f9b05e32c 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2999,6 +2999,14 @@ int hostapd_setup_interface(struct hostapd_iface *iface)
+@@ -2999,6 +2999,20 @@
  
  	if (!iface->conf)
  		return -1;
 +	/*
-+	 * The capability flags live on the driver object; the interface copy
-+	 * is what the reduced neighbor report colocation check and the DFS
-+	 * handling read, and nothing fills it. Measured on ap-av-grwz:
-+	 * mt7915e advertises WIPHY_FLAG_HAS_CHANNEL_SWITCH, yet the lower
-+	 * band beacons carried no RNR for the co-located 6 GHz bss.
++	 * The capability flags live on the driver's private struct; the
++	 * interface copy is what the reduced neighbor report colocation check
++	 * and the DFS handling read, and nothing fills it. Measured on
++	 * ap-av-grwz: mt7915e advertises WIPHY_FLAG_HAS_CHANNEL_SWITCH, yet
++	 * the lower band beacons carried no RNR for the co-located 6 GHz bss.
 +	 */
-+	iface->drv_flags = iface->bss[0]->driver->capa.flags;
++	if (iface->bss[0]->driver->get_capa) {
++		struct wpa_driver_capa capa;
++
++		if (iface->bss[0]->driver->get_capa(iface->bss[0]->drv_priv,
++					    &capa) == 0)
++			iface->drv_flags = capa.flags;
++	}
  	ret = setup_interface(iface);
  	if (ret) {
  		wpa_printf(MSG_ERROR, "%s: Unable to setup interface.",
