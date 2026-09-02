@@ -43,7 +43,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=56
+PKG_RELEASE:=57
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
@@ -300,8 +300,18 @@ define Package/wwand-ncm
   TITLE:=NCM/ECM backend for wwand
   # +kmod-usb-net-rndis: the RNDIS datapath (rndis_host) used by e.g. the
   # Fibocom FM350-GL (MediaTek T700) — same AT-driven backend, RNDIS netdev.
-  DEPENDS:=+wwand +USB_SUPPORT:kmod-usb-net-cdc-ncm \
-	+USB_SUPPORT:kmod-usb-net-cdc-ether +USB_SUPPORT:kmod-usb-net-rndis
+  # These three stay UNCONDITIONAL, unlike the USB kmods of wwand-qmi and
+  # wwand-mbim. Those two have a non-USB transport behind them — QMI keeps
+  # +kmod-rmnet unconditional and reaches a modem over MHI, MBIM gets
+  # kmod-mhi-wwan-mbim through wwand-mhi — so gating their USB kmod still
+  # leaves a package that works on a PCIe-only target. NCM has no such path:
+  # it drives a single cdc_ncm/cdc_ether netdev and the only variant it
+  # recognises is rndis_host, all USB. Gating these on USB_SUPPORT would leave
+  # the package selectable on a !USB_SUPPORT target while pulling no datapath
+  # driver at all — installable and inert. The hard dependency is what keeps it
+  # unselectable there. (Raised in review on openwrt/packages#30185.)
+  DEPENDS:=+wwand +kmod-usb-net-cdc-ncm +kmod-usb-net-cdc-ether \
+	+kmod-usb-net-rndis
   # coexists with the stock OpenWrt NCM stack (netifd `ncm` proto, package
   # comgt-ncm): wwand drives an AT/NCM modem only once its interface has been
   # migrated to `proto wwand` (LuCI modem list / migrate CLI), so both stacks can
