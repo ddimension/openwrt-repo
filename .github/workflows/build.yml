@@ -71,6 +71,9 @@ jobs:
           # embedded qemu binfmt pull, authenticated via the login step
           # above. Should a job still flake: gh run rerun --failed.
           FEEDNAME: wwand
+          # lifts GitHub's anonymous clone limit for the feed updates; see the
+          # note in the action's entrypoint. Read-only, and the default token.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Bytecode shipping needs NOTHING here, and that is the point.
           #
           # It used to be an opt-in symbol pushed through EXTRA_CONFIG, which

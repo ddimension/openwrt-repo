@@ -77,6 +77,27 @@ group "feeds.conf"
 cat feeds.conf
 endgroup
 
+# Authenticate the feed clones when a token is available.
+#
+# These are public repositories and an anonymous clone normally works — until
+# GitHub rate-limits the runner's IP, and then it does not fail politely: the
+# server answers 401, git tries to PROMPT for a username, finds no terminal, and
+# reports "could not read Username for 'https://github.com': No such device or
+# address". Every feed fails, feeds/packages never appears, and the build dies
+# at the first Makefile that includes something from it — which reads like a
+# broken package rather than a network problem. Cost a full build matrix on
+# 2026-09-02; the same matrix passed on 2026-08-31 from the same commit range.
+#
+# A token lifts the anonymous limit. Nothing changes when GH_TOKEN is unset, so
+# a fork or a local run behaves exactly as before. insteadOf keeps the token out
+# of feeds.conf (which this script prints) — it lives only in the ephemeral
+# container's git config.
+if [ -n "${GH_TOKEN:-}" ]; then
+	git config --global \
+		url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf \
+		"https://github.com/"
+fi
+
 group "feeds update -a"
 ./scripts/feeds update -a
 endgroup
