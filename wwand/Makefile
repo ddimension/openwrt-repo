@@ -43,7 +43,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=57
+PKG_RELEASE:=58
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
@@ -455,6 +455,15 @@ define Package/wwand-datapath-rmnet_nss/description
   the modem's driver binds — qmi_wwan_q captures whether NSS is available at the
   moment it creates each child, so a module loaded afterwards leaves them
   without an NSS context; that case is logged and shown on the status page.
+
+  That constraint belongs to the STOCK driver, not to NSS itself: the single
+  nss_create() attempt can be turned into a bounded delayed-work retry, and the
+  child then attaches whenever the NSS data plane comes up, in any order. If you
+  build the vendor driver yourself, kuncy7/aw1000-nss-builder carries such a
+  patch (package-patches/quectel-qmi-wwan/950-rmnet-nss-deferred-attach.patch).
+  It is a change to the quectel-qmi-wwan kernel module, not to wwand, so nothing
+  here can apply it for you — but it removes the ordering requirement at its
+  source rather than working around it.
 
   Install it on a box with the vendor qmi_wwan_q driver; anywhere else it probes
   false and changes nothing.
