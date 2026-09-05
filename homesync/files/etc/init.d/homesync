@@ -28,7 +28,10 @@ start_daemon() {
 	config_get latency "$cfg" latency "0"
 
 	local hostid
-	hostid=$(cat /proc/sys/kernel/hostname)
+	config_get hostid "$cfg" hostid ""
+
+	local mptcp
+	config_get mptcp "$cfg" mptcp "1"
 
 	INSTANCE_NR=$((INSTANCE_NR + 1))
 
@@ -39,6 +42,7 @@ start_daemon() {
 	fi
 	[ -n "$device" ] && device="--soundcard $device"
 	[ -n "$hostid" ] && hostid="--hostID $hostid"
+	[ -n "$mptcp" ] && mptcp="--mptcp $mptcp"
 
 	procd_open_instance
 	# The server goes in as the positional URL; --host/--port still work but
@@ -48,6 +52,7 @@ start_daemon() {
 		--logsink stdout \
 		--logfilter '*:info' \
 		--instance "$INSTANCE_NR" \
+		$mptcp \
 		$latency \
 		$device \
 		$hostid \
