@@ -98,13 +98,14 @@ jobs:
           # scripts/update-hashes.sh and commit the Makefile change. The
           # hash check is a no-op for homesync and the q* packages: they
           # build from files/ in this repo and declare no PKG_SOURCE.
-          # homesync needs snapclient only at runtime (EXTRA_DEPENDS), so
-          # this does not drag the snapcast C++ build into CI.
+          # homesync needs snapclient-mptcp only at runtime (EXTRA_DEPENDS);
+          # snapcast-mptcp itself is built here, so its C++ tree and boost
+          # dependency are exercised in CI.
           # ddimension-feed carries this feed's own address and key, so a
           # device can be pointed at it once and then follow it like any other
           # package. It is built per release and architecture because the URL
           # it installs names both.
-          PACKAGES: apman ddimension-feed homesync luacurl lua-mosquitto qfirehose qflash qlog usb-relay-hid wpad-ieee8021x wpad-saeradh2e wwand wwand-lpac luci-app-wwand luci-proto-wwand
+          PACKAGES: apman ddimension-feed homesync luacurl lua-mosquitto qfirehose qflash qlog snapcast-mptcp usb-relay-hid wpad-ieee8021x wpad-saeradh2e wwand wwand-lpac luci-app-wwand luci-proto-wwand
           INDEX: 1
           # not staged for openwrt.org upstream — skip patch-refresh and
           # shfmt hygiene checks; the hash check stays active

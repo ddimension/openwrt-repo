@@ -14,7 +14,7 @@ PKG_RELEASE:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/snapcast.git
 PKG_SOURCE_VERSION:=becef987673f3ad0ab10d660b5194a325f579075
-PKG_MIRROR_HASH:=1e2fe34676d5f2059ccfbbc4771866766529e2d3241435193da3621787586eca
+PKG_MIRROR_HASH:=016bf7356ca05ef078e89d80be72ece1ba47253c69a40e520d9807ced3a62d2c
 
 PKG_MAINTAINER:=Szabolcs Hubai <szab.hu@gmail.com>, David Andreoletti <david@andreoletti.net>
 PKG_LICENSE:=GPL-3.0-or-later
