@@ -15,16 +15,17 @@ PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
 
 include $(INCLUDE_DIR)/package.mk
 
-# Runs on the Snapcast client from the official packages feed, whose binary
-# package is named `snapclient` (this feed's own snapcast package, which
-# called it snapcast-client, has been dropped in favour of it). homesync
-# drives /usr/bin/snapclient from its own multi-instance UCI config; the
-# stock /etc/config/snapclient ships disabled, so the two do not collide.
+# Runs on the snapclient-mptcp package from this feed (the MPTCP variant
+# of the Snapcast client from the ddimension/snapcast fork), which installs
+# the binary as /usr/bin/snapclient - a drop-in for the stock snapclient.
+# homesync drives /usr/bin/snapclient from its own multi-instance UCI
+# config; the stock /etc/config/snapclient ships disabled, so the two do
+# not collide.
 #
-# snapclient sits in EXTRA_DEPENDS, not DEPENDS: this package only ships
-# shell scripts, so pulling snapcast into the build just to compile a C++
-# tree we never link against would be waste. EXTRA_DEPENDS lands in the
-# package metadata alone, so apk still installs snapclient alongside.
+# snapclient-mptcp sits in EXTRA_DEPENDS, not DEPENDS: this package only
+# ships shell scripts, so pulling snapcast into the build just to compile a
+# C++ tree we never link against would be waste. EXTRA_DEPENDS lands in the
+# package metadata alone, so apk still installs snapclient-mptcp alongside.
 define Package/homesync
   SECTION:=sound
   CATEGORY:=Sound
@@ -32,7 +33,7 @@ define Package/homesync
   DEPENDS:=+alsa-utils +kmod-usb-audio +kmod-usb-hid
   # >=0.32.0: that is where snapclient learned the positional server URL
   # the init script passes (older releases only take --host/--port).
-  EXTRA_DEPENDS:=snapclient (>=0.32.0)
+  EXTRA_DEPENDS:=snapclient-mptcp (>=0.32.0)
   PKGARCH:=all
 endef
 
