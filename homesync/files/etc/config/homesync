@@ -1,7 +1,20 @@
 
 # One section per snapclient instance. 'server' is the Snapcast server,
 # 'port' its stream port (snapserver's default is 1704), 'device' an ALSA
-# PCM name or index (empty = default card), 'latency' a correction in ms.
+# PCM name or index (empty = default card), 'latency' a correction in ms,
+# 'hostid' the client id presented to the server (empty = snapclient
+# derives it from the MAC), 'mptcp' enables the MPTCP stream socket
+# (default 1 - falls back to plain TCP without kernel support), 'opts'
+# any additional snapclient command line options.
+#
+# Multipath TCP on this device needs per-interface policy routing and MPTCP
+# endpoint management:
+# - in /etc/config/network give each uplink its own routing table
+#   (option ip4table '101' / '102') - netifd maintains the rules
+# - the packaged hotplug scripts 30-mptcp-sta-kn5/-kn2 register the
+#   interface addresses as MPTCP endpoints and set arp_ignore=1; on
+#   ifdown they remove the endpoint, tearing the subflow down so the
+#   server fails over to the remaining path immediately
 config instance 'main'
 	option server '192.168.203.4'
 	option port '1704'

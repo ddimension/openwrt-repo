@@ -1,0 +1,30 @@
+#!/bin/sh
+# MPTCP for sta-kn5, the primary path.
+# Policy routing is handled natively by OpenWrt (option ip4table in
+# /etc/config/network). This script manages what OpenWrt cannot:
+# - the MPTCP endpoint lifecycle (ifdown: endpoint del => subflow teardown
+#   + MP_FASTCLOSE, the server fails over to the remaining path)
+# - arp_ignore=1: answer ARP only for IPs configured on the incoming
+#   interface, so the gateway learns each address on its own radio
+# Note: ifdown events carry INTERFACE but no DEVICE.
+[ "$DEVICE" = "sta-kn5" ] || [ "$INTERFACE" = "wlan_5" ] || [ "$INTERFACE" = "wlan_primary" ] || exit 0
+IP_FILE=/tmp/mptcp-sta-kn5.ip
+
+case "$ACTION" in
+ifup|update)
+	ip mptcp limits set subflows 2 add_addr_accepted 2
+	IP=$(ip -4 -o addr show dev sta-kn5 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
+	[ -n "$IP" ] || exit 0
+	ip mptcp endpoint show dev sta-kn5 2>/dev/null | grep -q "$IP" || \
+		ip mptcp endpoint add "$IP" dev sta-kn5 subflow
+	sysctl -w net.ipv4.conf.sta-kn5.arp_ignore=1 >/dev/null 2>&1
+	echo "$IP" > $IP_FILE
+	;;
+ifdown)
+	IP=$(cat $IP_FILE 2>/dev/null)
+	[ -n "$IP" ] || exit 0
+	ID=$(ip mptcp endpoint show 2>/dev/null | awk -v ip="$IP" '$1==ip {print $3; exit}')
+	[ -n "$ID" ] && ip mptcp endpoint del id "$ID"
+	rm -f $IP_FILE
+	;;
+esac

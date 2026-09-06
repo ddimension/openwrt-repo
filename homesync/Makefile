@@ -22,18 +22,21 @@ include $(INCLUDE_DIR)/package.mk
 # config; the stock /etc/config/snapclient ships disabled, so the two do
 # not collide.
 #
-# snapclient-mptcp sits in EXTRA_DEPENDS, not DEPENDS: this package only
-# ships shell scripts, so pulling snapcast into the build just to compile a
-# C++ tree we never link against would be waste. EXTRA_DEPENDS lands in the
-# package metadata alone, so apk still installs snapclient-mptcp alongside.
+# All dependencies are runtime-only and therefore EXTRA_DEPENDS: homesync
+# ships shell scripts only, nothing is linked at build time, so staging the
+# dependencies during the build would be pure waste (and would drag the
+# snapcast C++ tree into CI). apk installs them alongside at runtime.
+# ip-full provides the 'ip mptcp' subcommand used by the MPTCP hotplug
+# scripts; busybox ip does not have it.
+# >=0.32.0: that is where snapclient learned the positional server URL
+# the init script passes (older releases only take --host/--port).
+# Note: opkg-based releases (<= 24.10) ignore EXTRA_DEPENDS - this feed
+# publishes apk repositories only.
 define Package/homesync
   SECTION:=sound
   CATEGORY:=Sound
   TITLE:=Synchronised multiroom speaker setup (Snapcast client)
-  DEPENDS:=+alsa-utils +kmod-usb-audio +kmod-usb-hid
-  # >=0.32.0: that is where snapclient learned the positional server URL
-  # the init script passes (older releases only take --host/--port).
-  EXTRA_DEPENDS:=snapclient-mptcp (>=0.32.0)
+  EXTRA_DEPENDS:=alsa-utils kmod-usb-audio kmod-usb-hid ip-full snapclient-mptcp (>=0.32.0)
   PKGARCH:=all
 endef
 
@@ -55,9 +58,12 @@ define Package/homesync/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/usb
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) ./files/etc/init.d/homesync $(1)/etc/init.d/
 	$(INSTALL_BIN) ./files/etc/hotplug.d/usb/30-homesync-usb-audio $(1)/etc/hotplug.d/usb/
+	$(INSTALL_BIN) ./files/etc/hotplug.d/iface/30-mptcp-sta-kn5 $(1)/etc/hotplug.d/iface/
+	$(INSTALL_BIN) ./files/etc/hotplug.d/iface/30-mptcp-sta-kn2 $(1)/etc/hotplug.d/iface/
 	$(INSTALL_CONF) ./files/etc/config/homesync $(1)/etc/config/
 	$(INSTALL_BIN) ./files/usr/bin/homesync $(1)/usr/bin/
 endef

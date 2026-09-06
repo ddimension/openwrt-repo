@@ -1,0 +1,25 @@
+#!/bin/sh
+# MPTCP for sta-kn2, the backup path. Same lifecycle as sta-kn5; the
+# endpoint carries signal so the server may also create subflows to this
+# address.
+[ "$DEVICE" = "sta-kn2" ] || [ "$INTERFACE" = "wlan_2" ] || [ "$INTERFACE" = "wlan_secondary" ] || exit 0
+IP_FILE=/tmp/mptcp-sta-kn2.ip
+
+case "$ACTION" in
+ifup|update)
+	ip mptcp limits set subflows 2 add_addr_accepted 2
+	IP=$(ip -4 -o addr show dev sta-kn2 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
+	[ -n "$IP" ] || exit 0
+	ip mptcp endpoint show dev sta-kn2 2>/dev/null | grep -q "$IP" || \
+		ip mptcp endpoint add "$IP" dev sta-kn2 subflow signal
+	sysctl -w net.ipv4.conf.sta-kn2.arp_ignore=1 >/dev/null 2>&1
+	echo "$IP" > $IP_FILE
+	;;
+ifdown)
+	IP=$(cat $IP_FILE 2>/dev/null)
+	[ -n "$IP" ] || exit 0
+	ID=$(ip mptcp endpoint show 2>/dev/null | awk -v ip="$IP" '$1==ip {print $3; exit}')
+	[ -n "$ID" ] && ip mptcp endpoint del id "$ID"
+	rm -f $IP_FILE
+	;;
+esac

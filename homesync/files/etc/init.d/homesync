@@ -33,6 +33,9 @@ start_daemon() {
 	local mptcp
 	config_get mptcp "$cfg" mptcp "1"
 
+	local opts
+	config_get opts "$cfg" opts ""
+
 	INSTANCE_NR=$((INSTANCE_NR + 1))
 
 	if [ "$latency" -gt 0 ] 2>/dev/null; then
@@ -56,6 +59,7 @@ start_daemon() {
 		$latency \
 		$device \
 		$hostid \
+		$opts \
 		"tcp://${server}:${port}"
 	procd_set_param respawn 3600 10 0
 	procd_set_param stdout 1

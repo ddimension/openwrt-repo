@@ -3,7 +3,6 @@ LOG_PREFIX="30-homesync-usb-audio"
 
 CARD=$(ls -d /sys${DEVPATH}/driver/*/sound/card* 2>/dev/null)
 [ -n "$CARD" ] && CARD=${CARD##*/}
-[ -n "$CARD" ] && CARDID=${CARD:4}
 ep_id=${DEVPATH##*.}
 
 [ "$ep_id" != "1" ] && {
@@ -14,7 +13,7 @@ if [ "$ACTION" = "bind" ] && [ -n "$CARD" ]; then
 	logger -t $LOG_PREFIX Detected soundcard $CARD at /sys/$DEVPATH.
 	logger -t $LOG_PREFIX Stopping homesync.
 	/etc/init.d/homesync stop
-	logger -t $LOG_PREFIX Starting homsync.
+	logger -t $LOG_PREFIX Starting homesync.
 	/etc/init.d/homesync start
 	echo "$DEVPATH" > /tmp/hotplug.soundcard
 elif [ "$ACTION" = "remove" ]; then
