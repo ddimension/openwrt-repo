@@ -43,13 +43,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_RELEASE:=70
+PKG_RELEASE:=71
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=4ab30542ef3c79b555e72c12b8f0bfc986b0fbc7
+PKG_SOURCE_VERSION:=677dea2b2b7ab4049c3fdadacd128156d2048d13
 PKG_SOURCE_DATE:=2026-09-10
-PKG_MIRROR_HASH:=8655ade0a97e803346e4e76166bce3e4a7031c82e747ce852e31e5648e0d6f68
+PKG_MIRROR_HASH:=7c2854b3a438c9d7bf3a9a39f76aa0c971f6d322ad8572946c5d488fcbf35ec2
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -90,6 +90,7 @@ UCDIR:=/usr/share/ucode/wwand
 # QMI/MBIM/NCM/eSIM modules; main.uc/wwandctl.uc install as executables.
 WWAND_BASE_UC:=apndb.uc atcmd.uc atcmd_parse.uc atport.uc backend.uc board.uc \
 	carrier_config.uc client.uc config.uc config_check.uc context_common.uc context_monitor_qmi.uc \
+	deps.uc wwandctl_fmt.uc \
 	ctx_settings.uc daemon.uc discovery.uc hwops.uc log.uc modem_datapath_qmi.uc \
 	modem_common.uc modem_init_qmi.uc modem_quirks.uc modeswitch.uc ncm_vendors.uc \
 	netlink.uc netsel_ops.uc protocol_switch.uc reconnect.uc recovery.uc regdetail.uc \
