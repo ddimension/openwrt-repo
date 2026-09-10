@@ -1,0 +1,37 @@
+#!/bin/sh /etc/rc.common
+# heatingrod — PV-surplus heating rod controller (Rust v3)
+# Logs go to stderr (procd → logd); journald is not used on OpenWrt.
+
+USE_PROCD=1
+START=90
+STOP=10
+
+PROG=/usr/bin/heatingrod
+CONFIG=/etc/heatingrod/config.yaml
+
+start_service() {
+	[ -f "$CONFIG" ] || {
+		echo "heatingrod: $CONFIG missing — copy the template and fill it in"
+		return 1
+	}
+	# 1-Wire kernel w1: DS1490F USB master + DS18B20 slaves (kmod-w1,
+	# kmod-w1-master-ds2490, kmod-w1-slave-therm) — like the Debian
+	# systemd unit's ExecStartPre.
+	/sbin/modprobe wire
+	/sbin/modprobe ds2490
+	/sbin/modprobe w1_therm
+	procd_open_instance
+	procd_set_param command "$PROG" --config "$CONFIG"
+	# Safety: when the daemon dies (crash included), force the DAC to
+	# CH0=0V / CH1=6V via dac-safe before procd restarts it.
+	procd_set_param respawn
+	procd_set_param term_timeout 15
+	procd_close_instance
+}
+
+stop_service() {
+	# Graceful stop: SIGTERM → CH0=0V, CH1=safe; then the failsafe binary
+	# as a last resort (same sequence as the Debian systemd unit).
+	service_stop "$PROG"
+	/usr/bin/dac-safe 2>/dev/null || true
+}

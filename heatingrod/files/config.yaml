@@ -1,0 +1,101 @@
+# heatingrod v3 — OpenWrt template. Copy to /etc/heatingrod/config.yaml and
+# fill in the values marked with CHANGE-ME before starting the service.
+# Schema: 1:1 with the Debian production config (see the heatingrod repo).
+
+esphome:
+  # Home Assistant pins device name + MAC to the config entry — keep both
+  # identical to the values the device was first added with.
+  name: heatingrod
+  # MAC of the interface serving the ESPHome API (UPPERCASE). On OpenWrt
+  # use mac_interface instead of a hardcoded mac_address when the device
+  # has a dedicated interface:
+  # mac_interface: eth1
+  mac_address: CHANGE-ME  # B8:27:EB:96:AE:00 style, UPPERCASE
+  project_name: custom.heatingrod
+  project_version: 2.0.0
+
+api:
+  port: 6053
+  bind_address: 0.0.0.0
+  encryption:
+    key: CHANGE-ME  # base64 32-byte Noise PSK
+  allow_plaintext: false
+
+dac:
+  mock: false
+  max_voltage: 10.0
+  i2c_bus: 1
+  i2c_address: 0x5f
+  ch1_safe_celsius: 60
+
+control:
+  max_power_watts: 7500
+  power_limit_start: 150
+  power_limit_stop: -100
+  sensor_max_age_seconds: 30
+  watchdog_interval: 10
+  internal_cutoff_voltage_threshold: 1.0
+  internal_cutoff_power_threshold: 0.5
+  internal_cutoff_duration: 60
+  internal_cutoff_recovery_temp: 60
+
+calibration:
+  file_path: /etc/heatingrod/calibration.json
+  steps: 6
+  step_duration: 30
+  min_power_for_calibration: 1000
+  max_age_days: 7
+  deviation_threshold: 0.3
+  ewma_alpha: 0.3
+  min_sweep_voltage: 4.0
+
+ds100:
+  enabled: true
+  serial_port: /dev/ttyUSB0   # CHANGE-ME: DS100 Modbus USB adapter
+  unit_id: 1
+  target_baud: 9600
+  timeout: 0.5
+  poll_interval_fast: 0.1
+  poll_interval_full: 30
+  poll_interval_demand: 300
+  reconnect_delay: 5
+
+canbus:
+  enabled: true
+  serial_port: /dev/ttyACM0   # CHANGE-ME: USBtin CAN adapter
+  bitrate: 250000
+  tty_baudrate: 115200
+  reconnect_delay: 5
+  unknown_buffer_size: 1000
+
+onewire:
+  enabled: true
+  poll_interval: 10
+  change_threshold: 0.1
+  reconnect_delay: 5
+
+powerlogger:
+  enabled: true
+  host: CHANGE-ME
+  port: 6053
+  noise_psk: CHANGE-ME
+  entity_object_id: aktueller_verbrauch
+  reconnect_delay: 5
+
+kaskade:
+  enabled: true
+  host: CHANGE-ME
+  port: 6053
+  noise_psk: CHANGE-ME
+  switch_object_id: pro_condens_brennersperre
+  reconnect_delay: 5
+
+ha_entities:
+  grid_power: sensor.powerlogger_aktueller_verbrauch
+  pv_dc_power: sensor.total_dc_power
+  export_power_raw: sensor.export_power_raw
+  balkonpv_power: CHANGE-ME
+  heatingrod_switch: input_boolean.heizstab_schalter
+  heatingrod_power: sensor.ds100_power
+  heatingrod_temperature: sensor.heizstab_temperatur
+  tank_top_temperature: sensor.speicher_oben_temperatur
