@@ -6,27 +6,32 @@ direct connections (powerlogger ESPHome client, DS100 Modbus, SOREL CAN,
 
 ## Source tarball
 
-`files/heatingrod-3.0.0.tar.xz` is a snapshot of the `rust/` workspace from
-the heatingrod repository (workspace: crates/esphome-api-server,
-crates/heatingrod, tools/dac-safe, vendored esphome-native-api). Regenerate
-after source changes:
+`files/heatingrod-3.0.0.tar.xz` is a snapshot of
+[ddimension/heatingrod-controller](https://github.com/ddimension/heatingrod-controller),
+where the Rust v3 workspace lives since 2026-09-05 (it was `rust/` in the
+heatingrod repository before). Workspace: crates/esphome-api-server,
+crates/heatingrod, tools/dac-safe, vendored esphome-native-api. Regenerate
+after source changes, from committed state:
 
 ```bash
-# from the heatingrod repo root
-tar -cJf ../ddimension-openwrt-repo/heatingrod/files/heatingrod-3.0.0.tar.xz \
-  --exclude='rust/target' \
-  --exclude='rust/config/production.yaml' \
-  --exclude='rust/config/shadow.yaml' \
-  --exclude='rust/config/calibration.json' \
-  --exclude='rust/config/state.json' \
-  --exclude='rust/rust-toolchain.toml' \
-  --transform 's|^rust|heatingrod-3.0.0|' rust
-sha256sum ../ddimension-openwrt-repo/heatingrod/files/heatingrod-3.0.0.tar.xz
-# → PKG_HASH im Makefile aktualisieren
+cd ~/projects/heatingrod-controller
+git archive --format=tar --prefix=heatingrod-3.0.0/ HEAD \
+  Cargo.toml Cargo.lock .gitignore README.md crates tools vendor config plan systemd tests-py \
+  | xz > ~/projects/ddimension-openwrt-repo/heatingrod/files/heatingrod-3.0.0.tar.xz
+sha256sum ~/projects/ddimension-openwrt-repo/heatingrod/files/heatingrod-3.0.0.tar.xz
+# -> PKG_HASH in the Makefile, and PKG_RELEASE+1 so devices upgrade
+#    (a new PKG_VERSION renames the tarball and the --prefix with it)
 ```
 
-`rust-toolchain.toml` is deliberately excluded: the SDK's cargo is not
-rustup-managed and would try to download the pinned toolchain.
+`git archive` takes tracked files only, so the installation's own files —
+`config/production.yaml`, `shadow.yaml`, `calibration.json`, `state.json`,
+all untracked — cannot end up in the package. The explicit path list leaves
+out `docs/`, `grafana/` and `rust-toolchain.toml`, the latter deliberately:
+the SDK's cargo is not rustup-managed and would try to download the pinned
+toolchain.
+
+Changes to this package follow the feed's rules (`CLAUDE.md` at the feed
+root): commit on `main`; `stable` gets it with the next release.
 
 ## Build requirements
 
