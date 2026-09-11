@@ -181,6 +181,8 @@ CONFIG_PACKAGE_wwand-qmi=y
 # CONFIG_PACKAGE_uqmi is not set
 # CONFIG_PACKAGE_qmi-advanced is not set
 CONFIG_PACKAGE_wwand-lpac=y
+CONFIG_PACKAGE_wwand-esim=y
+CONFIG_PACKAGE_ddimension-feed=y
 CONFIG_PACKAGE_luci-app-wwand=y
 CONFIG_PACKAGE_luci-proto-wwand=y
 CONFIG_PACKAGE_luci=y
@@ -240,6 +242,15 @@ else
 	cp -f feeds.conf.default feeds.conf
 	if [ -n "${WWAND_FEED:-}" ]; then
 		grep -qF "$WWAND_FEED" feeds.conf || echo "src-git wwand ${WWAND_FEED}" >> feeds.conf
+		# gepinnter Feed (^<sha>): ein halb geklonter Stand eines abgebrochenen
+		# Laufs wird von scripts/feeds nie korrigiert (wie in build-images.sh)
+		case "$WWAND_FEED" in
+		*^*)
+			if [ "$(git -C feeds/wwand rev-parse HEAD 2>/dev/null || true)" != "${WWAND_FEED##*^}" ]; then
+				rm -rf feeds/wwand feeds/wwand.tmp feeds/wwand.index
+			fi
+			;;
+		esac
 	fi
 	echo "== feeds =="
 	./scripts/feeds update -a

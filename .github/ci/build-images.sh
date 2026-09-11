@@ -46,6 +46,21 @@ rm -rf dl && ln -s /dl dl
 # Feeds: wwand-Feed ergaenzen
 cp -f feeds.conf.default feeds.conf
 grep -qF "$WWAND_FEED" feeds.conf || echo "src-git wwand ${WWAND_FEED}" >> feeds.conf
+# Ein gepinnter Feed (<url>^<sha>) wird von scripts/feeds nach dem Klonen nie
+# mehr aktualisiert, und die Quelle merkt es sich VOR dem Klonen. Brach ein
+# frueherer Lauf zwischen clone und checkout ab (Netz, Abbruch), steht
+# feeds/wwand auf dem falschen Baum -- und derselbe Pin baute ihn stumm weiter.
+# Also pruefen und im Zweifel wegwerfen; feeds update klont dann neu.
+case "$WWAND_FEED" in
+*^*)
+	want="${WWAND_FEED##*^}"
+	have="$(git -C feeds/wwand rev-parse HEAD 2>/dev/null || true)"
+	if [ "$have" != "$want" ]; then
+		echo "feeds/wwand steht auf '${have:-nichts}', nicht auf dem Pin $want -- neu klonen"
+		rm -rf feeds/wwand feeds/wwand.tmp feeds/wwand.index
+	fi
+	;;
+esac
 echo "::group::feeds"
 ./scripts/feeds update -a
 ./scripts/feeds install -a

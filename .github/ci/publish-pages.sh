@@ -19,7 +19,8 @@
 #   --channel C    recorded in the .published stamps
 #
 # Env: GH_TOKEN (push credentials), GITHUB_REPOSITORY, GITHUB_SHA,
-#      GITHUB_RUN_ID. PAGES_STAMP_SHA overrides the commit put into the stamps.
+#      GITHUB_RUN_ID. PAGES_STAMP_SHA overrides the commit put into the stamps,
+#      PAGES_SITE_URL the absolute site address shown on the start page.
 #      PAGES_REMOTE / PAGES_BRANCH / PAGES_ATTEMPTS / PAGES_BACKOFF ("MIN MAX"
 #      seconds) exist for tests against a local bare repository.
 #
@@ -44,6 +45,10 @@
 # The directory indexes take their dates from it — file mtimes are checkout
 # times for everything this run did not write, so they would lie — and
 # build-device-images.yml polls it to know when a commit's tree is live.
+#
+# The start page lists, per architecture, the trees of both channels and the
+# versionless ddimension-feed.apk in each (build.yml puts it there), built
+# from what is actually on the site — a link on it never points at nothing.
 set -euo pipefail
 
 die() { echo "publish-pages: $*" >&2; exit 1; }
@@ -126,48 +131,59 @@ read -r BACKOFF_MIN BACKOFF_MAX <<<"${PAGES_BACKOFF:-10 40}"
 STAMP_SHA="${PAGES_STAMP_SHA:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}}"
 RUN_ID="${GITHUB_RUN_ID:-local}"
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+SITE_URL="${PAGES_SITE_URL:-https://ddimension.github.io/openwrt-repo}"
 
 # Credentials through environment-scoped git config: not on any command line
 # and not in any .git/config. A token in the clone URL — how this used to be
 # done — is stored in the clone's config, which on a persistent self-hosted
 # workspace outlives the job.
+#
+# The first, empty entry clears the header list before the second sets ours.
+# Without it git sends two Authorization headers whenever another config
+# already carries one — actions/checkout leaves exactly that in the workspace
+# repository (persist-credentials) — and GitHub answers "Duplicate header",
+# HTTP 400. The script also leaves the caller's directory right away (below),
+# so no repository config applies to its git calls at all.
 if [ -n "${GH_TOKEN:-}" ]; then
-	export GIT_CONFIG_COUNT=1
-	export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
-	GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-	export GIT_CONFIG_VALUE_0
+	export GIT_CONFIG_COUNT=2
+	export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0=""
+	export GIT_CONFIG_KEY_1="http.https://github.com/.extraheader"
+	GIT_CONFIG_VALUE_1="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+	export GIT_CONFIG_VALUE_1
 fi
 export GIT_AUTHOR_NAME="ddimension ci" GIT_AUTHOR_EMAIL="ci@ddimension.net"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/publish-pages.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
+cd "$WORK" # out of the caller's repository (see above); every path from here is absolute
 SITE="$WORK/site"
 OLD=""
 
 # ---- read the current state ------------------------------------------------
+# Returns 1 on any network or git failure, so the caller can retry: it runs as
+# an if condition, where set -e does not apply.
 fetch_site() {
 	if [ -d "$SITE/.git" ] && git -C "$SITE" rev-parse -q --verify HEAD >/dev/null; then
-		git -C "$SITE" fetch -q --depth 1 origin "$BRANCH"
-		OLD="$(git -C "$SITE" rev-parse FETCH_HEAD)"
-		git -C "$SITE" reset -q --hard "$OLD"
-		git -C "$SITE" clean -qfdx
-		return
+		git -C "$SITE" fetch -q --depth 1 origin "$BRANCH" || return 1
+		OLD="$(git -C "$SITE" rev-parse FETCH_HEAD)" || return 1
+		git -C "$SITE" reset -q --hard "$OLD" || return 1
+		git -C "$SITE" clean -qfdx || return 1
+		return 0
 	fi
 	rm -rf "$SITE"
 	local rc=0
 	git ls-remote --exit-code --heads "$REMOTE" "$BRANCH" >/dev/null || rc=$?
 	case "$rc" in
 	0)
-		git clone -q --depth 1 --single-branch --branch "$BRANCH" "$REMOTE" "$SITE"
-		OLD="$(git -C "$SITE" rev-parse HEAD)"
+		git clone -q --depth 1 --single-branch --branch "$BRANCH" "$REMOTE" "$SITE" || return 1
+		OLD="$(git -C "$SITE" rev-parse HEAD)" || return 1
 		;;
 	2) # the branch does not exist yet: start from nothing
-		git init -q "$SITE"
-		git -C "$SITE" remote add origin "$REMOTE"
+		git init -q "$SITE" && git -C "$SITE" remote add origin "$REMOTE" || return 1
 		OLD=""
 		;;
-	*) die "cannot read $REMOTE" ;;
+	*) return 1 ;;
 	esac
 }
 
@@ -231,7 +247,7 @@ file_time() {
 }
 dir_time() {
 	find "$1" -type f -name .published -exec cat {} + 2>/dev/null |
-		awk '$1 ~ /^[0-9]{4}-/ { print $1 }' | sort | tail -n 1
+		awk '$1 ~ /^[0-9][0-9][0-9][0-9]-/ { print $1 }' | sort | tail -n 1
 }
 day() { printf '%s' "${1%%T*}"; }
 hm() {
@@ -239,11 +255,78 @@ hm() {
 	printf '%s' "${x:0:5}"
 }
 
-ROOT_NOTE='<p>Package feed of <a href="https://github.com/ddimension/openwrt-repo">ddimension/openwrt-repo</a>:
-<code>stable/</code> = releases, <code>main/</code> = development, each as
-<code>&lt;release&gt;/&lt;arch&gt;/</code>. The <code>&lt;release&gt;/</code> trees at the top
-mirror <code>stable/</code> for devices set up before the channels existed.
-Device images are under <code>images/</code>, signing keys under <code>keys/</code>.</p>'
+# One stylesheet for every page: readable in light and dark mode, monospace
+# like a directory listing should be.
+CSS=':root{color-scheme:light dark;--fg:#1f2328;--bg:#fff;--mut:#59636e;--line:#d1d9e0;--acc:#0969da;--hi:rgba(127,127,127,.09)}
+@media(prefers-color-scheme:dark){:root{--fg:#e6edf3;--bg:#0d1117;--mut:#9198a1;--line:#3d444d;--acc:#4493f8}}
+body{font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:2em auto;max-width:78em;padding:0 1.2em;color:var(--fg);background:var(--bg)}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+h1{font-size:1.25em;font-weight:600;border-bottom:1px solid var(--line);padding-bottom:.4em}
+h2{font-size:1.05em;font-weight:600;margin-top:2em}
+p{color:var(--mut);max-width:62em}
+code,pre{background:var(--hi);border-radius:4px}code{padding:.1em .3em}pre{padding:.8em 1em;overflow-x:auto}
+table{border-collapse:collapse;margin:.5em 0}
+th,td{padding:.3em 1.4em .3em 0;text-align:left;vertical-align:top}
+th{border-bottom:1px solid var(--line);color:var(--mut);font-weight:600}
+td.n{text-align:right}tr:hover td{background:var(--hi)}
+.dim{color:var(--mut)}'
+
+# openwrt-repo / stable / openwrt-25.12 / x86_64, each part a link
+breadcrumb() {
+	local rel="$1" up="" i depth=0 parts=() out
+	[ -n "$rel" ] && IFS=/ read -r -a parts <<<"$rel" && depth=${#parts[@]}
+	for ((i = 0; i < depth; i++)); do up+="../"; done
+	out="<a href=\"${up:-./}\">openwrt-repo</a>"
+	for ((i = 0; i < depth; i++)); do
+		up="${up#../}"
+		out+=" / <a href=\"${up:-./}\">${parts[i]}</a>"
+	done
+	printf '%s' "$out"
+}
+
+# The start page: how to set a device up, and per architecture the trees of
+# both channels with the ddimension-feed.apk in each — only what exists.
+landing() {
+	local rels archs r a ch d cell
+	rels="$(for ch in stable main; do
+		[ -d "$SITE/$ch" ] && find "$SITE/$ch" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+	done | sort -u)" # openwrt-25.12 … before snapshot, like README.md
+	[ -n "$rels" ] || return 0
+	archs="$(for ch in stable main; do for r in $rels; do
+		[ -d "$SITE/$ch/$r" ] && find "$SITE/$ch/$r" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+	done; done | sort -u)"
+	printf '<h2>Set up a device</h2>'
+	printf '<p>Install <code>ddimension-feed</code> once, by name, from the tree that matches the device —'
+	printf ' it carries the feed address and the signing key, and keeps both current with <code>apk upgrade</code>:</p>'
+	printf '<pre>apk --allow-untrusted \\\n  -X %s/stable/&lt;release&gt;/&lt;arch&gt;/packages.adb \\\n  add ddimension-feed\napk update\napk add wwand luci-app-wwand</pre>' "$SITE_URL"
+	printf '<p><b>stable</b> = releases, <b>main</b> = development. A downloaded <code>ddimension-feed.apk</code>'
+	printf ' works too: <code>apk add --allow-untrusted ./ddimension-feed.apk &amp;&amp; apk update &amp;&amp; apk add ddimension-feed</code>'
+	printf ' — the last step turns the file install into a normal one, otherwise apk keeps it pinned and never upgrades it.'
+	printf ' Details: <a href="https://github.com/ddimension/openwrt-repo#how-tos">README</a>.</p>'
+	printf '<h2>Feeds</h2><table><tr><th>Arch</th>'
+	for ch in stable main; do for r in $rels; do printf '<th>%s · %s</th>' "$ch" "$r"; done; done
+	printf '</tr>'
+	for a in $archs; do
+		printf '<tr><td>%s</td>' "$a"
+		for ch in stable main; do for r in $rels; do
+			d="$ch/$r/$a"
+			if [ -f "$SITE/$d/packages.adb" ]; then
+				cell="<a href=\"$d/\">tree</a>"
+				[ -f "$SITE/$d/ddimension-feed.apk" ] &&
+					cell+=" · <a href=\"$d/ddimension-feed.apk\">ddimension-feed.apk</a>"
+			else
+				cell='<span class="dim">—</span>'
+			fi
+			printf '<td>%s</td>' "$cell"
+		done; done
+		printf '</tr>'
+	done
+	printf '</table>'
+	printf '<p>The top-level <code>&lt;release&gt;/</code> trees mirror <code>stable/</code> for devices set up'
+	printf ' before the channels existed. Device images: <a href="images/">images/</a>, signing keys:'
+	printf ' <a href="keys/">keys/</a>. Source: <a href="https://github.com/ddimension/openwrt-repo">ddimension/openwrt-repo</a>.</p>'
+	printf '<h2>Everything</h2>'
+}
 
 write_index() {
 	local d="$1" rel e n t ft
@@ -252,12 +335,10 @@ write_index() {
 	ft="$(file_time "$d")"
 	{
 		printf '<!doctype html><meta charset="utf-8">'
-		printf '<title>openwrt-repo/%s</title>' "$rel"
-		printf '<style>body{font:14px/1.5 monospace;margin:2em}'
-		printf 'td{padding:0 1.5em 0 0}td.n{text-align:right}'
-		printf 'th{text-align:left;padding:0 1.5em .3em 0;border-bottom:1px solid #ccc}</style>'
-		printf '<h2>openwrt-repo/%s</h2>' "$rel"
-		[ -z "$rel" ] && printf '%s' "$ROOT_NOTE"
+		printf '<meta name="viewport" content="width=device-width,initial-scale=1">'
+		printf '<title>openwrt-repo/%s</title><style>%s</style>' "$rel" "$CSS"
+		printf '<h1>%s</h1>' "$(breadcrumb "$rel")"
+		[ -z "$rel" ] && landing
 		printf '<table><tr><th>Name</th><th>Size</th><th>Date</th><th>Time (UTC)</th></tr>'
 		[ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td><td></td><td></td><td></td></tr>'
 		for e in "$d"/*; do
@@ -306,9 +387,13 @@ commit_and_push() {
 }
 
 for attempt in $(seq 1 "$ATTEMPTS"); do
-	fetch_site
-	apply_changes
-	if commit_and_push; then
+	if ! fetch_site; then
+		why="could not read $BRANCH from $REMOTE"
+	else
+		apply_changes
+		why="push refused (branch moved meanwhile?)"
+	fi
+	if [ "$why" != "${why#push}" ] && commit_and_push; then
 		if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
 			{
 				echo "### gh-pages: $MSG"
@@ -320,7 +405,7 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
 	fi
 	[ "$attempt" -lt "$ATTEMPTS" ] || break
 	delay=$((BACKOFF_MIN + RANDOM % (BACKOFF_MAX - BACKOFF_MIN + 1)))
-	echo "publish-pages: push refused (branch moved meanwhile?), retry $((attempt + 1))/$ATTEMPTS in ${delay}s"
+	echo "publish-pages: $why, retry $((attempt + 1))/$ATTEMPTS in ${delay}s"
 	sleep "$delay"
 done
 die "gave up after $ATTEMPTS attempts"

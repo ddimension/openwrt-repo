@@ -100,9 +100,10 @@ jobs:
           # (action default; CONTAINER would be the UNTAGGED image — the
           # action appends :$ARCH itself). docker.io is only touched for the
           # embedded qemu binfmt pull, authenticated via the login step
-          # above. Should a job still flake: gh run rerun --failed — but only
-          # on runs of the current workflow version, never on a run from before
-          # the channel split (its publish would delete main/ and stable/).
+          # above. Should a job still flake: gh run rerun --failed on the
+          # newest run of the branch (an older run builds but does not publish,
+          # see the publish job) — never on a run from before the channel
+          # split, whose publish step would delete main/ and stable/.
           FEEDNAME: wwand
           # lifts GitHub's anonymous clone limit for the feed updates; see the
           # note in the action's entrypoint. Read-only, and the default token.
@@ -140,11 +141,19 @@ jobs:
           # disagree. Its channel is DDIMENSION_FEED_CHANNEL (workflow env).
           DDIMENSION_FEED_RELEASE: ${{ matrix.release }}
 
+      # ddimension-feed.apk: a name without a version, so the direct download
+      # links in README.md and on the site's start page survive every release
+      # bump. It is not in packages.adb, so apk never sees it as a package of
+      # the repository. (Installed from a file, apk pins it — README.md says to
+      # follow up with `apk add ddimension-feed`.)
       - name: Collect repository
         run: |
-          mkdir -p "public/${{ matrix.release }}/${{ matrix.arch }}"
-          cp -a "bin/packages/${{ matrix.arch }}/wwand/." \
-                "public/${{ matrix.release }}/${{ matrix.arch }}/"
+          dest="public/${{ matrix.release }}/${{ matrix.arch }}"
+          mkdir -p "$dest"
+          cp -a "bin/packages/${{ matrix.arch }}/wwand/." "$dest/"
+          for f in "$dest"/ddimension-feed-[0-9]*.apk; do
+            [ -f "$f" ] && cp "$f" "$dest/ddimension-feed.apk"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -169,7 +178,11 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # No stored credentials: publish-pages.sh brings its own, and a second
+      # Authorization header makes GitHub answer 400 "Duplicate header".
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/download-artifact@v4
         with:
@@ -185,6 +198,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Only the newest commit of a branch publishes. A re-run of an older
+          # run would otherwise put that older state back onto the channel (and
+          # the legacy mirror) — and it runs with its own commit's scripts, so
+          # it does not even pick up fixes. The run for the newer commit publishes.
+          head="$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | cut -f1)"
+          if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::warning::$GITHUB_REF_NAME is at $head now; this run built $GITHUB_SHA and does not publish"
+            exit 0
+          fi
           pairs=()
           for dir in fresh/*/*/; do
             [ -d "$dir" ] || continue

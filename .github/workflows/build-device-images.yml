@@ -1,13 +1,16 @@
 # Baut Device-Images auf den self-hosted Runnern, je fuer die OpenWrt-Basen master
 # und stable, mit komplettem wwand-Stack und ddimension-feed — IMMER gegen den
-# stable-Kanal dieses Feeds:
+# stable-Kanal dieses Feeds, und zwar gegen genau EINEN Commit davon:
+#   feed     : loest diesen Commit einmal auf (nach einem Feed-Lauf dessen
+#             head_sha, von Hand die aktuelle Spitze von stable). Alle Legs und
+#             der Stempel der publizierten Images nehmen ihn von hier.
 #   fullbuild: Voll-Buildroot je Geraet (PR-Geraet + Kernel-Patch + DTS -> kein
 #             ImageBuilder moeglich). chateau master/stable, nbg7815 nur master.
-#             wwand-Feed = src-git dieses Repos, gepinnt auf den stable-Commit,
-#             der den Lauf ausgeloest hat. dl/ccache + build_dir persistent
-#             (Named Volumes), node-lokal.
+#             wwand-Feed = src-git dieses Repos, gepinnt auf den feed-Commit.
+#             dl/ccache + build_dir persistent (Named Volumes), node-lokal.
 #   zyxel   : nr7101 + lte3301-plus sind upstream -> ImageBuilder (kein Toolchain-
-#             Build). wwand kommt SIGNIERT aus dem stable-Baum auf gh-pages.
+#             Build). wwand kommt SIGNIERT aus dem stable-Baum auf gh-pages,
+#             nachdem dieser den Stempel des feed-Commits traegt.
 # "master"/"stable" in den Matrizen ist die OPENWRT-Basis (master bzw. der
 # 25.12-Release-Branch), nicht der Kanal dieses Feeds — der ist immer stable. Die
 # Namen bleiben: Volumes und Artefakte haengen daran, ein umbenannter chateau-Leg
@@ -23,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       testing_kernel:
-        description: 'master-Legs mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable wird dabei uebersprungen (25.12 hat kein 6.18). Nur Artefakte, kein Publish nach gh-pages.'
+        description: 'Nur die master-Voll-Builds mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable- und ImageBuilder-Legs werden uebersprungen. Nur Artefakte, kein Publish nach gh-pages.'
         type: boolean
         default: false
   # Nach jedem erfolgreichen Feed-Lauf ("build") auf stable automatisch Images
@@ -45,9 +48,30 @@ env:
   FEED_ROOT: https://ddimension.github.io/openwrt-repo
 
 jobs:
-  fullbuild:
+  # Der eine Feed-Commit dieses Laufs. Nach workflow_run der des gruenen
+  # Feed-Laufs; von Hand die Spitze von stable zum Startzeitpunkt — sonst baute
+  # der Voll-Build die Spitze, der zyxel-Leg den gerade ausgelieferten Baum, und
+  # der Stempel nennte main.
+  feed:
     # manueller Dispatch immer; via workflow_run nur, wenn der Feed-Lauf gruen war
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: [self-hosted, openwrt]
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - id: sha
+        env:
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          sha="$RUN_SHA"
+          [ -n "$sha" ] || sha="$(git ls-remote "$FEED_GIT" "refs/heads/$FEED_CHANNEL" | cut -f1)"
+          [ -n "$sha" ] || { echo "::error::$FEED_CHANNEL von $FEED_GIT nicht aufloesbar"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Feed: $FEED_CHANNEL @ $sha"
+
+  fullbuild:
+    needs: feed
     runs-on: [self-hosted, openwrt]
     # 900 (15h): a cold full buildroot (empty owrt-src/ccache/dl) takes ~12h;
     # 600 timed out chateau-stable once. Warm/incremental runs finish far sooner.
@@ -122,13 +146,13 @@ jobs:
         # Bei testing_kernel nur master bauen (stable = openwrt-25.12 hat kein 6.18).
         if: ${{ github.event.inputs.testing_kernel != 'true' || matrix.base == 'master' }}
         env:
-          # Der wwand-Feed als src-git. Nach einem stable-Feed-Lauf auf genau
-          # dessen Commit gepinnt (scripts/feeds-Form <url>^<sha>) — dann traegt
-          # das Image dieselben Pakete, die der zyxel-Leg aus dem publizierten
-          # Baum zieht. Von Hand: die Spitze des Kanal-Branches (<url>;stable).
+          # Der wwand-Feed als src-git, gepinnt auf den feed-Commit
+          # (scripts/feeds-Form <url>^<sha>) — dann traegt das Image dieselben
+          # Pakete, die der zyxel-Leg aus dem publizierten Baum zieht.
           # scripts/feeds merkt sich die Quelle und klont feeds/wwand neu, sobald
-          # sie sich aendert; der persistente /src-Baum zieht also sauber mit.
-          WWAND_FEED: ${{ github.event.workflow_run.head_sha && format('{0}^{1}', env.FEED_GIT, github.event.workflow_run.head_sha) || format('{0};{1}', env.FEED_GIT, env.FEED_CHANNEL) }}
+          # sie sich aendert; build-images.sh prueft zusaetzlich, dass der
+          # persistente Klon wirklich auf dem Pin steht.
+          WWAND_FEED: ${{ format('{0}^{1}', env.FEED_GIT, needs.feed.outputs.sha) }}
         run: |
           # Vom Runner-CT freigegebene Kerne bestimmen. pct --cores setzt eine
           # cgroup-CPU-Quota; nproc ignoriert die und meldet die volle Node-Kernzahl
@@ -176,7 +200,9 @@ jobs:
           if-no-files-found: warn
 
   zyxel:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    needs: feed
+    # Ein Testkernel betrifft nur Voll-Builds; der ImageBuilder bringt seinen Kernel mit.
+    if: ${{ github.event.inputs.testing_kernel != 'true' }}
     runs-on: [self-hosted, openwrt]
     timeout-minutes: 120
     strategy:
@@ -215,19 +241,18 @@ jobs:
       # dessen .apk-Dateien der Publish bereits ersetzt hat: "wget: exited with
       # error 8 / unexpected end of file" (Lauf 32545665275, zyxel master: wwand
       # r28 statt r33). Also warten, bis der Baum, aus dem wir bauen, der des
-      # ausloesenden Commits ist: publish-pages.sh stempelt jeden Baum mit seinem
-      # Commit (.published). Das ist genau, wo die Pages-Build-API es nicht war (ein
+      # feed-Commits ist: publish-pages.sh stempelt jeden Baum mit seinem Commit
+      # (.published). Das ist genau, wo die Pages-Build-API es nicht war (ein
       # dazwischen landender main-Publish ist ein neueres Deployment des falschen
       # Kanals), und braucht keine API-Berechtigung. Der Query-String macht jede
-      # Abfrage zum CDN-Cache-Miss. Bei manuellem Dispatch: kein Warten.
-      - name: Wait for the stable feed of the triggering commit
-        if: ${{ github.event_name == 'workflow_run' }}
+      # Abfrage zum CDN-Cache-Miss. Von Hand gestartet steht der Baum meist schon.
+      - name: Wait for the stable feed of the feed commit
         env:
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          SHA: ${{ needs.feed.outputs.sha }}
         run: |
           url="$FEED_ROOT/$FEED_CHANNEL/$GHP_DIR/$ARCH/.published"
           for i in $(seq 1 80); do
-            got="$(curl -sf "$url?ts=$(date +%s)" || true)"
+            got="$(curl -sf --max-time 20 "$url?ts=$(date +%s)" || true)"
             case " $got " in
               *" $SHA "*) echo "Feed steht: $got"; exit 0 ;;
             esac
@@ -263,10 +288,10 @@ jobs:
   # eine feste, durchsuchbare URL haben (die 30-Tage-Run-Artefakte bleiben).
   # publish-pages.sh ersetzt nur diese Verzeichnisse; Feed-Kanaele bleiben stehen.
   # Testkernel-Images sind nicht das, was Geraete bekommen sollen: die bleiben
-  # reine Run-Artefakte.
+  # reine Run-Artefakte. Ohne feed-Job (roter Feed-Lauf) gibt es nichts zu tun.
   publish-images:
-    needs: [fullbuild, zyxel]
-    if: ${{ !cancelled() && github.event.inputs.testing_kernel != 'true' }}
+    needs: [feed, fullbuild, zyxel]
+    if: ${{ !cancelled() && needs.feed.result == 'success' && github.event.inputs.testing_kernel != 'true' }}
     runs-on: [self-hosted, openwrt]
     permissions:
       contents: write
@@ -276,7 +301,11 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # No stored credentials: publish-pages.sh brings its own, and a second
+      # Authorization header makes GitHub answer 400 "Duplicate header".
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/download-artifact@v4
         with:
@@ -286,8 +315,8 @@ jobs:
       - name: Publish images to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # der Feed-Commit, gegen den gebaut wurde (bei Dispatch: dieser Checkout)
-          PAGES_STAMP_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # der Feed-Commit, gegen den gebaut wurde
+          PAGES_STAMP_SHA: ${{ needs.feed.outputs.sha }}
         run: |
           pairs=()
           for art in dl/images-*/; do

@@ -29,3 +29,7 @@ CONFIG_LIBQMI_WITH_MBIM_QMUX=y
 # checkout of the feed, it points at stable/<release>/<arch> (the default
 # channel; release and arch come from the buildroot).
 CONFIG_PACKAGE_ddimension-feed=y
+# ...and not a second time through distfeeds.list: the buildroot would list
+# the wwand feed as .../packages/<arch>/wwand/ on downloads.openwrt.org, which
+# does not exist, and every `apk update` on the device would say so.
+# CONFIG_FEED_wwand is not set
