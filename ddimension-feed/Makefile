@@ -3,18 +3,36 @@
 #
 # Every device that should follow this feed needs the same two files: the
 # public half of the key under /etc/apk/keys, and a .list naming the tree for
-# its release and architecture. Putting them in by hand is three commands that
-# have to be got right per device and are then never touched again — which is
-# how a fleet ends up pointing at a URL that moved two years ago.
+# its channel, release and architecture. Putting them in by hand is three
+# commands that have to be got right per device and are then never touched
+# again — which is how a fleet ends up pointing at a URL that moved two years
+# ago.
 #
 # As a package they are maintained the way everything else is: install it once,
-# untrusted, and from then on `apk upgrade` carries any change to the address
-# or the key along with it. The one manual step is unavoidable and is the point
-# where trust is established:
+# by name, from the tree it describes, untrusted —
 #
-#     apk add --allow-untrusted ./ddimension-feed-*.apk
+#     apk --allow-untrusted \
+#         -X https://ddimension.github.io/openwrt-repo/stable/<release>/<arch>/packages.adb \
+#         add ddimension-feed
 #
-# After that the feed is signed and nothing needs --allow-untrusted again.
+# — and from then on `apk upgrade` carries any change to the address or the key
+# along with it. --allow-untrusted is the one moment where trust is
+# established; after it the feed is signed and nothing needs it again.
+#
+# By name, not from a downloaded file. `apk add ./ddimension-feed-*.apk` puts
+# the package into /etc/apk/world pinned to that file's checksum
+# (ddimension-feed><Q1...>), and apk never upgrades a pinned package — the one
+# thing this package is for would silently not happen. That was the documented
+# install up to r2; such a device lifts the pin with `apk add ddimension-feed`.
+#
+# Channels. The site carries two: stable (releases, built from the stable
+# branch) and main (development, built from main). Which one the .list names is
+# decided at build time by DDIMENSION_FEED_CHANNEL. The build workflow sets it
+# from the branch it builds, so the package in each tree points at that very
+# tree. Unset means stable: a package built anywhere else should lead to
+# releases, not to development. A device changes channel by installing this
+# package from the other channel's tree the same way (README.md, "On the
+# device").
 #
 # Neither installed file is a conffile, and that is deliberate. A conffile is
 # kept across upgrades, which is right for something the operator owns and
@@ -24,13 +42,19 @@
 # reads every file in repositories.d.
 #
 # The tree is chosen at build time, not on the device. It has to match the
-# directory the site publishes under, and both halves of that come from the
-# buildroot: the architecture is what this package was built for, and the
-# release is derived from its version. A package from the openwrt-25.12 tree
-# therefore points at openwrt-25.12 and cannot silently point somewhere else.
-# After upgrading a device to a new OpenWrt release, install this package again
-# from that release's tree — its .list still names the old one, which is
-# visible rather than quiet, because apk update then says so.
+# directory the site publishes under, and all three parts of that come from the
+# build: the channel from the branch, the architecture from what this package
+# was built for, and the release from its version. A package from the
+# openwrt-25.12 tree therefore points at openwrt-25.12 and cannot silently point
+# somewhere else. After upgrading a device to a new OpenWrt release, install
+# this package again from that release's tree — its .list still names the old
+# one, which is visible rather than quiet, because apk update then says so.
+#
+# No postinst. It used to run `apk update` so the feed would be usable at once,
+# and that could never work: a package script runs while the installing apk
+# holds the database lock, and `apk update` needs that lock (it opens the
+# database for writing) — so it failed every time and printed "run it by
+# hand". The documented install runs `apk update` itself.
 #
 # apk only. The usign key under keys/ is for opkg-based releases (<= 24.10),
 # and those are no longer built; a package installing an /etc/opkg key on a
@@ -44,7 +68,9 @@ PKG_NAME:=ddimension-feed
 PKG_VERSION:=1
 # 2: 1 never reached a device — it declared a dependency on apk-mbedtls and
 # that broke the build before any package came out of it.
-PKG_RELEASE:=2
+# 3: the channel is part of the address (stable/… or main/…). The pre-channel
+# path mirrors stable, so every device still on it moves to stable/ with this.
+PKG_RELEASE:=3
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
 
@@ -72,25 +98,30 @@ define Package/ddimension-feed/description
   Points apk at the ddimension package feed and installs the public key its
   indexes are signed with.
 
-  Install it once with --allow-untrusted; after that the feed is trusted and
-  every further change to its address or key arrives as an ordinary upgrade.
+  Install it once by name from the feed, with --allow-untrusted; after that
+  the feed is trusted and every further change to its address or key arrives
+  as an ordinary upgrade.
 
-  The .list it writes names the tree for the release and architecture this
-  package was built for. Neither file is a conffile: an address that an update
-  cannot correct is the problem this package exists to avoid. To follow a
-  second feed, add another file in /etc/apk/repositories.d rather than editing
-  this one.
+  The .list it writes names the tree for the channel (stable or main),
+  release and architecture this package was built for. Neither file is a
+  conffile: an address that an update cannot correct is the problem this
+  package exists to avoid. To follow a second feed, add another file in
+  /etc/apk/repositories.d rather than editing this one.
 endef
 
 Build/Configure:=
 
-# The directory on the site, worked out from the buildroot rather than written
-# down in two places that can drift apart.
+# The directory on the site, worked out from the build rather than written down
+# in two places that can drift apart.
 #
 # Getting this wrong is worse than failing to build: the package would install
 # happily and point at a tree that does not exist, and the device would say
-# nothing until somebody ran apk update by hand. So the two cases are handled
+# nothing until somebody ran apk update by hand. So the cases are handled
 # explicitly and the result is printed, where CI keeps it.
+#
+# The channel is checked here, in the recipe, and not with $(error) at parse
+# time: a Makefile that errors while the feed is scanned does not fail the
+# build, the package just vanishes from it ("No feed for package").
 #
 # VERSION_NUMBER on a branch build is not what it looks like. Measured in a
 # 25.12 buildroot: it is "25.12-SNAPSHOT", not "SNAPSHOT" — include/version.mk
@@ -105,6 +136,12 @@ Build/Configure:=
 # which are exactly the names the build workflow publishes under. Override with
 # DDIMENSION_FEED_RELEASE for the day that stops being true.
 define Build/Compile
+	channel="$$$${DDIMENSION_FEED_CHANNEL:-stable}"; \
+	case "$$$$channel" in \
+		main|stable) ;; \
+		*) echo "ddimension-feed: DDIMENSION_FEED_CHANNEL must be main or stable, not '$$$$channel'" >&2; \
+		   exit 1 ;; \
+	esac; \
 	release='$(VERSION_NUMBER)'; \
 	base="$$$${release%%-SNAPSHOT}"; \
 	base="$$$${base%%SNAPSHOT}"; \
@@ -113,9 +150,9 @@ define Build/Compile
 		*)             dir="snapshot" ;; \
 	esac; \
 	dir="$$$${DDIMENSION_FEED_RELEASE:-$$$$dir}"; \
-	echo "$(FEED_BASE)/$$$$dir/$(ARCH_PACKAGES)/packages.adb" \
+	echo "$(FEED_BASE)/$$$$channel/$$$$dir/$(ARCH_PACKAGES)/packages.adb" \
 		> $(PKG_BUILD_DIR)/ddimension.list; \
-	echo "ddimension-feed: version '$$$$release' -> $$$$(cat $(PKG_BUILD_DIR)/ddimension.list)"
+	echo "ddimension-feed: channel '$$$$channel', version '$$$$release' -> $$$$(cat $(PKG_BUILD_DIR)/ddimension.list)"
 endef
 
 define Package/ddimension-feed/install
@@ -123,17 +160,6 @@ define Package/ddimension-feed/install
 	$(INSTALL_DIR) $(1)/etc/apk/repositories.d
 	$(INSTALL_DATA) ./files/ddimension.pem $(1)/etc/apk/keys/ddimension.pem
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ddimension.list $(1)/etc/apk/repositories.d/ddimension.list
-endef
-
-# apk has the new index the moment the file lands, but nothing has fetched it
-# yet, so the first `apk upgrade` after this would still not see the feed. One
-# update here means the package is usable immediately rather than after a step
-# nobody was told about.
-define Package/ddimension-feed/postinst
-#!/bin/sh
-[ -n "$$IPKG_INSTROOT" ] && exit 0
-apk update >/dev/null 2>&1 || echo "ddimension-feed: apk update failed, run it by hand"
-exit 0
 endef
 
 $(eval $(call BuildPackage,ddimension-feed))
