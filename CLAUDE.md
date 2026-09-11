@@ -28,14 +28,18 @@ Commit/push only when asked.
 | `wwand`, `luci-app-wwand`, `luci-proto-wwand` | `scripts/bump-source.sh <pkg> <tag\|commit>` |
 | other git-source packages (luacurl, snapcast-mptcp, …) | bump `PKG_SOURCE_VERSION` (+ `PKG_VERSION` or `PKG_SOURCE_DATE` as the Makefile uses them), `PKG_RELEASE`+1, then `scripts/update-hashes.sh <pkg>` |
 | `apman` | from apman-agent: `contrib/release.sh` ([apman/README.md](apman/README.md)) |
-| `heatingrod`, `q*` | bundled tarball in `files/`, `PKG_HASH` (see the package README) |
+| `wwand-lpac` | upstream release tarball: `PKG_VERSION` + `PKG_HASH` |
+| `heatingrod` | git-archive snapshot of heatingrod-controller in `files/`, `PKG_HASH` ([heatingrod/README.md](heatingrod/README.md)) |
+| `ddimension-feed`, `homesync`, `wpad-ieee8021x`, `q*` | built from `files/` in this repo — edit, bump `PKG_RELEASE` |
 
 - **Versions of the three wwand packages are derived, never typed.**
   `bump-source.sh` takes them from `git describe`: tag `vX.Y.Z` → `X.Y.Z`
   (release material), N commits after it → `X.Y.Z_pN` (main). `PKG_RELEASE`
-  is 1 for every new version and counts packaging-only changes. No
-  `PKG_SOURCE_DATE` — a date version sorts above every real number in apk.
-  `release-stable.sh` refuses to release a `_p` version.
+  is 1 for every new version; a packaging-only change is a `PKG_RELEASE` bump
+  by hand. No `PKG_SOURCE_DATE` — a date version sorts above every real number
+  in apk. `bump-source.sh` refuses the same version for a different commit and
+  a lower version (`--force`); `release-stable.sh` refuses a `_p` version and a
+  ref that is not on origin/main.
 - **A stack release:** tag `vX.Y.Z` in wwand, luci-app-wwand and
   luci-proto-wwand on the commits that belong together (same X.Y.Z in all
   three), `bump-source.sh` each to its tag, commit on main, push once, let
@@ -45,8 +49,9 @@ Commit/push only when asked.
   tag's own sha builds a different tarball and the hash check fails.
 - **`PKG_MIRROR_HASH` only from the SDK** (`update-hashes.sh`, which
   `bump-source.sh` calls). Host-side replication has produced wrong values.
-  The script is all-or-nothing: on `FAILED` it touches no Makefile — read
-  `$LOGDIR/hashes.txt`. Do not pipe it and trust the exit status you see.
+  `update-hashes.sh` is all-or-nothing (on `FAILED` it touches no Makefile —
+  read `$LOGDIR/hashes.txt`), and `bump-source.sh` restores the Makefile when
+  it fails. Do not pipe them and trust the exit status you see.
 - One commit per bump, Makefile and hash together: the old Makefile breaks on
   the new tarball.
 
@@ -54,7 +59,8 @@ Commit/push only when asked.
 
 - A push to `main` builds and publishes main only. `cancel-in-progress` is
   per branch: **one push, then wait** — a burst cancels every run but the
-  last. `.md`-only pushes build nothing.
+  last. `.md`-only pushes build nothing. Only the newest commit of a branch
+  publishes: a re-run of an older run builds but does not publish.
 - New package: add it to `.github/ci/packages` (the one list for CI and
   `scripts/local-build.sh`), or say in its README why not (heatingrod,
   pcie_mhi, python3-edlclient).
@@ -65,7 +71,7 @@ Commit/push only when asked.
   main reaches images with the next release; the image workflow itself always
   runs from main.
 - Before pushing CI changes: `docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint`
-  and `koalaman/shellcheck:stable -x` on the scripts.
+  and `docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:stable -x <scripts>`.
 - Anything big: test locally first,
   `RELEASES=snapshot ARCHS=x86_64 PACKAGES="<pkg>" scripts/local-build.sh`
   (the mandatory `--ulimit nofile` is inside the script).
@@ -81,7 +87,9 @@ Commit/push only when asked.
 
 - Set up with `ddimension-feed`, installed **by name** from the tree:
   `apk --allow-untrusted -X https://ddimension.github.io/openwrt-repo/stable/<release>/<arch>/packages.adb add ddimension-feed`.
-  Never from a downloaded `.apk` — that pins it in `/etc/apk/world` and it
-  never upgrades again.
+  From a downloaded `ddimension-feed.apk` only with `apk update && apk add
+  ddimension-feed` afterwards — a file install is pinned in `/etc/apk/world`
+  and a plain `apk upgrade` never moves it again.
 - Channel switch, migrating old devices (pin + the one-time version
-  downgrade, `apk upgrade --available`): `README.md`, "On the device".
+  downgrade, `apk add -u ddimension-feed`, `apk upgrade --available`):
+  `README.md`, "How-tos".

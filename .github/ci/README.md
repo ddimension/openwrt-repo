@@ -123,7 +123,16 @@ Layout der Site:
   Verzeichnis-Indexen (die mtime wäre für alles, was der Lauf nicht geschrieben
   hat, die Checkout-Zeit), und darauf wartet der zyxel-Leg.
 - **Token** nur über env-gescopte git-Config (`GIT_CONFIG_*`), nie in einer
-  Clone-URL — die landete früher in `.git/config` im persistenten Workspace.
+  Clone-URL — die landete früher in `.git/config` im persistenten Workspace. Der
+  erste, leere Eintrag leert die Header-Liste: actions/checkout hinterlegt selbst
+  einen Authorization-Header, und zwei davon beantwortet GitHub mit „Duplicate
+  header“ (HTTP 400). Zusätzlich checken die Publish-Jobs mit
+  `persist-credentials: false` aus, und das Skript verlässt als Erstes das
+  Workspace-Repo.
+- **Nur der neueste Commit publiziert:** der publish-Job von `build.yml`
+  vergleicht `GITHUB_SHA` mit der Spitze des Branches. Ein Re-Run eines älteren
+  Laufs baut, publiziert aber nicht — sonst rollte er den Kanal zurück, mit dem
+  Skriptstand seines alten Commits.
 - **Alte Läufe nie re-runnen.** Ein Lauf von *vor* der Kanal-Trennung hat noch den
   alten Publish mit Keep-Liste (`keys|index.html|images|openwrt-*|snapshot`) und
   force-pusht ohne Lease — er löscht `main/` und `stable/`. Dasselbe gilt für
@@ -175,13 +184,19 @@ Skript auf ein Bare-Repo statt auf GitHub.
   via `workflow_run` (nur bei `conclusion == success`). main-Läufe lösen nichts aus.
   `concurrency` verhindert Stapeln.
 - **Manuell:** `gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`
-  (`-f testing_kernel=true`: master-Legs mit Testkernel, stable übersprungen, kein
-  Publish).
+  (`-f testing_kernel=true`: nur die master-Voll-Builds mit Testkernel; stable- und
+  zyxel-Legs übersprungen, kein Publish).
 
 **`workflow_run`-Semantik:** GitHub führt immer die Workflow-Datei und den Checkout
 des **Default-Branch (main)** aus. Die Skripte unter `.github/ci` kommen also von
 main (Änderungen wirken sofort), die Pakete kommen explizit aus stable
 (`FEED_CHANNEL: stable` im Workflow-env).
+
+**Ein Feed-Commit je Lauf:** Der `feed`-Job löst ihn einmal auf — nach
+`workflow_run` den `head_sha` des Feed-Laufs, von Hand die Spitze von stable.
+Voll-Builds pinnen ihn, der zyxel-Leg wartet auf seinen `.published`-Stempel,
+`publish-images` stempelt die Images mit ihm. Ohne grünen Feed-Lauf (Job
+`feed` übersprungen) wird nichts gebaut und nichts publiziert.
 
 **Ort der Images:**
 - dauerhaft auf gh-pages unter `images/<gruppe>/<base>/`
@@ -216,11 +231,13 @@ DTS, LZMA-Loader). Quellen:
 - **nbg7815 (nur master):** Fork-Branch `nbg7815-update` (RGB-LED, Bluetooth,
   Lüfter/Temperatursensor, 160-MHz-Boardfile-Schalter). Für stable gibt es keinen
   Backport-Branch.
-- **wwand-Feed:** `src-git` dieses Repos, nach `workflow_run` gepinnt auf den
-  auslösenden stable-Commit (`…openwrt-repo.git^<sha>`), bei Dispatch
-  `…openwrt-repo.git;stable`. `scripts/feeds` merkt sich die Quelle
-  (`feeds/wwand.tmp/location`) und klont bei Änderung neu → der persistente
-  Quellbaum zieht sauber mit.
+- **wwand-Feed:** `src-git` dieses Repos, gepinnt auf den Feed-Commit des
+  Laufs (`…openwrt-repo.git^<sha>`). `scripts/feeds` merkt sich die Quelle
+  (`feeds/wwand.tmp/location`) und klont bei Änderung neu — aber es schreibt
+  sie VOR dem Klonen, und einen einmal geklonten Pin aktualisiert es nie.
+  Bricht ein Lauf zwischen clone und checkout ab, stünde feeds/wwand stumm auf
+  dem falschen Baum; `build-images.sh` vergleicht deshalb vor `feeds update`
+  HEAD mit dem Pin und wirft den Klon im Zweifel weg.
 - Stack: `.github/ci/config.wwand` (inkl. `ddimension-feed`). Skript:
   `.github/ci/build-images.sh`.
 - Cache: `owrt-src-<slug>-<base>` (Quellbaum **inkl. build_dir/staging** persistent) +
@@ -239,10 +256,11 @@ Beide **upstream** → offizieller ramips/mt7621-ImageBuilder (snapshot bzw. neu
   vertraut allen **`.pem`** in `keys/`; `CONFIG_SIGNATURE_CHECK=y` (default) prüft.
 - Also: `keys/ddimension.pem` + `…/stable/<snapshot|openwrt-25.12>/mipsel_24kc/packages.adb`
   an `repositories` anhängen.
-- **Warten auf den Feed:** nach `workflow_run` pollt der Job
-  `…/stable/<release>/mipsel_24kc/.published`, bis dort der auslösende Commit steht
-  (max. 20 min, danach Warnung und Bau gegen den publizierten Stand). Früher: die
-  Pages-Build-API — ungenau, sobald ein main-Publish dazwischenkommt.
+- **Warten auf den Feed:** der Job pollt
+  `…/stable/<release>/mipsel_24kc/.published`, bis dort der Feed-Commit steht
+  (max. 20 min, `curl --max-time 20` je Abfrage, danach Warnung und Bau gegen den
+  publizierten Stand). Früher: die Pages-Build-API — ungenau, sobald ein
+  main-Publish dazwischenkommt.
 - Arch mt7621 = `mipsel_24kc`. Skript: `.github/ci/build-imagebuilder.sh`
   (Paketliste `PKGS`, inkl. `ddimension-feed`).
 
@@ -251,10 +269,13 @@ Beide **upstream** → offizieller ramips/mt7621-ImageBuilder (snapshot bzw. neu
 ## Betrieb — Kurzreferenz
 
 - **Release:** `scripts/release-stable.sh` (Fast-Forward stable + Tag, fragt vor dem
-  Push; verweigert `_p`-Versionen von wwand/LuCI). Hotfix-Weg: Haupt-README.
+  Push; verweigert `_p`-Versionen und Refs, die nicht auf origin/main liegen).
+  Hotfix-Weg: Haupt-README.
 - **wwand/LuCI-Quelle pinnen:** `scripts/bump-source.sh <paket> <tag|commit>` —
-  Version aus `git describe` (`vX.Y.Z` → `X.Y.Z`, danach `X.Y.Z_pN`), setzt
-  `PKG_RELEASE` und rechnet den Mirror-Hash im SDK-Container.
+  Version aus `git describe` (`vX.Y.Z` → `X.Y.Z`, danach `X.Y.Z_pN`; rc-Tags
+  zählen nicht), `PKG_RELEASE:=1`, Mirror-Hash im SDK-Container; stellt das
+  Makefile wieder her, wenn der Hash scheitert. Verweigert gleiche Version für
+  anderen Commit und Rückschritte (`--force`).
 - **Feed-Build von Hand:** `gh workflow run build.yml -R ddimension/openwrt-repo --ref stable`
   (bzw. `--ref main`). Nötig u. a., wenn ein neuer Branch ohne neue Commits
   gepusht wurde — GitHub startet dann wegen `paths-ignore` ggf. keinen Lauf.

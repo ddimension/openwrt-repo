@@ -26,9 +26,11 @@ sha256sum ~/projects/ddimension-openwrt-repo/heatingrod/files/heatingrod-3.0.0.t
 `git archive` takes tracked files only, so the installation's own files —
 `config/production.yaml`, `shadow.yaml`, `calibration.json`, `state.json`,
 all untracked — cannot end up in the package. The explicit path list leaves
-out `docs/`, `grafana/` and `rust-toolchain.toml`, the latter deliberately:
-the SDK's cargo is not rustup-managed and would try to download the pinned
-toolchain.
+out `docs/`, `grafana/`, `LICENSE`, `CLAUDE.md` and `rust-toolchain.toml`,
+the last one deliberately: the SDK's cargo is not rustup-managed and would try
+to download the pinned toolchain. The bundled tarball predates
+`config/production.example.yaml`, so the first regeneration changes
+`PKG_HASH` even without a source change.
 
 Changes to this package follow the feed's rules (`CLAUDE.md` at the feed
 root): commit on `main`; `stable` gets it with the next release.
