@@ -5,8 +5,10 @@
 # file collision, good-citizen coexistence), and interfaces are moved to
 # `proto wwand` via the migration list in the LuCI modem page.
 #
-# Sources live in https://github.com/ddimension/luci-proto-wwand — bump
-# PKG_SOURCE_VERSION (and PKG_SOURCE_DATE) to pick up new source commits.
+# Sources live in https://github.com/ddimension/luci-proto-wwand, tagged vX.Y.Z
+# together with wwand. Pin a new commit with
+# `scripts/bump-source.sh luci-proto-wwand <tag|commit>`: it derives PKG_VERSION
+# (X.Y.Z at a tag, X.Y.Z_pN after it), PKG_RELEASE and the mirror hash.
 #
 # NOTE: this is built from a git PKG_SOURCE, so it does NOT use luci.mk. luci.mk
 # gates its htdocs/root install on those directories living NEXT TO the Makefile
@@ -18,13 +20,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-proto-wwand
-PKG_RELEASE:=17
+PKG_VERSION:=1.6.5
+PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/luci-proto-wwand.git
 PKG_SOURCE_VERSION:=a094000b65d69b1b8048f6c6523fc6457980f33e
-PKG_SOURCE_DATE:=2026-09-10
-PKG_MIRROR_HASH:=7af0151339becfeb85166f4f9a00d06ace993fb03cb4ffdf817ac75648b02998
+PKG_MIRROR_HASH:=70c7f2cb0647c31a8750761fb9f9813d35e3bca48cc24aacd16e55a809dddd26
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=

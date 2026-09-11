@@ -3,8 +3,10 @@
 # the Modems editor, live settings, and the shared resources (wwand.bands /
 # wwand.modemopts / wwand.simlist) reused by the proto handler.
 #
-# Sources live in https://github.com/ddimension/luci-app-wwand — bump
-# PKG_SOURCE_VERSION (and PKG_SOURCE_DATE) to pick up new source commits.
+# Sources live in https://github.com/ddimension/luci-app-wwand, tagged vX.Y.Z
+# together with wwand. Pin a new commit with
+# `scripts/bump-source.sh luci-app-wwand <tag|commit>`: it derives PKG_VERSION
+# (X.Y.Z at a tag, X.Y.Z_pN after it), PKG_RELEASE and the mirror hash.
 #
 # NOTE: built from a git PKG_SOURCE, so it does NOT use luci.mk — luci.mk's
 # htdocs/root install is gated on those dirs living next to the Makefile
@@ -15,13 +17,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-wwand
-PKG_RELEASE:=34
+PKG_VERSION:=1.6.5
+PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/luci-app-wwand.git
-PKG_SOURCE_VERSION:=db03f95603aa70ef3682d462cfe476f935374392
-PKG_SOURCE_DATE:=2026-09-11
-PKG_MIRROR_HASH:=50b92c76d4447a22b5da0307d6d786ce7806fb280e5a51ecc33850a9bbc78bdd
+PKG_SOURCE_VERSION:=08451de842e16b4bf63b23cdc22f525186046ddb
+PKG_MIRROR_HASH:=c9e3276bf11bd5f63eb9697231d3e921ae6ebeefa11c340ccbacf1d9763154a9
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
