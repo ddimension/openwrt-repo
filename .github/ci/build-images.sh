@@ -1,12 +1,15 @@
 #!/bin/bash
 # In-Container OpenWrt-Image-Build (openwrt-builder, User uid 1000).
 # Mounts:
-#   /ci     = ci-images-Checkout (dieses Skript, chateau-pr.patch, config.wwand)
-#   /src    = persistenter Quellbaum je Leg  (Named Volume owrt-src-<slug>)
+#   /ci     = Repo-Checkout (dieses Skript, config.wwand)
+#   /src    = persistenter Quellbaum je Leg  (Named Volume owrt-src-<slug>-<base>)
 #   /dl     = geteilter Download-Cache        (Named Volume owrt-dl)
 #   /ccache = geteilter Compile-Cache         (Named Volume owrt-ccache)
 #   /out    = Artefakt-Ausgabe (Workspace/out)
 # Env: SRC_URL SRC_BRANCH PATCH TARGET SUBTARGET DEVICES WWAND_FEED
+#   WWAND_FEED ist die src-git-Quelle dieses Feeds: <url>;<branch> (Kanal-Spitze)
+#   oder <url>^<sha> (genau ein Commit). scripts/feeds merkt sich die Quelle und
+#   klont feeds/wwand neu, sobald sie sich aendert.
 set -euo pipefail
 
 : "${SRC_URL:?}"; : "${SRC_BRANCH:?}"; : "${TARGET:?}"; : "${SUBTARGET:?}"
@@ -42,7 +45,7 @@ rm -rf dl && ln -s /dl dl
 
 # Feeds: wwand-Feed ergaenzen
 cp -f feeds.conf.default feeds.conf
-grep -q "$WWAND_FEED" feeds.conf || echo "src-git wwand ${WWAND_FEED}" >> feeds.conf
+grep -qF "$WWAND_FEED" feeds.conf || echo "src-git wwand ${WWAND_FEED}" >> feeds.conf
 echo "::group::feeds"
 ./scripts/feeds update -a
 ./scripts/feeds install -a

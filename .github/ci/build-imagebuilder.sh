@@ -2,13 +2,17 @@
 # ImageBuilder-Bau (apk) fuer upstream-Geraete (nr7101, lte3301-plus) — kein
 # Toolchain-Build. Bindet den wwand-Feed aus gh-pages SIGNIERT ein (Public-Key in
 # keys/, CONFIG_SIGNATURE_CHECK bleibt an). Laeuft im openwrt-builder-Container.
-# Mounts: /ci (ci-images: dieses Skript + keys/), /work (Scratch), /out (Artefakte).
-# Env: BASE(master|stable) DEVICES GHP_DIR ARCH FEED_ROOT
+# Mounts: /ci (Repo-Checkout: dieses Skript + keys/), /work (Scratch), /out (Artefakte).
+# Env: BASE      OpenWrt-Basis: master (snapshot-IB) | stable (neuestes 25.12.x)
+#      GHP_DIR   Release-Verzeichnis im Feed: snapshot | openwrt-25.12
+#      FEED_CHANNEL  Feed-Kanal [stable] — Images bauen immer gegen stable
+#      DEVICES ARCH FEED_ROOT
 set -euo pipefail
 
 : "${BASE:?}"; : "${DEVICES:?}"; : "${GHP_DIR:?}"
 ARCH="${ARCH:-mipsel_24kc}"
 FEED_ROOT="${FEED_ROOT:-https://ddimension.github.io/openwrt-repo}"
+FEED_CHANNEL="${FEED_CHANNEL:-stable}"
 export HOME=/home/builder
 cd /work
 
@@ -31,14 +35,17 @@ cd ib
 
 # 2) wwand-Feed SIGNIERT einbinden
 cp -f /ci/keys/ddimension.pem keys/ddimension.pem
-FEED="${FEED_ROOT}/${GHP_DIR}/${ARCH}"
+FEED="${FEED_ROOT}/${FEED_CHANNEL}/${GHP_DIR}/${ARCH}"
 echo "${FEED}/packages.adb" >> repositories
 echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
 
 # wwand-qmi is the QMI backend (wwand itself is backend-neutral) and is also the
 # hard dependency of wwand-esim, which carries the eSIM/eUICC profile management
 # -- wwand-lpac only ships the lpac binary. Keep the two together.
+# ddimension-feed comes from the same stable tree and names it: the flashed
+# device follows this feed's stable channel, key included, with no bootstrap.
 PKGS="wwand wwand-qmi wwand-esim wwand-lpac luci-app-wwand luci-proto-wwand \
+ddimension-feed \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
 kmod-usb-serial-option kmod-vrf luci"
 
@@ -48,8 +55,9 @@ kmod-usb-serial-option kmod-vrf luci"
 # Pages-CDN noch das vorherige packages.adb ausliefern, waehrend die darin
 # genannten .apk-Dateien bereits ersetzt sind -- apk bricht dann mit
 # "wget: exited with error 8" / "unexpected end of file" ab. Der Workflow wartet
-# vorher auf das Pages-Deployment; das hier faengt die Rest-Latenz ab. Jeder
-# Versuch laedt den Index neu, ein zweiter Anlauf sieht also den frischen Stand.
+# vorher, bis der stable-Baum den Stempel (.published) des ausloesenden Commits
+# traegt; das hier faengt die Rest-Latenz ab. Jeder Versuch laedt den Index neu,
+# ein zweiter Anlauf sieht also den frischen Stand.
 make_image() {
 	local profile="$1" attempt rc
 

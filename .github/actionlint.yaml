@@ -1,0 +1,5 @@
+# actionlint configuration (docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint)
+self-hosted-runner:
+  # the label the repo-scoped self-hosted runners register with (.github/ci/README.md)
+  labels:
+    - openwrt

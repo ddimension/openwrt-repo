@@ -46,7 +46,9 @@ Optionen:
                           [default: mikrotik_chateau-5g-r17-ax]
       --src-url URL       Quell-Repo (ueberschreibt Release-Mapping)
       --src-branch B      Quell-Branch/Tag (ueberschreibt Release-Mapping)
-      --feed URL          wwand-Feed [default: https://github.com/ddimension/openwrt-repo.git]
+      --feed SRC          wwand-Feed als src-git-Quelle, Kanal per ;<branch>
+                          oder ein Commit per ^<sha>
+                          [default: https://github.com/ddimension/openwrt-repo.git;stable]
       --no-wwand          wwand-Stack nicht ins Image aufnehmen
       --config FILE       zusaetzliches .config-Snippet anhaengen
       --patch FILE        Patch, der nach dem Checkout applied wird
@@ -73,7 +75,8 @@ TARGET=qualcommax
 SUBTARGET=ipq60xx
 DEVICES=""
 DEFAULT_DEVICE=mikrotik_chateau-5g-r17-ax
-WWAND_FEED='https://github.com/ddimension/openwrt-repo.git'
+# wie die CI: Images bauen gegen den stable-Kanal des Feeds
+WWAND_FEED='https://github.com/ddimension/openwrt-repo.git;stable'
 IMAGE='image-registry.ddimension.net/myadmin/openwrt-builder:latest'
 CHATEAU_FORK='https://github.com/ddimension/openwrt.git'
 UPSTREAM='https://github.com/openwrt/openwrt.git'
@@ -236,7 +239,7 @@ else
 	# Feeds: wwand-Feed ergaenzen
 	cp -f feeds.conf.default feeds.conf
 	if [ -n "${WWAND_FEED:-}" ]; then
-		grep -q "$WWAND_FEED" feeds.conf || echo "src-git wwand ${WWAND_FEED}" >> feeds.conf
+		grep -qF "$WWAND_FEED" feeds.conf || echo "src-git wwand ${WWAND_FEED}" >> feeds.conf
 	fi
 	echo "== feeds =="
 	./scripts/feeds update -a

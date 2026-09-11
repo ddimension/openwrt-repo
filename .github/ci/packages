@@ -1,0 +1,30 @@
+# Source packages the feed build compiles and publishes — the one list.
+#
+# Read by .github/workflows/build.yml (per-package SDK mode: exactly these plus
+# their real dependencies) and used as the default by scripts/local-build.sh,
+# so a local test build checks what CI will build. Whitespace-separated,
+# '#' starts a comment.
+#
+# Deliberately NOT here — in the feed, never built by CI:
+#   heatingrod         builds rust/host from source (~35-45 GB build dir)
+#   pcie_mhi           vendor MHI driver; the RG650E does not finish the M0
+#                      handshake over PCIe, so there is nothing to ship yet
+#   python3-edlclient  host-side flashing tool, built on demand
+# libubus-lua-async is not listed either, yet it is built: apman depends on it.
+
+apman
+ddimension-feed
+homesync
+luacurl
+lua-mosquitto
+qfirehose
+qflash
+qlog
+snapcast-mptcp
+usb-relay-hid
+wpad-ieee8021x
+wpad-saeradh2e
+wwand
+wwand-lpac
+luci-app-wwand
+luci-proto-wwand

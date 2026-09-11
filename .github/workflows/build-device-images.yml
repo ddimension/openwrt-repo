@@ -1,10 +1,21 @@
-# Baut Images auf den self-hosted Runnern, je fuer master und stable, mit komplettem
-# wwand-Stack.
+# Baut Device-Images auf den self-hosted Runnern, je fuer die OpenWrt-Basen master
+# und stable, mit komplettem wwand-Stack und ddimension-feed — IMMER gegen den
+# stable-Kanal dieses Feeds:
 #   fullbuild: Voll-Buildroot je Geraet (PR-Geraet + Kernel-Patch + DTS -> kein
 #             ImageBuilder moeglich). chateau master/stable, nbg7815 nur master.
-#             dl/ccache + build_dir persistent (Named Volumes), node-lokal.
+#             wwand-Feed = src-git dieses Repos, gepinnt auf den stable-Commit,
+#             der den Lauf ausgeloest hat. dl/ccache + build_dir persistent
+#             (Named Volumes), node-lokal.
 #   zyxel   : nr7101 + lte3301-plus sind upstream -> ImageBuilder (kein Toolchain-
-#             Build). wwand kommt SIGNIERT aus dem gh-pages-Feed.
+#             Build). wwand kommt SIGNIERT aus dem stable-Baum auf gh-pages.
+# "master"/"stable" in den Matrizen ist die OPENWRT-Basis (master bzw. der
+# 25.12-Release-Branch), nicht der Kanal dieses Feeds — der ist immer stable. Die
+# Namen bleiben: Volumes und Artefakte haengen daran, ein umbenannter chateau-Leg
+# verliert sein warmes build_dir (~12 h Kaltbau).
+#
+# Achtung workflow_run: GitHub fuehrt IMMER diese Datei und den Checkout des
+# DEFAULT-Branch (main) aus. Die Skripte unter .github/ci kommen also von main,
+# nur die Pakete von stable — so passen Workflow und Skripte zueinander.
 # Voraussetzung: image-registry.ddimension.net/myadmin/openwrt-builder:latest.
 name: build-device-images
 
@@ -12,19 +23,26 @@ on:
   workflow_dispatch:
     inputs:
       testing_kernel:
-        description: 'master-Legs mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable wird dabei uebersprungen (25.12 hat kein 6.18)'
+        description: 'master-Legs mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable wird dabei uebersprungen (25.12 hat kein 6.18). Nur Artefakte, kein Publish nach gh-pages.'
         type: boolean
         default: false
-  # Nach jedem erfolgreichen Feed-Lauf ("build") auf main automatisch Images bauen,
-  # damit die frisch (signiert) published wwand-Pakete direkt in Images landen.
+  # Nach jedem erfolgreichen Feed-Lauf ("build") auf stable automatisch Images
+  # bauen, damit ein frisches Release direkt in Images landet. main-Laeufe loesen
+  # hier nichts aus.
   workflow_run:
     workflows: [build]
     types: [completed]
-    branches: [main]
+    branches: [stable]
 
 concurrency:
   group: build-device-images
   cancel-in-progress: false
+
+env:
+  # Der Feed-Kanal, gegen den ALLE Images bauen, und wo er liegt.
+  FEED_CHANNEL: stable
+  FEED_GIT: https://github.com/ddimension/openwrt-repo.git
+  FEED_ROOT: https://ddimension.github.io/openwrt-repo
 
 jobs:
   fullbuild:
@@ -74,10 +92,15 @@ jobs:
       SUBTARGET: ${{ matrix.subtarget }}
       DEVICES: ${{ matrix.devices }}
     steps:
+      # Wie in build.yml: alle Jobs beider Workflows teilen sich auf einem Runner
+      # dasselbe Checkout-Verzeichnis. Voller Checkout, kein sparse-checkout mehr
+      # (der vergiftete frueher den Workspace der Feed-Jobs).
+      - name: Reset workspace
+        shell: bash
+        run: |
+          shopt -s dotglob nullglob
+          rm -rf "${GITHUB_WORKSPACE:?}"/*
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          sparse-checkout-cone-mode: false
 
       - name: Prepare volumes + output
         run: |
@@ -98,6 +121,14 @@ jobs:
       - name: Build (full buildroot)
         # Bei testing_kernel nur master bauen (stable = openwrt-25.12 hat kein 6.18).
         if: ${{ github.event.inputs.testing_kernel != 'true' || matrix.base == 'master' }}
+        env:
+          # Der wwand-Feed als src-git. Nach einem stable-Feed-Lauf auf genau
+          # dessen Commit gepinnt (scripts/feeds-Form <url>^<sha>) — dann traegt
+          # das Image dieselben Pakete, die der zyxel-Leg aus dem publizierten
+          # Baum zieht. Von Hand: die Spitze des Kanal-Branches (<url>;stable).
+          # scripts/feeds merkt sich die Quelle und klont feeds/wwand neu, sobald
+          # sie sich aendert; der persistente /src-Baum zieht also sauber mit.
+          WWAND_FEED: ${{ github.event.workflow_run.head_sha && format('{0}^{1}', env.FEED_GIT, github.event.workflow_run.head_sha) || format('{0};{1}', env.FEED_GIT, env.FEED_CHANNEL) }}
         run: |
           # Vom Runner-CT freigegebene Kerne bestimmen. pct --cores setzt eine
           # cgroup-CPU-Quota; nproc ignoriert die und meldet die volle Node-Kernzahl
@@ -121,11 +152,12 @@ jobs:
           fi
           [ "${jobs:-0}" -ge 1 ] 2>/dev/null || jobs=1
           echo "${{ matrix.slug }} build: -j${jobs} (freigegebene Kerne des Runner-CT)"
+          echo "wwand-Feed: $WWAND_FEED"
           docker run --rm --user 1000:1000 \
             -e SRC_URL='${{ matrix.src_url }}' \
             -e SRC_BRANCH='${{ matrix.src_branch }}' \
             -e TARGET="$TARGET" -e SUBTARGET="$SUBTARGET" -e DEVICES="$DEVICES" \
-            -e WWAND_FEED='https://github.com/ddimension/openwrt-repo.git' \
+            -e WWAND_FEED="$WWAND_FEED" \
             -e MAKE_JOBS="$jobs" \
             -e TESTING_KERNEL='${{ github.event.inputs.testing_kernel == 'true' && '1' || '' }}' \
             -v "$GITHUB_WORKSPACE":/ci:ro \
@@ -154,13 +186,15 @@ jobs:
     env:
       DEVICES: zyxel_nr7101 zyxel_lte3301-plus
       ARCH: mipsel_24kc
+      # OpenWrt-Basis -> Release-Verzeichnis im Feed
+      GHP_DIR: ${{ matrix.base == 'master' && 'snapshot' || 'openwrt-25.12' }}
     steps:
+      - name: Reset workspace
+        shell: bash
+        run: |
+          shopt -s dotglob nullglob
+          rm -rf "${GITHUB_WORKSPACE:?}"/*
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github
-            keys
-          sparse-checkout-cone-mode: false
 
       - name: Prepare output + IB volume
         run: |
@@ -176,54 +210,41 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
-      # Der Feed wird von GitHub Pages ausgeliefert, und dieser Workflow haengt
-      # per workflow_run am Feed-Build -- wir starten also typischerweise
-      # WAEHREND das Pages-Deployment mit dem neuen packages.adb noch laeuft.
-      # apk liest dann den alten Index, dessen .apk-Dateien der Publish bereits
-      # ersetzt hat: "wget: exited with error 8 / unexpected end of file"
-      # (Lauf 32545665275, zyxel master: wwand r28 statt r33). Also erst auf das
-      # Deployment warten, das den ausloesenden Feed-Lauf enthaelt.
-      - name: Wait for the package feed deployment
+      # Wir starten, sobald der Feed-Lauf fertig ist -- typischerweise WAEHREND
+      # GitHub Pages dessen Publish noch ausliefert. apk liest dann den alten Index,
+      # dessen .apk-Dateien der Publish bereits ersetzt hat: "wget: exited with
+      # error 8 / unexpected end of file" (Lauf 32545665275, zyxel master: wwand
+      # r28 statt r33). Also warten, bis der Baum, aus dem wir bauen, der des
+      # ausloesenden Commits ist: publish-pages.sh stempelt jeden Baum mit seinem
+      # Commit (.published). Das ist genau, wo die Pages-Build-API es nicht war (ein
+      # dazwischen landender main-Publish ist ein neueres Deployment des falschen
+      # Kanals), und braucht keine API-Berechtigung. Der Query-String macht jede
+      # Abfrage zum CDN-Cache-Miss. Bei manuellem Dispatch: kein Warten.
+      - name: Wait for the stable feed of the triggering commit
+        if: ${{ github.event_name == 'workflow_run' }}
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          # Der Feed-Lauf, an dem wir haengen (leer bei workflow_dispatch):
-          # sein Abschlusszeitpunkt ist die Untergrenze fuer das Deployment.
-          after='${{ github.event.workflow_run.updated_at }}'
-          api="https://api.github.com/repos/${{ github.repository }}/pages/builds/latest"
-          for i in $(seq 1 20); do
-            json="$(curl -sf -H 'Accept: application/vnd.github+json' \
-                      -H 'Authorization: Bearer ${{ github.token }}' "$api")" || json=
-            status="$(printf '%s' "$json" | grep -o '"status": *"[^"]*"' | head -1 | cut -d'"' -f4)"
-            updated="$(printf '%s' "$json" | grep -o '"updated_at": *"[^"]*"' | head -1 | cut -d'"' -f4)"
-            case "$status" in
-              built)
-                # ISO-8601-UTC vergleicht sich lexikografisch korrekt.
-                if [ -z "$after" ] || [ "$updated" \> "$after" ] || [ "$updated" = "$after" ]; then
-                  echo "Feed-Deployment steht (status=built, updated=$updated)"
-                  exit 0
-                fi
-                echo "letztes Deployment ist aelter als der Feed-Lauf ($updated < $after) -- warte"
-                ;;
-              errored)
-                echo "WARNUNG: Pages-Deployment steht auf 'errored'; der Feed kann veraltet sein."
-                exit 0
-                ;;
-              *)
-                echo "Pages-Deployment laeuft (status=${status:-unbekannt}), warte 15 s"
-                ;;
+          url="$FEED_ROOT/$FEED_CHANNEL/$GHP_DIR/$ARCH/.published"
+          for i in $(seq 1 80); do
+            got="$(curl -sf "$url?ts=$(date +%s)" || true)"
+            case " $got " in
+              *" $SHA "*) echo "Feed steht: $got"; exit 0 ;;
             esac
+            echo "[$i/80] ${got:-noch kein Stempel} -- warte auf $SHA"
             sleep 15
           done
-          echo "WARNUNG: 5 min ohne passendes Pages-Deployment -- baue trotzdem;"
-          echo "der Retry in build-imagebuilder.sh faengt einen veralteten Index ggf. ab."
+          echo "::warning::stable-Feed fuer $SHA nach 20 min nicht ausgeliefert -- baue gegen den publizierten Stand (build-imagebuilder.sh faengt einen veralteten Index mit Retries ab)"
 
       - name: Build (ImageBuilder)
         run: |
-          GHP_DIR='${{ matrix.base == 'master' && 'snapshot' || 'openwrt-25.12' }}'
           docker run --rm --user 1000:1000 \
             -e BASE='${{ matrix.base }}' \
             -e DEVICES="$DEVICES" \
             -e ARCH="$ARCH" \
             -e GHP_DIR="$GHP_DIR" \
+            -e FEED_CHANNEL="$FEED_CHANNEL" \
+            -e FEED_ROOT="$FEED_ROOT" \
             -v "$GITHUB_WORKSPACE":/ci:ro \
             -v "$GITHUB_WORKSPACE/out":/out \
             -v "owrt-ib-${{ matrix.base }}":/work \
@@ -238,68 +259,55 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # Copy the built device images into the repo (gh-pages) under /images so they
-  # have a stable, browsable URL (the 30-day run artifacts above stay too). Seeds
-  # from the current gh-pages so the package feed and other images survive; the
-  # feed publish job keeps the images/ dir via its prune keep-list.
+  # Die Images zusaetzlich unter images/<gruppe>/<base>/ auf gh-pages, damit sie
+  # eine feste, durchsuchbare URL haben (die 30-Tage-Run-Artefakte bleiben).
+  # publish-pages.sh ersetzt nur diese Verzeichnisse; Feed-Kanaele bleiben stehen.
+  # Testkernel-Images sind nicht das, was Geraete bekommen sollen: die bleiben
+  # reine Run-Artefakte.
   publish-images:
     needs: [fullbuild, zyxel]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.event.inputs.testing_kernel != 'true' }}
     runs-on: [self-hosted, openwrt]
     permissions:
       contents: write
     steps:
-      - name: Reset workspace (defeat leftover sparse-checkout)
+      - name: Reset workspace
         shell: bash
         run: |
           shopt -s dotglob nullglob
-          rm -rf "$GITHUB_WORKSPACE"/*
+          rm -rf "${GITHUB_WORKSPACE:?}"/*
+      - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
         with:
           pattern: images-*
           path: dl
 
-      - name: Publish images to gh-pages /images
+      - name: Publish images to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # der Feed-Commit, gegen den gebaut wurde (bei Dispatch: dieser Checkout)
+          PAGES_STAMP_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          set -e
-          [ -d dl ] && [ -n "$(ls -A dl 2>/dev/null)" ] || { echo "no image artifacts"; exit 0; }
-          git clone --depth 1 -b gh-pages \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" site
-          for art in dl/images-*; do
+          pairs=()
+          for art in dl/images-*/; do
             [ -d "$art" ] || continue
             rest="$(basename "$art")"; rest="${rest#images-}"
-            group="${rest%-*}"; base="${rest##*-}"      # images-zyxel-master -> group=zyxel base=master
-            dest="site/images/${group}/${base}"
-            rm -rf "$dest"; mkdir -p "$dest"
+            group="${rest%-*}"; base="${rest##*-}"      # images-zyxel-master -> zyxel / master
             # the artifact holds a single target dir (qualcommax-ipq60xx /
-            # ramips-mt7621-<base>); flatten it and drop the per-image package repo
+            # ramips-mt7621-<base>): flatten it and drop the per-image package repo
             sub="$(find "$art" -mindepth 1 -maxdepth 1 -type d | head -1)"
-            if [ -n "$sub" ]; then cp -a "$sub"/. "$dest"/; else cp -a "$art"/. "$dest"/; fi
-            rm -rf "$dest/packages"
-            echo "published $group/$base"
+            stage="staging/$group/$base"
+            mkdir -p "$stage"
+            cp -R "${sub:-$art}/." "$stage/"
+            rm -rf "$stage/packages"
+            pairs+=("$stage=images/$group/$base")
           done
-          # regenerate directory indexes site-wide (GitHub Pages serves no listings)
-          cd site
-          find . -path ./.git -prune -o -type d -print | while read -r d; do
-            rel="${d#.}"; rel="${rel#/}"
-            {
-              printf '<!doctype html><meta charset="utf-8"><title>openwrt-repo/%s</title>' "$rel"
-              printf '<style>body{font:14px/1.5 monospace;margin:2em}td{padding:0 1.5em 0 0}</style>'
-              printf '<h2>openwrt-repo/%s</h2><table>' "$rel"
-              [ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td></tr>'
-              for e in "$d"/*; do
-                [ -e "$e" ] || continue; n="$(basename "$e")"; [ "$n" = index.html ] && continue
-                if [ -d "$e" ]; then printf '<tr><td><a href="%s/">%s/</a></td></tr>' "$n" "$n"
-                else printf '<tr><td><a href="%s">%s</a></td></tr>' "$n" "$n"; fi
-              done
-              printf '</table>'
-            } > "$d/index.html"
-          done
-          git config user.email "ci@ddimension.net"
-          git config user.name "ddimension ci"
-          git add -A
-          git diff --cached --quiet || git commit -q -m "images: device images @ ${GITHUB_SHA}"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          if [ ${#pairs[@]} -eq 0 ]; then
+            echo "no image artifacts"
+            exit 0
+          fi
+          .github/ci/publish-pages.sh \
+            -m "images @ $PAGES_STAMP_SHA ($FEED_CHANNEL)" \
+            --channel "$FEED_CHANNEL" \
+            "${pairs[@]}"

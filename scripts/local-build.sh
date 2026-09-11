@@ -10,9 +10,10 @@
 # Env knobs (defaults match the CI workflow):
 #   RELEASES  release branches ('snapshot' = master)   [snapshot openwrt-25.12]
 #   ARCHS     package architectures                    [7-arch CI matrix]
-#   PACKAGES  source packages to build                 [CI package set]
+#   PACKAGES  source packages to build                 [.github/ci/packages]
 #   NPROC     make parallelism inside the container    [8]
 #   LOGDIR    per-combo build logs                     [/tmp/openwrt-repo-local-build]
+#   DDIMENSION_FEED_CHANNEL  tree ddimension-feed points at: main|stable [stable]
 #
 # Behaviour:
 # - one persistent docker volume per <release>/<arch> keeps the SDK setup and
@@ -23,11 +24,13 @@
 # - any kmod-* dependency makes the SDK package the whole kernel-module tree
 #   once per fresh volume (~30-40 min) — expected, not a hang.
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 FEED=$PWD
 RELEASES="${RELEASES:-snapshot openwrt-25.12}"
 ARCHS="${ARCHS:-aarch64_cortex-a53 aarch64_cortex-a72 arm_cortex-a15_neon-vfpv4 arm_cortex-a7_neon-vfpv4 mips_24kc mipsel_24kc x86_64}"
-PACKAGES="${PACKAGES:-luacurl lua-mosquitto usb-relay-hid apman wwand wwand-lpac luci-app-wwand luci-proto-wwand}"
+# the list CI builds (.github/ci/packages; '#' starts a comment)
+PACKAGES="${PACKAGES:-$(sed 's/#.*//' .github/ci/packages | xargs)}"
+[ -n "$PACKAGES" ] || { echo "no packages: .github/ci/packages is empty" >&2; exit 1; }
 NPROC="${NPROC:-8}"
 LOGDIR="${LOGDIR:-/tmp/openwrt-repo-local-build}"
 
@@ -40,7 +43,7 @@ for rel in $RELEASES; do
 		mkdir -p "$LOGDIR/$rel-$arch" && chmod 777 "$LOGDIR/$rel-$arch"
 		echo "COMBO START: $rel/$arch"
 		if docker run --rm --ulimit nofile=1024:1048576 \
-			-e NPROC="$NPROC" -e PACKAGES="$PACKAGES" \
+			-e NPROC="$NPROC" -e PACKAGES="$PACKAGES" -e DDIMENSION_FEED_CHANNEL \
 			-v "$vol:/builder" \
 			-v "$FEED:/feed:ro" \
 			-v "$LOGDIR/$rel-$arch:/logs" \

@@ -52,6 +52,7 @@ runs:
         docker run --rm \
           --env BUILD \
           --env BUILD_LOG \
+          --env DDIMENSION_FEED_CHANNEL \
           --env DDIMENSION_FEED_RELEASE \
           --env EXTRA_CONFIG \
           --env EXTRA_FEEDS \

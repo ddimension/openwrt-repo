@@ -24,3 +24,8 @@ CONFIG_PACKAGE_kmod-rmnet=y
 CONFIG_PACKAGE_kmod-usb-serial-option=y
 CONFIG_PACKAGE_kmod-vrf=y
 CONFIG_LIBQMI_WITH_MBIM_QMUX=y
+# The feed's address and key: a flashed device follows the stable channel of
+# this feed right away, `apk upgrade` included. Built from the image's own
+# checkout of the feed, it points at stable/<release>/<arch> (the default
+# channel; release and arch come from the buildroot).
+CONFIG_PACKAGE_ddimension-feed=y
