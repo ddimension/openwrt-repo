@@ -73,6 +73,10 @@ PKG_VERSION:=1
 PKG_RELEASE:=3
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
+# The two environment knobs decide what the package contains, so they belong
+# in its rebuild stamp: a build tree reused with another channel (a kept
+# scripts/local-build.sh volume) would otherwise ship the old URL unchanged.
+PKG_CONFIG_DEPENDS += DDIMENSION_FEED_CHANNEL DDIMENSION_FEED_RELEASE
 
 include $(INCLUDE_DIR)/package.mk
 
