@@ -475,12 +475,38 @@ define Package/wwand-datapath-rmnet_nss/install
 	$(INSTALL_DATA) $(WWAND_UCODE)/datapath_rmnet_nss.uc $(1)$(UCDIR)/
 endef
 
+define Package/wwand-apntest
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=Scheduled end-to-end APN tests for wwand
+  # Test orchestration only: it drives the daemon over ubus and knows nothing
+  # about QMI or MBIM, so it works on every backend. A plan that selects an
+  # eUICC profile additionally needs wwand-esim at RUNTIME — that is reported
+  # as a plan error rather than pulled in here, because most plans only switch
+  # physical slots and should not drag lpac onto the box for nothing.
+  DEPENDS:=+wwand
+endef
+
+define Package/wwand-apntest/description
+Runs the configured APN tests in sequence on a dedicated test box: selects the
+SIM (physical slot or eUICC profile), dials each APN through wwand, runs the
+configured checks and reports one verdict per test. Tests are grouped by SIM so
+each slot switch or profile enable happens once per run.
+endef
+
+define Package/wwand-apntest/install
+	$(INSTALL_DIR) $(1)$(UCDIR)/apntest
+	$(INSTALL_DATA) $(WWAND_UCODE)/apntest/plan.uc $(1)$(UCDIR)/apntest/
+endef
+
 $(eval $(call BuildPackage,wwand))
 $(eval $(call BuildPackage,wwand-qmi))
 $(eval $(call BuildPackage,wwand-mbim))
 $(eval $(call BuildPackage,wwand-ncm))
 $(eval $(call BuildPackage,wwand-mhi))
 $(eval $(call BuildPackage,wwand-esim))
+$(eval $(call BuildPackage,wwand-apntest))
 define Package/wwand-datapath-rmnet_nss_mhi
   SECTION:=net
   CATEGORY:=Network
