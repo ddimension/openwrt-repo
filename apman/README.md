@@ -11,3 +11,7 @@ and hash into this Makefile, bumps the version and can roll the result onto a
 development access point in the same run. Editing `PKG_SOURCE_VERSION` here by
 hand means computing `PKG_MIRROR_HASH` by hand as well — the script exists so
 that the two cannot drift apart.
+
+The script commits to `main` of this feed, the development channel. Devices on
+the stable channel see the new agent with the next release
+(`scripts/release-stable.sh`, see the main README).
