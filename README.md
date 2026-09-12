@@ -13,7 +13,7 @@ repositories, pinned to a commit.
 | Package | What it is | Binary packages | Source | CI |
 |---|---|---|---|---|
 | `wwand` | event-driven cellular connection manager (QMI, MBIM, NCM, PCIe/MHI), eSIM, scheduled APN tests | `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-mhi`, `wwand-esim`, `wwand-apntest`, `wwand-datapath-rmnet_nss`, `wwand-datapath-rmnet_nss_mhi` | [ddimension/wwand](https://github.com/ddimension/wwand) | ✓ |
-| `luci-app-wwand` | LuCI modem status page, modem editor, live settings | same | [ddimension/luci-app-wwand](https://github.com/ddimension/luci-app-wwand) | ✓ |
+| `luci-app-wwand` | LuCI modem status page, modem editor, live settings; the signal/statistics graphs as a separate package | `luci-app-wwand`, `luci-app-wwand-statistics` | [ddimension/luci-app-wwand](https://github.com/ddimension/luci-app-wwand) | ✓ |
 | `luci-proto-wwand` | LuCI protocol handler for `proto wwand` interfaces | same | [ddimension/luci-proto-wwand](https://github.com/ddimension/luci-proto-wwand) | ✓ |
 | `wwand-lpac` | lpac for eSIM profile management, static wolfSSL/curl | same | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) | ✓ |
 | `ddimension-feed` | this feed's address and signing key, see [Set up a device](#set-up-a-device) | same | local (`files/`) | ✓ |
