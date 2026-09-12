@@ -17,13 +17,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-wwand
-PKG_VERSION:=1.6.6_p3
+PKG_VERSION:=1.6.6_p6
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/luci-app-wwand.git
-PKG_SOURCE_VERSION:=4676454a1a8356de565fc02e44f66a6813c66b09
-PKG_MIRROR_HASH:=94bddcf9194be4391cb0ea3b5bf67c85309a2c2aaa2d0c3545194370a5164b54
+PKG_SOURCE_VERSION:=84b1f3012ef16dbd9b00cff908188c2649b74b57
+PKG_MIRROR_HASH:=dcee1cfc453cd936fb451459e8b14b7528c2a9423e6ef48d58614f6de72c8c23
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -80,8 +80,8 @@ endef
 # luci-app-statistics. A new resource has to be added here, and that is the
 # point of listing them.
 LUCI_WWAND_VIEW:=modems.js settings.js status.js
-LUCI_WWAND_RES:=bands.js esim.js format.js graph.js mccmnc.js modemopts.js \
-	modemsid.js netsel.js rpc.js signal.svg simlist.js
+LUCI_WWAND_RES:=bands.js esim.js format.js graph.js logbox.js mccmnc.js \
+	modemopts.js modemsid.js netsel.js rpc.js signal.svg simlist.js
 
 define Package/luci-app-wwand/install
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/wwand
