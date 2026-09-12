@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "architecture": "arm_cortex-a15_neon-vfpv4",
+  "packages": {
+    "apman": "67-r1",
+    "ddimension-feed": "1-r3",
+    "homesync": "7-r3",
+    "libubus-lua-async": "2026.06.28~24864e78-r2",
+    "lua-mosquitto": "0.4.1.9.1-r2",
+    "luacurl": "0.3.13-r1",
+    "luci-app-wwand": "1.6.6_p7-r1",
+    "luci-app-wwand-statistics": "1.6.6_p7-r1",
+    "luci-proto-wwand": "1.6.6_p1-r1",
+    "qfirehose": "1.4.21-r2",
+    "qflash": "2.0-r2",
+    "qlog": "1.5.8-r2",
+    "snapclient-mptcp": "0.35.0-r1",
+    "snapserver-mptcp": "0.35.0-r1",
+    "usb-relay-hid": "2.2.0.1-r0",
+    "wpad-ieee8021x": "1-r3",
+    "wpad-saeradh2e": "2026.08.07~831364bf-r3",
+    "wwand": "1.6.6_p22-r1",
+    "wwand-apntest": "1.6.6_p22-r1",
+    "wwand-datapath-rmnet_nss": "1.6.6_p22-r1",
+    "wwand-datapath-rmnet_nss_mhi": "1.6.6_p22-r1",
+    "wwand-esim": "1.6.6_p22-r1",
+    "wwand-lpac": "2.3.0-r4",
+    "wwand-mbim": "1.6.6_p22-r1",
+    "wwand-mhi": "1.6.6_p22-r1",
+    "wwand-ncm": "1.6.6_p22-r1",
+    "wwand-qmi": "1.6.6_p22-r1"
+  }
+}
