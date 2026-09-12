@@ -27,7 +27,7 @@ set -u
 cd "$(dirname "$0")/.." || exit 1
 FEED=$PWD
 RELEASES="${RELEASES:-snapshot openwrt-25.12}"
-ARCHS="${ARCHS:-aarch64_cortex-a53 aarch64_cortex-a72 arm_cortex-a15_neon-vfpv4 arm_cortex-a7_neon-vfpv4 mips_24kc mipsel_24kc x86_64}"
+ARCHS="${ARCHS:-aarch64_cortex-a53 aarch64_cortex-a72 aarch64_generic arm_cortex-a15_neon-vfpv4 arm_cortex-a7_neon-vfpv4 mips_24kc mipsel_24kc x86_64}"
 # the list CI builds (.github/ci/packages; '#' starts a comment)
 PACKAGES="${PACKAGES:-$(sed 's/#.*//' .github/ci/packages | xargs)}"
 [ -n "$PACKAGES" ] || { echo "no packages: .github/ci/packages is empty" >&2; exit 1; }

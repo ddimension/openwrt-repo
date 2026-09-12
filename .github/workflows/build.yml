@@ -49,6 +49,11 @@ jobs:
         arch:
           - aarch64_cortex-a53
           - aarch64_cortex-a72
+          # rockchip/armv8 (RK33xx/RK35xx) sets ARCH:=aarch64 and no CPU_TYPE,
+          # so the whole subtarget lands on the generic aarch64 package arch —
+          # and with it every Hinlink/NanoPi/Radxa board in that family, none of
+          # which could add this feed at all (ddimension/wwand#23).
+          - aarch64_generic
           - arm_cortex-a15_neon-vfpv4
           - arm_cortex-a7_neon-vfpv4
           - mips_24kc
