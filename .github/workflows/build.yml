@@ -193,31 +193,14 @@ jobs:
       # Replaces exactly <channel>/<release>/<arch> for every leg that built
       # (plus the pre-channel mirror for stable) and nothing else — the other
       # channel and the device images stay as they are. Concurrent publishes
-      # (the other channel, the image run) are handled in the script.
+      # (the other channel, the image run) are handled in publish-pages.sh,
+      # the newest-commit rule in publish-feed.sh.
       - name: Publish to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The same script publishes a finished run by hand when only its
+        # publish failed (.github/ci/publish-feed.sh <run-id>) — no rebuild.
+        # It also refuses when the branch has moved on since this run.
         run: |
-          # Only the newest commit of a branch publishes. A re-run of an older
-          # run would otherwise put that older state back onto the channel (and
-          # the legacy mirror) — and it runs with its own commit's scripts, so
-          # it does not even pick up fixes. The run for the newer commit publishes.
-          head="$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | cut -f1)"
-          if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
-            echo "::warning::$GITHUB_REF_NAME is at $head now; this run built $GITHUB_SHA and does not publish"
-            exit 0
-          fi
-          pairs=()
-          for dir in fresh/*/*/; do
-            [ -d "$dir" ] || continue
-            tree="${dir#fresh/}"; tree="${tree%/}"        # <release>/<arch>
-            pairs+=("$dir=$DDIMENSION_FEED_CHANNEL/$tree")
-            if [ "$DDIMENSION_FEED_CHANNEL" = stable ]; then
-              pairs+=("$dir=$tree")
-            fi
-          done
-          .github/ci/publish-pages.sh \
-            -m "packages ($DDIMENSION_FEED_CHANNEL) @ $GITHUB_SHA" \
-            --channel "$DDIMENSION_FEED_CHANNEL" \
-            --keys keys \
-            ${pairs[@]+"${pairs[@]}"}
+          .github/ci/publish-feed.sh --dir fresh \
+            --channel "$DDIMENSION_FEED_CHANNEL" --sha "$GITHUB_SHA" --run "$GITHUB_RUN_ID"

@@ -19,7 +19,8 @@
 #   --channel C    recorded in the .published stamps
 #
 # Env: GH_TOKEN (push credentials), GITHUB_REPOSITORY, GITHUB_SHA,
-#      GITHUB_RUN_ID. PAGES_STAMP_SHA overrides the commit put into the stamps,
+#      GITHUB_RUN_ID. PAGES_STAMP_SHA / PAGES_STAMP_RUN override the commit and
+#      the run id put into the stamps (publish-feed.sh sets them),
 #      PAGES_SITE_URL the absolute site address shown on the start page.
 #      PAGES_REMOTE / PAGES_BRANCH / PAGES_ATTEMPTS / PAGES_BACKOFF ("MIN MAX"
 #      seconds) exist for tests against a local bare repository.
@@ -129,7 +130,7 @@ BRANCH="${PAGES_BRANCH:-gh-pages}"
 ATTEMPTS="${PAGES_ATTEMPTS:-10}"
 read -r BACKOFF_MIN BACKOFF_MAX <<<"${PAGES_BACKOFF:-10 40}"
 STAMP_SHA="${PAGES_STAMP_SHA:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}}"
-RUN_ID="${GITHUB_RUN_ID:-local}"
+RUN_ID="${PAGES_STAMP_RUN:-${GITHUB_RUN_ID:-local}}"
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 SITE_URL="${PAGES_SITE_URL:-https://ddimension.github.io/openwrt-repo}"
 
