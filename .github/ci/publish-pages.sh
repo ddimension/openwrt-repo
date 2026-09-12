@@ -288,12 +288,15 @@ breadcrumb() {
 # both channels with the ddimension-feed.apk in each — only what exists.
 landing() {
 	local rels archs r a ch d cell
+	# if, not `test && find`: under pipefail a loop whose last test fails makes
+	# the whole command substitution fail, and set -e ends the script without a
+	# word — which is what the very first publish did, when main/ did not exist.
 	rels="$(for ch in stable main; do
-		[ -d "$SITE/$ch" ] && find "$SITE/$ch" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+		if [ -d "$SITE/$ch" ]; then find "$SITE/$ch" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'; fi
 	done | sort -u)" # openwrt-25.12 … before snapshot, like README.md
 	[ -n "$rels" ] || return 0
 	archs="$(for ch in stable main; do for r in $rels; do
-		[ -d "$SITE/$ch/$r" ] && find "$SITE/$ch/$r" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+		if [ -d "$SITE/$ch/$r" ]; then find "$SITE/$ch/$r" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'; fi
 	done; done | sort -u)"
 	printf '<h2>Set up a device</h2>'
 	printf '<p>Install <code>ddimension-feed</code> once, by name, from the tree that matches the device —'
