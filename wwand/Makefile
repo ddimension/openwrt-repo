@@ -49,13 +49,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_VERSION:=1.6.6_p24
+PKG_VERSION:=1.6.6_p26
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=74c78019c425c6cbfb3938885046419e4a2ed9ba
-PKG_MIRROR_HASH:=fa55059280a51f88bd83fad95b73c5b9309c154810b5f1993539355663328b10
+PKG_SOURCE_VERSION:=7ac88f806946a13c1a0622035d7f8d1e64aeea85
+PKG_MIRROR_HASH:=4da4d21e331cd3da80b50b2cc156a0e601f67fd944d622a66afaf50d3b15ddf3
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -200,6 +200,11 @@ define Package/wwand/install
 	# /etc/config/network now (existing files survive upgrade and are still read).
 	# files/wwand.config is kept in the source tree only as a documented example.
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/usbmisc
+	$(INSTALL_DIR) $(1)/usr/share/acl.d
+	# ubus ACL: lets an unprivileged reader (collectd's exec plugin refuses to
+	# run as root) fetch telemetry. Deliberately NOT `status` — that carries
+	# iccid/imsi/imei/msisdn and a ubus ACL cannot filter a result.
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand-acl.json $(1)/usr/share/acl.d/wwand.json
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/wwand.hotplug $(1)/etc/hotplug.d/usbmisc/20-wwand
 	# net hotplug: NCM modems (no cdc-wdm) + re-enumeration after a mode switch
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
