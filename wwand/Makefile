@@ -526,6 +526,54 @@ $(eval $(call BuildPackage,wwand-mbim))
 $(eval $(call BuildPackage,wwand-ncm))
 $(eval $(call BuildPackage,wwand-mhi))
 $(eval $(call BuildPackage,wwand-esim))
+# ---------------------------------------------------------------------------
+# wwand-qlog: on-demand Qualcomm diag (QMDL) capture through Quectel QLog.
+# ---------------------------------------------------------------------------
+define Package/wwand-qlog
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=Qualcomm diag log capture (Quectel QLog) for wwand
+  # +qlog is the capture tool itself (/usr/sbin/QLog and the filter profiles
+  # under /usr/share/qlog/conf). Backend-neutral: the diag port is a separate
+  # character device and has nothing to do with QMI/MBIM/NCM, so this pairs
+  # with any of the backend packages.
+  DEPENDS:=+wwand +qlog
+endef
+
+define Package/wwand-qlog/description
+  `wwandctl qlog` — start, stop and inspect a Quectel QLog diagnostic capture on
+  the modem's DM/DIAG port, ON DEMAND. wwand contributes the management around
+  the tool: it resolves the diag port (the generated ModemManager port-role
+  table, the vendor pcie_mhi /dev/mhi_DIAG node, or the kernel-wwan qcdm node;
+  `option diag_port` and --port override it), validates the filter profile (a
+  bare "T2" as well as a full path), refuses a second capture on the same port,
+  and stops one cleanly with SIGTERM. Everything from `-s` on is passed to QLog
+  VERBATIM, so its own storage options — a directory, "9000" (TCP server),
+  "IP:9000", "tftp:IP", "ftp:IP-user:xxx-pass:xxx" — work unchanged, and a
+  multi-gigabyte QMDL need never touch router flash.
+
+  SUPPORTED HARDWARE, plainly: QLog drives the Qualcomm, ASR and Unisoc diag
+  protocols, but only on QUECTEL modules. Its device scan is a fixed VID/PID
+  allow-list (usb_linux.c:259-268 plus drv_is_asr/drv_is_unisoc in main.c:910-934
+  of QLog V1.5.8): Quectel 2c7c:0xxx (Qualcomm), 2c7c:6xxx (ASR), 2c7c:0900 and
+  1782:4d00 (Unisoc), 3763:3c93 / 3c93:ffff, and the old 05c6 reference ids of
+  the UC15/UC20/EC20/SDX12. Anything else — a Fibocom/MediaTek FM350-GL, a MeiG
+  SLM7xx, a Sierra or Telit module — is NOT covered: QLog simply reports "No
+  Quectel Modules found". Nor does it accept a mainline kernel-wwan diag node
+  (/dev/wwan0qcdm0); on PCIe/MHI it needs Quectel's out-of-tree pcie_mhi driver,
+  which publishes /dev/mhi_DIAG.
+
+  The resulting QMDL/QMDL2 file is decoded off-box with QCAT/QXDM, or with the
+  open-source `scat`.
+endef
+
+define Package/wwand-qlog/install
+	$(INSTALL_DIR) $(1)$(UCDIR)
+	$(INSTALL_DATA) $(WWAND_UCODE)/qlog.uc $(1)$(UCDIR)/
+endef
+
+$(eval $(call BuildPackage,wwand-qlog))
 $(eval $(call BuildPackage,wwand-apntest))
 define Package/wwand-datapath-rmnet_nss_mhi
   SECTION:=net
