@@ -34,7 +34,14 @@ env:
 jobs:
   build:
     runs-on: [self-hosted, openwrt]
-    timeout-minutes: 120
+    # 120 was enough until luci-app-wwand-statistics arrived (f21d172): it
+    # depends on luci-app-statistics, which pulls collectd and with it gnutls
+    # and libmicrohttpd. On the slowest arch that is the difference between
+    # finishing and not — arm_cortex-a7_neon-vfpv4/snapshot took 73 and 80
+    # minutes on the two runs before, then hit the limit mid-collectd twice and
+    # left that tree stuck a version behind while every other arch published.
+    # Nothing hung: the log shows it still compiling when the clock ran out.
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
