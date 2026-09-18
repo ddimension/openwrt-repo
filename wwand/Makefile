@@ -387,7 +387,8 @@ define Package/wwand-mhi/install
 endef
 
 # ---------------------------------------------------------------------------
-# wwand-esim: eSIM (eUICC) profile management. Needs a QMI UIM/APDU channel.
+# wwand-esim: eSIM (eUICC) profile management. Backend-neutral — the APDU
+# ladder (MBIM UICC -> QMI UIM -> AT) lives in the base package's sim.uc.
 # ---------------------------------------------------------------------------
 define Package/wwand-esim
   SECTION:=net
