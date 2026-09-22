@@ -163,6 +163,70 @@ define Package/wwand/description
   or wwand-ncm) for the control protocols your modems use.
 endef
 
+# THE rc.d SYMLINK CARRIES THE STOP ORDER, NOT THE SCRIPT.
+#
+# `/etc/rc.d/K<n>wwand` is created once, by `enable`, from the STOP= that the
+# init script had AT THAT MOMENT. Shipping a new script with a different STOP
+# changes nothing on a box where the service is already enabled — the old
+# symlink stays and the old order stays with it.
+#
+# That made the ddimension/wwand#36 fix inert exactly where it was needed.
+# wwand moved to STOP=84 to be torn down one step BEFORE odhcpd, so it can
+# still tell the LAN the prefix is going while there is somebody to tell. On
+# an upgraded box the symlink was still K85wwand, which sorts AFTER K85odhcpd
+# (same number, alphabetical) — odhcpd died first and the announcement went
+# nowhere. Measured on three of our own routers, 2026-09-22: every one of them
+# had the fix installed and none of them had it in effect.
+#
+# `enable` alone would already fix the ORDER — it creates K84, which sorts before
+# K85odhcpd, so the withdrawal does go out. What it does not do is clean up: it
+# only ever `ln -sf`s the current names (rc.common:44-54) and leaves K85 and S25
+# standing, so the box then stops wwand twice (the second time after odhcpd, where
+# it does nothing) and starts it twice. `disable` removes S??/K?? with any number
+# (rc.common:38-42), so disable-then-enable is what leaves rc.d as the package
+# means it.
+#
+# AND THE TEST IS NOT `enabled`. That helper wants S<START> AND K<STOP> to exist
+# with the values the CURRENT script carries (rc.common:56-64) — which is exactly
+# what an upgraded box does not have, so asking it here skips the very case this
+# exists for. Verified on hardware, 2026-09-22: with S25/K85 in place and the
+# script saying 19/84, `enabled` answers no. The question that CAN be answered is
+# "is there a start symlink at all", which is true for a service the operator left
+# on, whatever numbers it carries, and false for one they switched off.
+#
+# The rollback is not decoration. `disable` unlinks before `enable` relinks, and
+# `enable` returns 1 if no `ln` succeeded (rc.common:45,53) — a read-only or full
+# overlay between the two leaves the box with NO start link, which is worse than
+# the stale order we came to fix. So the old names are remembered first and put
+# back if `enable` fails: either the new links or the old ones, never none.
+#
+# Note this re-enables from the init script that is ACTUALLY installed. apk keeps
+# an operator-modified /etc/init.d/wwand and drops ours beside it as .apk-new
+# (reproduced 2026-09-22), so on such a box the links follow the modified script's
+# own START/STOP. That is the right way round — we do not overrule an edit — but
+# it means the new order arrives only once that edit is reconciled.
+define Package/wwand/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] && exit 0
+
+old=
+start=
+for l in /etc/rc.d/S??wwand /etc/rc.d/K??wwand; do
+	[ -L "$$l" ] || continue
+	old="$$old $$l"
+	case "$$l" in /etc/rc.d/S*) start=1 ;; esac
+done
+
+if [ -x /etc/init.d/wwand ] && [ -n "$$start" ]; then
+	/etc/init.d/wwand disable
+	/etc/init.d/wwand enable || {
+		for l in $$old; do ln -sf ../init.d/wwand "$$l"; done
+	}
+fi
+
+exit 0
+endef
+
 define Package/wwand/install
 	# native transport module (built by the cmake step from io/)
 	$(INSTALL_DIR) $(1)/usr/lib/ucode
