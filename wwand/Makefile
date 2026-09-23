@@ -195,10 +195,18 @@ endef
 # on, whatever numbers it carries, and false for one they switched off.
 #
 # The rollback is not decoration. `disable` unlinks before `enable` relinks, and
-# `enable` returns 1 if no `ln` succeeded (rc.common:45,53) — a read-only or full
-# overlay between the two leaves the box with NO start link, which is worse than
-# the stale order we came to fix. So the old names are remembered first and put
-# back if `enable` fails: either the new links or the old ones, never none.
+# a read-only or full overlay between the two leaves the box with NO start link,
+# which is worse than the stale order we came to fix. So the old names are
+# remembered first and put back if the re-registration did not take.
+#
+# WHAT IS CHECKED IS THE RESULT, NOT THE EXIT STATUS. `enable` sets err=0 as
+# soon as EITHER link is created (rc.common:44-54), so an S19 that succeeds and
+# a K84 that fails reports success — and the K link `disable` had just removed
+# would be gone with the rollback never running. `enabled` (rc.common:56-64) is
+# the opposite: it demands both, with the values the current script carries.
+# That makes it useless as the precondition here — on the very boxes this
+# exists for it answers no — and exactly right as the postcondition. Raised by
+# Codex review, 2026-09-23.
 #
 # Note this re-enables from the init script that is ACTUALLY installed. apk keeps
 # an operator-modified /etc/init.d/wwand and drops ours beside it as .apk-new
@@ -219,7 +227,17 @@ done
 
 if [ -x /etc/init.d/wwand ] && [ -n "$$start" ]; then
 	/etc/init.d/wwand disable
-	/etc/init.d/wwand enable || {
+	/etc/init.d/wwand enable
+	/etc/init.d/wwand enabled || {
+		# put back WHAT WAS THERE, which means removing what the half-done
+		# enable left as well: restoring the old names on top of a stray new
+		# one produces a third state nobody chose, and a service that starts
+		# twice at boot is not the state we promised to preserve.
+		for l in /etc/rc.d/S??wwand /etc/rc.d/K??wwand; do
+			[ -L "$$l" ] || continue
+			case " $$old " in *" $$l "*) continue ;; esac
+			rm -f "$$l"
+		done
 		for l in $$old; do ln -sf ../init.d/wwand "$$l"; done
 	}
 fi
