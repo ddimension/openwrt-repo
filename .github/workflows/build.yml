@@ -104,6 +104,32 @@ jobs:
           echo "PACKAGES=$pkgs" >> "$GITHUB_ENV"
           echo "channel $DDIMENSION_FEED_CHANNEL, packages: $pkgs"
 
+      # make -j inside the SDK container. nproc reports the node's cores there:
+      # the runner CT's cgroup quota is invisible inside the nested container
+      # (own cgroup namespace -> cpu.max = max), so the SDK would overshoot by a
+      # factor. The quota is only readable HERE, in the runner CT, so read it
+      # here and pass it in — the same trick build-device-images.yml uses for
+      # the image builds. It also narrows the hostapd parallel-variant race
+      # documented in the action's entrypoint.sh.
+      - name: Parallelism
+        run: |
+          jobs="$(nproc)"
+          if [ -r /sys/fs/cgroup/cpu.max ]; then                    # cgroup v2
+            read -r q p < /sys/fs/cgroup/cpu.max
+            if [ "$q" != max ] && [ "${p:-0}" -gt 0 ] 2>/dev/null; then
+              jobs=$(( (q + p - 1) / p ))
+            fi
+          elif [ -r /sys/fs/cgroup/cpu/cpu.cfs_quota_us ]; then     # cgroup v1
+            q="$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us)"
+            p="$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us)"
+            if [ "${q:-0}" -gt 0 ] 2>/dev/null && [ "${p:-0}" -gt 0 ] 2>/dev/null; then
+              jobs=$(( (q + p - 1) / p ))
+            fi
+          fi
+          [ "${jobs:-0}" -ge 1 ] 2>/dev/null || jobs=1
+          echo "NPROC=$jobs" >> "$GITHUB_ENV"
+          echo "make -j$jobs (cores released to this runner CT)"
+
       - name: Build packages
         uses: ./.github/actions/openwrt-sdk
         env:
@@ -152,6 +178,21 @@ jobs:
           # writes to, so the .list it installs and the tree it points at cannot
           # disagree. Its channel is DDIMENSION_FEED_CHANNEL (workflow env).
           DDIMENSION_FEED_RELEASE: ${{ matrix.release }}
+
+      # On a red leg the job log only says "failed to build (build variant: …)";
+      # the actual compiler/make error lives in the SDK's per-package logs
+      # (BUILD_LOG=1 -> logs/package/<feed>/<pkg>/[<variant>/]compile.txt), which
+      # entrypoint.sh copies into the workspace at the end. Without this step
+      # they die with the container and every failure has to be reproduced
+      # locally first (that is how the hostapd variant race stayed invisible).
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.release }}-${{ matrix.arch }}
+          path: logs
+          retention-days: 30
+          if-no-files-found: ignore
 
       # ddimension-feed.apk: a name without a version, so the direct download
       # links in README.md and on the site's start page survive every release

@@ -45,6 +45,16 @@ FEEDNAME="${FEEDNAME:-action}"
 # Build requested packages by default, otherwise just check
 BUILD="${BUILD:-1}"
 BUILD_LOG="${BUILD_LOG:-1}"
+# make parallelism. nproc reports the NODE's cores: the runner CT's cgroup
+# quota is invisible in here (own cgroup namespace -> cpu.max = max), so
+# $(nproc) overshoots by a factor on a quota-limited runner. On top of that,
+# since hostapd set PKG_PARALLEL_VARIANTS (upstream b029d56e) all 31 of its
+# variants build in ONE job pool and race over the shared $(TMP_DIR)/<pkg>.list
+# of the subpackages they have in common (hostapd-utils, wpa-cli, eapol-test):
+#   mv: cannot stat '/builder/tmp/hostapd-utils.list'
+# The wider the pool, the likelier that race. The caller passes the cores its
+# CT really got as NPROC (build.yml reads the quota where it is visible).
+NPROC="${NPROC:-$(nproc)}"
 
 if [ -n "$KEY_BUILD" ]; then
 	echo "$KEY_BUILD" > key-build
@@ -166,7 +176,7 @@ if [ -z "$PACKAGES" ]; then
 		IGNORE_ERRORS="$IGNORE_ERRORS" \
 		CONFIG_AUTOREMOVE=y \
 		V="$V" \
-		-j "$(nproc)" || RET=$?
+		-j "$NPROC" || RET=$?
 else
 	# Install everything that will be built BEFORE touching .config, so a
 	# package-scoped Kconfig symbol from EXTRA_CONFIG has something to attach
@@ -278,7 +288,7 @@ else
 			IGNORE_ERRORS="$IGNORE_ERRORS" \
 			CONFIG_AUTOREMOVE=y \
 			V="$V" \
-			-j "$(nproc)" \
+			-j "$NPROC" \
 			"package/$PKG/compile" || {
 				RET=$?
 				break
