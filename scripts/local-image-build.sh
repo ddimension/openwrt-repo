@@ -25,6 +25,12 @@
 #   scripts/local-image-build.sh master --resume -- V=s -j1   # Fehlersuche
 #   scripts/local-image-build.sh openwrt-24.10 \
 #     --target ramips --subtarget mt7621 --device zyxel_nr7101
+#   # NR7101 wie die CI (upstream-Quelle + unsere DTS-Aenderung; 'master'/'stable'
+#   # wuerden auf die Chateau-Fork-Branches zeigen, darum die Release-Namen):
+#   scripts/local-image-build.sh main --target ramips --subtarget mt7621 \
+#     --device zyxel_nr7101 --patch .github/ci/nr7101-lte-power.patch
+#   scripts/local-image-build.sh openwrt-25.12 --target ramips --subtarget mt7621 \
+#     --device zyxel_nr7101 --patch .github/ci/nr7101-lte-power.patch
 set -euo pipefail
 
 usage() {

@@ -4,13 +4,16 @@
 #   feed     : loest diesen Commit einmal auf (nach einem Feed-Lauf dessen
 #             head_sha, von Hand die aktuelle Spitze von stable). Alle Legs und
 #             der Stempel der publizierten Images nehmen ihn von hier.
-#   fullbuild: Voll-Buildroot je Geraet (PR-Geraet + Kernel-Patch + DTS -> kein
-#             ImageBuilder moeglich). chateau master/stable, nbg7815 nur master.
+#   fullbuild: Voll-Buildroot je Geraet (PR-Geraet, Kernel-Patch oder eigene
+#             DTS-Aenderung -> kein ImageBuilder moeglich, der bringt seinen
+#             Kernel fertig mit). chateau master/stable, nbg7815 nur master,
+#             nr7101 master/stable (upstream-Quelle + PATCH aus .github/ci).
 #             wwand-Feed = src-git dieses Repos, gepinnt auf den feed-Commit.
 #             dl/ccache + build_dir persistent (Named Volumes), node-lokal.
-#   zyxel   : nr7101 + lte3301-plus sind upstream -> ImageBuilder (kein Toolchain-
-#             Build). wwand kommt SIGNIERT aus dem stable-Baum auf gh-pages,
-#             nachdem dieser den Stempel des feed-Commits traegt.
+#   zyxel   : lte3301-plus ist upstream und braucht keine Source-Aenderung ->
+#             ImageBuilder (kein Toolchain-Build). wwand kommt SIGNIERT aus dem
+#             stable-Baum auf gh-pages, nachdem dieser den Stempel des
+#             feed-Commits traegt.
 # "master"/"stable" in den Matrizen ist die OPENWRT-Basis (master bzw. der
 # 25.12-Release-Branch), nicht der Kanal dieses Feeds — der ist immer stable. Die
 # Namen bleiben: Volumes und Artefakte haengen daran, ein umbenannter chateau-Leg
@@ -111,6 +114,28 @@ jobs:
             target: qualcommax
             subtarget: ipq807x
             devices: zyxel_nbg7815
+          # Zyxel NR7101: upstream-Geraet, aber unsere DTS-Aenderung (Modem-Power
+          # als exportierte GPIO statt DT-Hog, damit wwand power-cyclen kann)
+          # braucht einen eigenen Kernel -> Voll-Build statt ImageBuilder. Quelle
+          # bleibt upstream; die Aenderung kommt als PATCH aus diesem Repo, es gibt
+          # also keinen Fork-Branch zu pflegen. Bricht der Patch nach einem
+          # upstream-Rebase, scheitert der Leg laut (build-images.sh).
+          - slug: nr7101
+            base: master
+            src_url: https://github.com/openwrt/openwrt.git
+            src_branch: main
+            patch: .github/ci/nr7101-lte-power.patch
+            target: ramips
+            subtarget: mt7621
+            devices: zyxel_nr7101
+          - slug: nr7101
+            base: stable
+            src_url: https://github.com/openwrt/openwrt.git
+            src_branch: openwrt-25.12
+            patch: .github/ci/nr7101-lte-power.patch
+            target: ramips
+            subtarget: mt7621
+            devices: zyxel_nr7101
     env:
       TARGET: ${{ matrix.target }}
       SUBTARGET: ${{ matrix.subtarget }}
@@ -180,6 +205,7 @@ jobs:
           docker run --rm --user 1000:1000 \
             -e SRC_URL='${{ matrix.src_url }}' \
             -e SRC_BRANCH='${{ matrix.src_branch }}' \
+            -e PATCH='${{ matrix.patch }}' \
             -e TARGET="$TARGET" -e SUBTARGET="$SUBTARGET" -e DEVICES="$DEVICES" \
             -e WWAND_FEED="$WWAND_FEED" \
             -e MAKE_JOBS="$jobs" \
@@ -210,7 +236,8 @@ jobs:
       matrix:
         base: [master, stable]
     env:
-      DEVICES: zyxel_nr7101 zyxel_lte3301-plus
+      # nr7101 baut seit der DTS-Aenderung im fullbuild-Leg (Kernel noetig).
+      DEVICES: zyxel_lte3301-plus
       ARCH: mipsel_24kc
       # OpenWrt-Basis -> Release-Verzeichnis im Feed
       GHP_DIR: ${{ matrix.base == 'master' && 'snapshot' || 'openwrt-25.12' }}

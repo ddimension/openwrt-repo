@@ -200,7 +200,7 @@ Voll-Builds pinnen ihn, der zyxel-Leg wartet auf seinen `.published`-Stempel,
 
 **Ort der Images:**
 - dauerhaft auf gh-pages unter `images/<gruppe>/<base>/`
-  (`<gruppe>` = chateau | nbg7815 | zyxel, `<base>` = OpenWrt-Basis master |
+  (`<gruppe>` = chateau | nbg7815 | nr7101 | zyxel, `<base>` = OpenWrt-Basis master |
   stable), flach, ohne Paket-Repo, mit `.published`;
 - als **Run-Artefakte** `images-<gruppe>-<base>` (Retention **30 Tage**,
   `if-no-files-found: warn`). Holen:
@@ -215,7 +215,7 @@ Die Namen bleiben, weil Volumes (`owrt-src-<slug>-<base>`, `owrt-ib-<base>`) und
 Artefakte daran hängen — ein Rename kostet den chateau-Leg sein warmes `build_dir`
 (~12 h Kaltbau).
 
-### Voll-Buildroot (chateau, nbg7815)
+### Voll-Buildroot (chateau, nbg7815, nr7101)
 
 Kein ImageBuilder möglich: die Geräte gibt es **nur in PR-Branches** des Forks
 `ddimension/openwrt` (chateau zusätzlich Kernel-Patch `routerbootpart.c`, eigenes
@@ -231,6 +231,17 @@ DTS, LZMA-Loader). Quellen:
 - **nbg7815 (nur master):** Fork-Branch `nbg7815-update` (RGB-LED, Bluetooth,
   Lüfter/Temperatursensor, 160-MHz-Boardfile-Schalter). Für stable gibt es keinen
   Backport-Branch.
+- **nr7101 (master + stable):** **kein** Fork-Branch — Quelle ist upstream
+  (`main` bzw. `openwrt-25.12`), und die eine Änderung kommt als
+  `PATCH=.github/ci/nr7101-lte-power.patch` (Matrix-Schlüssel `patch:`, von
+  `build-images.sh` per `git apply --index` auf den Checkout angewandt):
+  Modem-Power (GPIO 18) wird vom DT-Hog zur exportierten `gpio-export`-Leitung
+  `lte_power` mit demselben Default-Pegel, plus passender `gpio_switch`. Ohne das
+  hält der Kernel die Leitung, sie fehlt in `/sys/class/gpio`, und wwand kann das
+  Modem nur resetten statt power-cyclen. Der Patch appliziert auf beide Basen;
+  verschiebt upstream den Kontext, scheitert der Leg laut — dann Patch neu
+  erzeugen (er liegt in keinem Branch). Das Gerät lief vorher im zyxel-Leg
+  (ImageBuilder), der keinen eigenen Kernel bauen kann.
 - **wwand-Feed:** `src-git` dieses Repos, gepinnt auf den Feed-Commit des
   Laufs (`…openwrt-repo.git^<sha>`). `scripts/feeds` merkt sich die Quelle
   (`feeds/wwand.tmp/location`) und klont bei Änderung neu — aber es schreibt
@@ -248,10 +259,11 @@ DTS, LZMA-Loader). Quellen:
 **Backport pflegen** (wenn sich der PR ändert): PR neu auf `openwrt-25.12` cherry-picken,
 Konflikte wie oben lösen, `chateau-stable-backport` force-pushen.
 
-### zyxel (nr7101 + lte3301-plus) — ImageBuilder
+### zyxel (lte3301-plus) — ImageBuilder
 
-Beide **upstream** → offizieller ramips/mt7621-ImageBuilder (snapshot bzw. neuestes
-`25.12.x`), **kein** Toolchain-Build. wwand kommt **signiert** aus gh-pages:
+**Upstream** und ohne eigene Source-Änderung → offizieller ramips/mt7621-ImageBuilder
+(snapshot bzw. neuestes `25.12.x`), **kein** Toolchain-Build. Der NR7101 baut seit
+seiner DTS-Änderung im `fullbuild`-Leg. wwand kommt **signiert** aus gh-pages:
 - apk-IB nutzt die Datei **`repositories`** (eine `packages.adb`-URL je Zeile) und
   vertraut allen **`.pem`** in `keys/`; `CONFIG_SIGNATURE_CHECK=y` (default) prüft.
 - Also: `keys/ddimension.pem` + `…/stable/<snapshot|openwrt-25.12>/mipsel_24kc/packages.adb`
@@ -284,8 +296,10 @@ Beide **upstream** → offizieller ramips/mt7621-ImageBuilder (snapshot bzw. neu
 - **Runner-Status:** `gh api repos/ddimension/openwrt-repo/actions/runners`
 - **Workflows linten:** `docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint`
 - **Container-Image neu bauen:** `cd ~/projects/containers/<name> && ./mkimg`
-- **Neues Gerät:** upstream → in die `zyxel`-`DEVICES` aufnehmen; mit Source-Änderungen
-  → eigene Voll-Build-Zeile in der `fullbuild`-Matrix (wie nbg7815).
+- **Neues Gerät:** upstream und unverändert → in die `zyxel`-`DEVICES` aufnehmen;
+  mit Source-Änderungen → eigene Voll-Build-Zeile in der `fullbuild`-Matrix —
+  aus einem Fork-Branch (wie nbg7815) oder upstream + `patch:` (wie nr7101, wenn
+  die Änderung klein ist und upstream gehen soll).
 - **ccache/dl prüfen (Node):**
   `pct exec <ctid> -- du -sh /var/lib/docker/volumes/openwrt-{dl,ccache}/_data`
 - **Alte Läufe** (vor der Kanal-Trennung) **nie** re-runnen — siehe gh-pages-Abschnitt.

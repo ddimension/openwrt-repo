@@ -206,7 +206,7 @@ master and stable base each, by
 |---|---|---|---|
 | MikroTik Chateau 5G R17 ax | fork branch `chateau-ci` | fork branch `chateau-stable-backport` | full buildroot (device only exists in a PR) |
 | ZyXEL NBG7815 | fork branch `nbg7815-update` | — | full buildroot (PR branch) |
-| Zyxel NR7101 | `snapshot` | latest `25.12.x` | ImageBuilder |
+| Zyxel NR7101 | upstream `main` + our patch | upstream `openwrt-25.12` + our patch | full buildroot (the patch changes the DTS, so a kernel has to be built) |
 | Zyxel LTE3301-PLUS | `snapshot` | latest `25.12.x` | ImageBuilder |
 
 `master`/`stable` in this table is the **OpenWrt base**, not the feed
@@ -215,6 +215,16 @@ channel. The fork branches live in
 openwrt main plus the device support (#24335), the QCA8081 TX-clock fix
 (#24566) and the ath11k reboot fix (#24601); `chateau-stable-backport` is
 openwrt-25.12 plus the device PR.
+
+The NR7101 needs no fork branch: it builds from upstream (`main` for the master
+base, `openwrt-25.12` for stable) and the one change it carries is applied at
+build time from [`nr7101-lte-power.patch`](.github/ci/nr7101-lte-power.patch) —
+the modem power line (GPIO 18) as an exported `gpio-export` line with the
+default the DT hog used to set, plus the matching `gpio_switch`. Without it the
+line is hogged by the kernel, invisible in `/sys/class/gpio`, and wwand can
+only pulse the reset line instead of power-cycling the modem. Should the patch
+stop applying after an upstream change, that leg fails loudly
+(`build-images.sh`) — refresh the patch, it is not carried in a branch.
 
 Every run builds against **one** stable commit: the one of the feed run that
 triggered it, or, started by hand, the tip of stable at that moment. Full
@@ -235,7 +245,7 @@ the images stay run artifacts.
 
 - permanently on gh-pages:
   `https://ddimension.github.io/openwrt-repo/images/<group>/<base>/` —
-  `<group>` is `chateau`, `nbg7815` or `zyxel`, `<base>` is `master` or
+  `<group>` is `chateau`, `nbg7815`, `nr7101` or `zyxel`, `<base>` is `master` or
   `stable`. Flat: the images, `.manifest` (full package list, so you can
   verify the stack), `sha256sums`, `.published`. Each run replaces the
   directories it built; a leg that produced no sysupgrade image keeps the
