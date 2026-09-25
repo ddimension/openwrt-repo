@@ -26,5 +26,6 @@ wpad-ieee8021x
 wpad-saeradh2e
 wwand
 wwand-lpac
+wwand-ipad
 luci-app-wwand
 luci-proto-wwand
