@@ -12,10 +12,13 @@ repositories, pinned to a commit.
 
 | Package | What it is | Binary packages | Source | CI |
 |---|---|---|---|---|
-| `wwand` | event-driven cellular connection manager (QMI, MBIM, NCM, PCIe/MHI), eSIM, scheduled APN tests | `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-mhi`, `wwand-esim`, `wwand-apntest`, `wwand-datapath-rmnet_nss`, `wwand-datapath-rmnet_nss_mhi` | [ddimension/wwand](https://github.com/ddimension/wwand) | ✓ |
+| `wwand` | event-driven cellular connection manager (QMI, MBIM, NCM, PCIe/MHI), eSIM, scheduled APN tests | `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-mhi`, `wwand-esim`, `wwand-gps`, `wwand-apntest`, `wwand-datapath-rmnet_nss`, `wwand-datapath-rmnet_nss_mhi` | [ddimension/wwand](https://github.com/ddimension/wwand) | ✓ |
 | `luci-app-wwand` | LuCI modem status page, modem editor, live settings; the signal/statistics graphs as a separate package | `luci-app-wwand`, `luci-app-wwand-statistics` | [ddimension/luci-app-wwand](https://github.com/ddimension/luci-app-wwand) | ✓ |
 | `luci-proto-wwand` | LuCI protocol handler for `proto wwand` interfaces | same | [ddimension/luci-proto-wwand](https://github.com/ddimension/luci-proto-wwand) | ✓ |
 | `wwand-lpac` | lpac for eSIM profile management, static wolfSSL/curl | same | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) | ✓ |
+| `wwand-qlog` | on-demand Qualcomm diag (QMDL) capture through Quectel QLog: `wwandctl qlog`. A wwand plugin, kept out of the wwand sources on purpose — wwand only resolves and publishes the modem's diag node and never opens it | same | [ddimension/wwand-qlog](https://github.com/ddimension/wwand-qlog) | ✓ |
+| `wwand-ipa` | eSIM fleet management: the router as the SGP.32 IoT Profile Assistant of an eIM, as a wwand plugin, plus its LuCI page | `wwand-ipa`, `luci-app-wwand-ipa` | [ddimension/wwand-ipa](https://github.com/ddimension/wwand-ipa) | ✓ |
+| `wwand-ipad` | the assistant `wwand-ipa` drives: onomondo-ipa, patched to reach the card through lpac's stdio APDU protocol so wwand relays it over the modem's own channel | same | upstream [onomondo/onomondo-ipa](https://github.com/onomondo/onomondo-ipa) + patches | ✓ |
 | `ddimension-feed` | this feed's address and signing key, see [Set up a device](#set-up-a-device) | same | local (`files/`) | ✓ |
 | `apman` | AP manager: ubus↔MQTT bridge, collectd plugin, on-AP RADIUS server ([apman/README.md](apman/README.md)) | same | [ddimension/apman-agent](https://github.com/ddimension/apman-agent) | ✓ |
 | `libubus-lua-async` | the stock ubus Lua binding plus `conn:call_async()` | same | upstream [ubus](https://git.openwrt.org/project/ubus.git) | via `apman` |
