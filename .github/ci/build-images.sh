@@ -6,7 +6,8 @@
 #   /dl     = geteilter Download-Cache        (Named Volume owrt-dl)
 #   /ccache = geteilter Compile-Cache         (Named Volume owrt-ccache)
 #   /out    = Artefakt-Ausgabe (Workspace/out)
-# Env: SRC_URL SRC_BRANCH PATCH TARGET SUBTARGET DEVICES WWAND_FEED
+# Env: SRC_URL SRC_BRANCH PATCH SLUG TARGET SUBTARGET DEVICES WWAND_FEED
+#   SLUG waehlt zusaetzlich .github/ci/config.<slug>, falls vorhanden
 #   WWAND_FEED ist die src-git-Quelle dieses Feeds: <url>;<branch> (Kanal-Spitze)
 #   oder <url>^<sha> (genau ein Commit). scripts/feeds merkt sich die Quelle und
 #   klont feeds/wwand neu, sobald sie sich aendert.
@@ -74,6 +75,12 @@ echo "::endgroup::"
 		echo "CONFIG_TARGET_${TARGET}_${SUBTARGET}_DEVICE_${d}=y"
 	done
 	cat /ci/.github/ci/config.wwand
+	# Optionaler Zusatz je Leg: .github/ci/config.<slug> (z.B. config.chateau
+	# mit kmod-usb-serial-ftdi). Fehlt die Datei, bleibt es beim gemeinsamen
+	# Stack -- die anderen Legs aendert ein Geraete-Zusatz also nicht.
+	if [ -n "${SLUG:-}" ] && [ -f "/ci/.github/ci/config.$SLUG" ]; then
+		cat "/ci/.github/ci/config.$SLUG"
+	fi
 	echo 'CONFIG_CCACHE=y'
 	echo 'CONFIG_CCACHE_DIR="/ccache"'
 	# optional: Testing-Kernel (KERNEL_TESTING_PATCHVER) statt Default bauen
@@ -88,6 +95,18 @@ for d in $DEVICES; do
 		|| { echo "FEHLER: Geraet ${d} nach defconfig nicht selektiert"; exit 3; }
 done
 grep -q '^CONFIG_PACKAGE_wwand=y' .config || { echo "FEHLER: wwand nicht selektiert (Feed ok?)"; exit 3; }
+# Der Pro-Leg-Zusatz muss defconfig ueberleben: ein Symbol, das das Target nicht
+# kennt, wirft defconfig still wieder raus -- dann fehlt es im Image, ohne dass
+# der Bau scheitert. Also hier pruefen statt spaeter im Manifest suchen.
+if [ -n "${SLUG:-}" ] && [ -f "/ci/.github/ci/config.$SLUG" ]; then
+	while read -r sym; do
+		grep -q "^${sym}$" .config \
+			|| { echo "FEHLER: ${sym} aus config.$SLUG nach defconfig nicht gesetzt"; exit 3; }
+	done <<-LIST
+		$(grep '^CONFIG_PACKAGE_[A-Za-z0-9_-]*=y$' "/ci/.github/ci/config.$SLUG")
+	LIST
+	echo "config.$SLUG selection ok"
+fi
 echo "device + wwand selection ok"
 echo "::endgroup::"
 

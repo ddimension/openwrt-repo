@@ -200,7 +200,11 @@ CI builds **ready-to-flash firmware images** with the wwand stack and
 `ddimension-feed` baked in: all backends, eSIM and LuCI in the full builds
 ([`.github/ci/config.wwand`](.github/ci/config.wwand)), the QMI backend, eSIM
 and LuCI in the ImageBuilder legs (`PKGS` in
-[`build-imagebuilder.sh`](.github/ci/build-imagebuilder.sh)). `uqmi` is left out on purpose (config.wwand says why). Images
+[`build-imagebuilder.sh`](.github/ci/build-imagebuilder.sh)). `uqmi` is left out on purpose (config.wwand says why).
+A single device can add to that: `.github/ci/config.<slug>` is appended for that
+full-build leg only — today [`config.chateau`](.github/ci/config.chateau), which
+gives the MikroTik image `kmod-usb-serial-ftdi` so an FTDI cable shows up as
+`/dev/ttyUSB*` without installing anything. Images
 are **always built against the stable channel** of this feed, for the OpenWrt
 master and stable base each, by
 [build-device-images.yml](.github/workflows/build-device-images.yml):

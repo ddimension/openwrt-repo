@@ -214,6 +214,7 @@ jobs:
             -e SRC_URL='${{ matrix.src_url }}' \
             -e SRC_BRANCH='${{ matrix.src_branch }}' \
             -e PATCH='${{ matrix.patch }}' \
+            -e SLUG='${{ matrix.slug }}' \
             -e TARGET="$TARGET" -e SUBTARGET="$SUBTARGET" -e DEVICES="$DEVICES" \
             -e WWAND_FEED="$WWAND_FEED" \
             -e MAKE_JOBS="$jobs" \

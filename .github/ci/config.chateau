@@ -1,0 +1,7 @@
+# Zusatz nur fuer den chateau-Leg (MikroTik Chateau 5G R17 ax), beide Basen.
+# Wird nach config.wwand an .config angehaengt (build-images.sh, ueber $SLUG).
+#
+# FTDI-USB-Seriell: der Chateau wird als Gateway auch an seriellen Geraeten
+# betrieben (FT232/FT2232-Adapter). Das Modul ist im Image built-in, damit ein
+# angestecktes Kabel ohne Nachinstallation als /dev/ttyUSB* erscheint.
+CONFIG_PACKAGE_kmod-usb-serial-ftdi=y

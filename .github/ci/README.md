@@ -268,6 +268,12 @@ DTS, LZMA-Loader). Quellen:
   HEAD mit dem Pin und wirft den Klon im Zweifel weg.
 - Stack: `.github/ci/config.wwand` (inkl. `ddimension-feed`). Skript:
   `.github/ci/build-images.sh`.
+- **Zusatz je Gerät:** `.github/ci/config.<slug>` wird, falls vorhanden, nach
+  `config.wwand` angehängt (`$SLUG` = Matrix-Slug, aus dem Workflow gereicht) —
+  heute `config.chateau` mit `kmod-usb-serial-ftdi`. Andere Legs bleiben
+  unberührt. `build-images.sh` prüft nach `defconfig`, dass jedes
+  `CONFIG_PACKAGE_…=y` daraus wirklich gesetzt ist: ein Symbol, das das Target
+  nicht kennt, verschwindet dort still.
 - Cache: `owrt-src-<slug>-<base>` (Quellbaum **inkl. build_dir/staging** persistent) +
   geteilt `owrt-dl`/`owrt-ccache`. `CONFIG_CCACHE_DIR=/ccache`, `dl`→`/dl`.
 - **`--ulimit nofile=1024:1048576`** an beiden `docker run` (Voll-Build und
