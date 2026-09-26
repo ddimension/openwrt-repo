@@ -297,7 +297,7 @@ breadcrumb() {
 # The start page: how to set a device up, and per architecture the trees of
 # both channels with the ddimension-feed.apk in each — only what exists.
 landing() {
-	local rels archs r a ch d cell
+	local rels archs r a ch d cell tools_link
 	# if, not `test && find`: under pipefail a loop whose last test fails makes
 	# the whole command substitution fail, and set -e ends the script without a
 	# word — which is what the very first publish did, when main/ did not exist.
@@ -335,8 +335,14 @@ landing() {
 		printf '</tr>'
 	done
 	printf '</table>'
+	# tools/ only once something published there, so the sentence does not point
+	# at a 404 on a site that has no host tool yet.
+	tools_link=""
+	if [ -d "$SITE/tools" ]; then
+		tools_link=' host tools: <a href="tools/">tools/</a>,'
+	fi
 	printf '<p>The top-level <code>&lt;release&gt;/</code> trees mirror <code>stable/</code> for devices set up'
-	printf ' before the channels existed. Device images: <a href="images/">images/</a>, signing keys:'
+	printf ' before the channels existed. Device images: <a href="images/">images/</a>,%s signing keys:' "$tools_link"
 	printf ' <a href="keys/">keys/</a>. Source: <a href="https://github.com/ddimension/openwrt-repo">ddimension/openwrt-repo</a>.</p>'
 	# Host tools, when a build published some. Same `if`, not `test &&`, for the
 	# reason given above: this runs as the last command of the function.
