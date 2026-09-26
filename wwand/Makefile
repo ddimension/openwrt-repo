@@ -12,8 +12,6 @@
 #   wwand-mhi        - PCIe/MHI transport + drivers (DEPENDS wwand; add a backend)
 #   wwand-esim       - eSIM management        (DEPENDS wwand + lpac; no backend)
 #   wwand-gps        - GNSS/NMEA reader (DEPENDS wwand; no backend)
-#   wwand-ipa        - eSIM fleet management, SGP.32 eIM polling
-#                      (DEPENDS wwand-esim + wwand-ipad, the assistant binary)
 # A typical QMI router installs `wwand-qmi` (which pulls in `wwand`); add
 # `wwand-mbim` / `wwand-ncm` for those modems, `wwand-mhi` for a PCIe/MHI modem.
 # The ucode tree ships PRECOMPILED to bytecode (repo-root CMakeLists.txt,
@@ -52,13 +50,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_VERSION:=1.6.8_p21
+PKG_VERSION:=1.6.8_p22
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=e24f92c34357d133788e9183a1d984cbb1a35ec0
-PKG_MIRROR_HASH:=3016e683416887110e33af2519a74d135b3249cd60286a29bcb120e65775a872
+PKG_SOURCE_VERSION:=8826cf35692dd8ef1668e2ff156ea018b08fa2f1
+PKG_MIRROR_HASH:=77950d5650ccbda9f1bb55abf6670841129182429406ad5fdfbd69e3939919da
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -100,7 +98,7 @@ UCDIR:=/usr/share/ucode/wwand
 WWAND_BASE_UC:=apndb.uc atcmd.uc atcmd_parse.uc atport.uc backend.uc board.uc \
 	carrier_config.uc client.uc config.uc config_check.uc context_common.uc \
 	context_monitor_qmi.uc ctx_settings.uc daemon.uc deps.uc discovery.uc \
-	hwops.uc log.uc modem_common.uc modem_datapath_qmi.uc modem_init_qmi.uc \
+	hwops.uc log.uc modem_common.uc modem_datapath_qmi.uc modem_init_qmi.uc plugins.uc \
 	modem_quirks.uc modeswitch.uc ncm_vendors.uc netlink.uc netsel_ops.uc \
 	protocol_switch.uc reconnect.uc recovery.uc regdetail.uc sim.uc sim_plmn.uc \
 	simops.uc sms.uc sms_pdu.uc telemetry_mbim.uc telemetry_ncm.uc \
@@ -570,47 +568,6 @@ define Package/wwand-gps/install
 endef
 
 # ---------------------------------------------------------------------------
-# wwand-ipa: eSIM fleet management. An eIM (the fleet server) queues profile
-# downloads/switches/deletions; the IoT Profile Assistant fetches and runs them.
-# ipa.uc schedules it and does the host's part of a profile change (SIM reset,
-# wait for the new session). The assistant is a separate AGPL program
-# (wwand-ipad); its APDUs go through wwand-esim's bridge, hence both.
-# ---------------------------------------------------------------------------
-define Package/wwand-ipa
-  SECTION:=net
-  CATEGORY:=Network
-  SUBMENU:=WWAN
-  TITLE:=eSIM fleet management (SGP.32 eIM) for wwand
-  DEPENDS:=+wwand-esim +wwand-ipad
-endef
-
-define Package/wwand-ipa/description
- Lets an eIM manage the modem's eSIM: wwand polls it (after the connection
- comes up, then every ipa_interval seconds) with the onomondo-ipa assistant,
- relays the assistant's card traffic over the modem's APDU channel, and after
- a profile change resets the SIM and waits for the session on the new profile
- before the result is reported. Runs against an SGP.22 consumer eUICC (the
- assistant's IoT eUICC emulation); the eIM must accept that mode. Enable per
- modem with `option ipa '1'` and `option ipa_eim_config '<file>'` in
- /etc/config/network. While enabled, manual profile changes on that card are
- refused unless forced.
-endef
-
-# /etc/wwand/ipa holds each card's nvstate (in emulation: its eIM configuration
-# and replay counter) and usually the eIM configuration file itself. Losing it
-# in a sysupgrade cuts the card off its eIM, so it is kept through keep.d, NOT
-# conffiles: sysupgrade treats conffiles as file+checksum pairs of what the
-# package shipped, and these files are created at runtime; keep.d entries go
-# through find, which takes the whole directory (base-files sbin/sysupgrade
-# list_conffiles / list_static_conffiles, OpenWrt bacda03b76, 2026-07-19).
-define Package/wwand-ipa/install
-	$(INSTALL_DIR) $(1)$(UCDIR)
-	$(INSTALL_DATA) $(WWAND_UCODE)/ipa.uc $(1)$(UCDIR)/
-	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
-	echo /etc/wwand/ipa/ > $(1)/lib/upgrade/keep.d/wwand-ipa
-endef
-
-# ---------------------------------------------------------------------------
 # wwand-datapath-rmnet_nss: Qualcomm NSS offload behind the VENDOR qmi_wwan_q.
 # A datapath add-on, not a control backend — it plugs into wwand's datapath
 # interface (`option mux 'rmnet_nss'`, or picked up on its own under 'auto').
@@ -701,7 +658,6 @@ $(eval $(call BuildPackage,wwand-ncm))
 $(eval $(call BuildPackage,wwand-mhi))
 $(eval $(call BuildPackage,wwand-esim))
 $(eval $(call BuildPackage,wwand-gps))
-$(eval $(call BuildPackage,wwand-ipa))
 $(eval $(call BuildPackage,wwand-apntest))
 define Package/wwand-datapath-rmnet_nss_mhi
   SECTION:=net
