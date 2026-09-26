@@ -7,22 +7,27 @@
 # Sources live in https://github.com/ddimension/wwand-rsim, tagged vX.Y.Z. Pin
 # a new commit with `scripts/bump-source.sh wwand-rsim <tag|commit>`.
 #
-# The card-side helper rsim-card is C (the repo's helper/ subdirectory, CMake);
-# the plugin and the wwandctl command are ucode, installed as they are. The
-# LuCI page (luci/) is its own package, installed explicitly from
-# $(PKG_BUILD_DIR) like luci-app-wwand-ipa.
+# Three packages from one source:
+# - rsim-card: the card-side helper alone (C, the repo's helper/ subdirectory,
+#   CMake). What a SIM HOST needs — another router that only holds the
+#   reader: no wwand, no ucode, just the tool in /usr/bin, where an SSH reader
+#   (`ssh:<user>@<host>:<reader>`) runs it by name.
+# - wwand-rsim: the plugin and the wwandctl command (ucode, installed as they
+#   are), pulling in rsim-card for readers on the modem's own router.
+# - luci-app-wwand-rsim: the LuCI page (luci/), installed explicitly from
+#   $(PKG_BUILD_DIR) like luci-app-wwand-ipa.
 #
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand-rsim
-PKG_VERSION:=0.0.1_p17
+PKG_VERSION:=0.0.1_p21
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand-rsim.git
-PKG_SOURCE_VERSION:=a04b757fb8e5d52f6a6964fcd9cc48a2fb5f3fe5
-PKG_MIRROR_HASH:=6b74ccea030d5f60dcc881d601e278902f005a71e16d06eaf71cf352ee7c577f
+PKG_SOURCE_VERSION:=9d90c92dc6e512eab7a716c791d4f94c86ab703b
+PKG_MIRROR_HASH:=1f1f0d0ced2413e14dca4e828a613c064d43ca153151084516bfc5c05fa71a78
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_LICENSE_FILES:=LICENSE
@@ -97,14 +102,35 @@ endif
 
 UCDIR:=/usr/share/ucode/wwand
 
+define Package/rsim-card
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=SIM card reader helper for wwand-rsim (SIM host)
+  # libusb-1.0: the Smartmouse USB backend (clock, mode and UART over USB)
+  DEPENDS:=+libusb-1.0
+endef
+
+define Package/rsim-card/description
+ The card-side helper of wwand-rsim on its own: it owns a SIM card reader
+ (Phoenix/Smartmouse serial readers, the WB Electronics Smartmouse USB over
+ libusb) or the SIM of a modem it reaches over its AT port (at:<tty>,
+ AT+CSIM; that modem's radio is switched off while its card is lent), and
+ speaks JSON lines on stdin/stdout. Install it on a router that only holds
+ the reader or the modem (a SIM host); the router with the using modem
+ reaches it over SSH (rsim_reader ssh:<user>@<host>:<reader>). Needs
+ nothing of wwand.
+endef
+
 define Package/wwand-rsim
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=WWAN
   TITLE:=Remote SIM (QMI UIM Remote) for wwand
   # wwand-qmi: the plugin allocates its UIM Remote client on the modem's QMI
-  # channel (core dep qmi_client); libusb-1.0: the Smartmouse USB backend
-  DEPENDS:=+wwand-qmi +libusb-1.0
+  # channel (core dep qmi_client); rsim-card: the helper for a reader on this
+  # router (the plugin looks for it in /usr/bin since upstream 56c9a71)
+  DEPENDS:=+wwand-qmi +rsim-card
 endef
 
 define Package/wwand-rsim/description
@@ -134,9 +160,12 @@ define Package/luci-app-wwand-rsim/description
  lending its card), the state of the remote card, and the router's SSH key.
 endef
 
+define Package/rsim-card/install
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/rsim-card $(1)/usr/bin/
+endef
+
 define Package/wwand-rsim/install
-	$(INSTALL_DIR) $(1)/usr/lib/wwand
-	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/rsim-card $(1)/usr/lib/wwand/
 	$(INSTALL_DIR) $(1)$(UCDIR)/plugins $(1)$(UCDIR)/ctl
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/plugins/rsim.uc $(1)$(UCDIR)/plugins/
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ctl/rsim.uc $(1)$(UCDIR)/ctl/
@@ -154,5 +183,6 @@ define Package/luci-app-wwand-rsim/install
 		$(1)/usr/share/rpcd/acl.d/
 endef
 
+$(eval $(call BuildPackage,rsim-card))
 $(eval $(call BuildPackage,wwand-rsim))
 $(eval $(call BuildPackage,luci-app-wwand-rsim))
