@@ -72,6 +72,19 @@ existed keep working. Device images live under
 [`images/`](https://ddimension.github.io/openwrt-repo/images/), signing keys
 under [`keys/`](https://ddimension.github.io/openwrt-repo/keys/).
 
+**Host tools** under
+[`tools/<channel>/<arch>/`](https://ddimension.github.io/openwrt-repo/tools/):
+programs that do not run on the router but next to it. Today that is
+`rsim-card` for a **SIM host** — the machine whose reader holds the card when a
+modem uses `option rsim_reader ssh:<user>@<host>:<reader>`. wwand runs it there
+*by name*, so it belongs in that machine's `PATH`, and CI links it statically
+so nothing has to be installed:
+
+```sh
+curl -O https://ddimension.github.io/openwrt-repo/tools/stable/x86_64/rsim-card
+install -m755 rsim-card /usr/local/bin/rsim-card
+```
+
 ## How-tos
 
 ### Set up a device

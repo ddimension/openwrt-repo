@@ -102,6 +102,15 @@ for pair in ${PAIRS[@]+"${PAIRS[@]}"}; do
 			continue
 		fi
 		;;
+	tools/*)
+		# Host tools (today: the static rsim-card a SIM host runs). Plain
+		# files, no index and no image, so neither guard below fits — an empty
+		# directory is still refused, a half-finished leg must not wipe one.
+		if [ -z "$(find "$src" -type f -print -quit)" ]; then
+			echo "::warning::publish-pages: no file in $src, $DEST keeps its published state"
+			continue
+		fi
+		;;
 	*)
 		if [ ! -f "$src/packages.adb" ]; then
 			echo "::warning::publish-pages: no packages.adb in $src, $DEST keeps its published state"
@@ -329,6 +338,31 @@ landing() {
 	printf '<p>The top-level <code>&lt;release&gt;/</code> trees mirror <code>stable/</code> for devices set up'
 	printf ' before the channels existed. Device images: <a href="images/">images/</a>, signing keys:'
 	printf ' <a href="keys/">keys/</a>. Source: <a href="https://github.com/ddimension/openwrt-repo">ddimension/openwrt-repo</a>.</p>'
+	# Host tools, when a build published some. Same `if`, not `test &&`, for the
+	# reason given above: this runs as the last command of the function.
+	if [ -d "$SITE/tools" ]; then
+		printf '<h2>Tools</h2>'
+		printf '<p><code>rsim-card</code> is what a <b>SIM host</b> needs — the machine whose reader holds the card for'
+		printf ' <code>option rsim_reader ssh:&lt;user&gt;@&lt;host&gt;:&lt;reader&gt;</code>. wwand runs it there <i>by name</i>,'
+		printf ' so it belongs in that machine&#39;s PATH; these builds are linked statically and need nothing installed:</p>'
+		printf '<pre>install -m755 rsim-card /usr/local/bin/rsim-card</pre>'
+		printf '<table><tr><th>Channel</th><th>Arch</th><th>Tool</th></tr>'
+		for ch in stable main; do
+			if [ -d "$SITE/tools/$ch" ]; then
+				for a in $(find "$SITE/tools/$ch" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort); do
+					cell=""
+					for d in "$SITE/tools/$ch/$a"/*; do
+						[ -f "$d" ] || continue
+						case "${d##*/}" in index.html | .published) continue ;; esac
+						[ -n "$cell" ] && cell+=" · "
+						cell+="<a href=\"tools/$ch/$a/${d##*/}\">${d##*/}</a>"
+					done
+					printf '<tr><td>%s</td><td>%s</td><td>%s</td></tr>' "$ch" "$a" "${cell:-<span class=\"dim\">—</span>}"
+				done
+			fi
+		done
+		printf '</table>'
+	fi
 	printf '<h2>Everything</h2>'
 }
 

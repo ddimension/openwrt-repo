@@ -205,6 +205,17 @@ jobs:
           for f in "$dest"/ddimension-feed-[0-9]*.apk; do
             [ -f "$f" ] && cp "$f" "$dest/ddimension-feed.apk"
           done
+          # Host tools a package exported into $(BIN_DIR) — today the static
+          # rsim-card, built only on x86_64 (wwand-rsim, Hooks/Compile/Post).
+          # publish-feed.sh turns tools/<arch>/ into tools/<channel>/<arch>/ on
+          # the site, where the start page links it. No leg but x86_64 has one,
+          # and the glob simply finds nothing there.
+          for t in bin/targets/*/*/rsim-card; do
+            [ -f "$t" ] || continue
+            mkdir -p "public/tools/${{ matrix.arch }}"
+            cp "$t" "public/tools/${{ matrix.arch }}/"
+            echo "host tool: $t -> public/tools/${{ matrix.arch }}/"
+          done
 
       - uses: actions/upload-artifact@v4
         with:

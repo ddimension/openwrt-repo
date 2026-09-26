@@ -92,6 +92,15 @@ while IFS= read -r adb; do
 		pairs+=("$d=$rel/$arch")
 	fi
 done < <(find "$DIR" -name packages.adb | sort)
+# Host tools the build produced next to the packages (CI collects them as
+# tools/<arch>/): they are not part of any repository index, so they go to
+# tools/<channel>/<arch>/ — one place per channel, linked from the start page.
+if [ -d "$DIR/tools" ]; then
+	while IFS= read -r td; do
+		pairs+=("$td=tools/$CHANNEL/${td##*/}")
+		echo "tool tree: ${td##*/}"
+	done < <(find "$DIR/tools" -mindepth 1 -maxdepth 1 -type d | sort)
+fi
 [ ${#pairs[@]} -gt 0 ] || die "no package trees (<release>/<arch>/packages.adb) under $DIR"
 
 if [ -z "${GH_TOKEN:-}" ] && [ -z "${PAGES_REMOTE:-}" ] && command -v gh >/dev/null; then

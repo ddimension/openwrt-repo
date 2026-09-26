@@ -188,6 +188,14 @@ Skript auf ein Bare-Repo statt auf GitHub.
     (rules.mk) → `.ccache`→`/ccache` symlinken (nicht via Env!).
 - SDK-Release-Images cachet Docker auf dem Node automatisch → **kein
   `docker image prune -a`.**
+- **Host-Werkzeuge:** ein Paket kann neben seinen apks ein Programm für den
+  PC bauen und nach `$(BIN_DIR)` legen (heute `wwand-rsim`: `rsim-card`
+  statisch, nur x86_64, per `Hooks/Compile/Post`). Der Collect-Schritt sammelt
+  es als `public/tools/<arch>/`, `publish-feed.sh` veröffentlicht es als
+  `tools/<kanal>/<arch>/`, und die Startseite verlinkt es mit dem Hinweis, dass
+  es auf dem SIM-Host in den PATH gehört. `publish-pages.sh` hat dafür einen
+  eigenen Guard: kein `packages.adb`, kein sysupgrade-Image — aber leer darf
+  das Verzeichnis nicht sein, sonst bleibt der publizierte Stand stehen.
 - **publish**-Job: auch wenn einzelne Legs rot sind (`!cancelled()`); Legs ohne
   Artefakt behalten ihren publizierten Stand. Ruft `publish-pages.sh` mit
   `<kanal>/<release>/<arch>` je gebautem Leg, bei stable zusätzlich `<release>/<arch>`.
