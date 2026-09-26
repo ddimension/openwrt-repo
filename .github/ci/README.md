@@ -253,6 +253,11 @@ DTS, LZMA-Loader). Quellen:
   `.github/ci/build-images.sh`.
 - Cache: `owrt-src-<slug>-<base>` (Quellbaum **inkl. build_dir/staging** persistent) +
   geteilt `owrt-dl`/`owrt-ccache`. `CONFIG_CCACHE_DIR=/ccache`, `dl`→`/dl`.
+- **`--ulimit nofile=1024:1048576`** an beiden `docker run` (Voll-Build und
+  ImageBuilder): Dockers quasi-unbegrenztes fd-Limit lässt fakeroot/`apk mkpkg`
+  in der fd-close-Schleife hängen. Der kalte `nr7101 stable`-Leg (Lauf
+  36208553999) stand deshalb 45 min ohne CPU in zwei `apk mkpkg`, bis der
+  Stall-Wachhund abbrach. Die lokalen Skripte setzen es seit langem.
 - **Lokal nachbauen:** `scripts/local-image-build.sh` (podman/docker, Resume,
   ccache-Ordner, andere Geräte/Archs) — Doku im Haupt-README.
 

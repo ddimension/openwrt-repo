@@ -202,7 +202,15 @@ jobs:
           [ "${jobs:-0}" -ge 1 ] 2>/dev/null || jobs=1
           echo "${{ matrix.slug }} build: -j${jobs} (freigegebene Kerne des Runner-CT)"
           echo "wwand-Feed: $WWAND_FEED"
+          # --ulimit nofile: Dockers Default ist quasi-unbegrenzt, und damit
+          # verhaken sich fakeroot/`apk mkpkg` in ihrer fd-close-Schleife --
+          # scripts/local-build.sh und local-image-build.sh setzen es deshalb
+          # seit langem, die CI nicht. Der kalte nr7101-stable-Leg (Lauf
+          # 36208553999) blieb genau dort stehen: Load 0.00, zwei
+          # `fakeroot .. apk mkpkg` in anon_pipe_read, ihre faked in
+          # poll_schedule_timeout -- bis der Stall-Wachhund nach 45 min abbrach.
           docker run --rm --user 1000:1000 \
+            --ulimit nofile=1024:1048576 \
             -e SRC_URL='${{ matrix.src_url }}' \
             -e SRC_BRANCH='${{ matrix.src_branch }}' \
             -e PATCH='${{ matrix.patch }}' \
@@ -290,7 +298,10 @@ jobs:
 
       - name: Build (ImageBuilder)
         run: |
+          # --ulimit nofile wie im Voll-Build-Leg: der ImageBuilder packt mit
+          # demselben fakeroot/apk-mkpkg-Gespann.
           docker run --rm --user 1000:1000 \
+            --ulimit nofile=1024:1048576 \
             -e BASE='${{ matrix.base }}' \
             -e DEVICES="$DEVICES" \
             -e ARCH="$ARCH" \
