@@ -6,6 +6,9 @@ author: aparcar
 #     'openwrt-ccache', als -v /dl bzw. -v /ccache in den SDK-Container gemountet
 #     (siehe entrypoint.sh). Node-lokal (leben im Docker des Runner-CT), bleiben
 #     ueber Laeufe erhalten, verschwinden erst bei Neuerzeugung des CT.
+#   - Image-Build per plain `docker build` statt qemu/buildx/build-push-action:
+#     keine Pulls von docker.io mehr (Begruendung am Schritt unten).
+#   - NPROC wird durchgereicht (make -j im Container, siehe entrypoint.sh).
 runs:
   using: 'composite'
   steps:
@@ -16,27 +19,25 @@ runs:
       id: inputs
     - run: sudo chown -R 1000:1000 ${{ steps.inputs.outputs.artifacts_dir }} ${{ steps.inputs.outputs.feed_dir }}
       shell: bash
-    -
-      name: Set up Docker QEMU
-      uses: docker/setup-qemu-action@v4
-    -
-      name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
-    -
-      name: Build Docker container image
-      uses: docker/build-push-action@v7
+    # Plain `docker build` statt qemu + buildx + build-push-action: das
+    # Dockerfile ist ein FROM auf ghcr.io/openwrt/sdk plus ein ADD, der Build
+    # dauert Sekunden. buildx brachte dafuer nur einen gha-Cache -- kostete aber
+    # je Leg Pulls von moby/buildkit und tonistiigi/binfmt, und die kommen von
+    # docker.io. Deren TLS-Timeouts ("net/http: TLS handshake timeout" gegen
+    # registry-1.docker.io) legten am 25./26.09.2026 reihenweise Legs still
+    # (36185475232, 36190510953, 36201899551, zuletzt 36208538174 mitten in
+    # "Build packages", nachdem der Login-Schritt schon entschaerft war). So
+    # beruehrt der Feed-Build docker.io gar nicht mehr; qemu braucht er nicht,
+    # Runner und SDK-Images sind x86_64.
+    - name: Build SDK container image
+      shell: bash
       env:
-        DOCKER_BUILD_SUMMARY: false
-      with:
-        push: false
-        tags: sdk
-        context: ${{ github.action_path }}
-        build-args: |
-          CONTAINER
-          ARCH
-        cache-to: type=gha,mode=max,scope=${{ env.CONTAINER }}-${{ env.ARCH }}
-        cache-from: type=gha,scope=${{ env.CONTAINER }}-${{ env.ARCH }}
-        load: true
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        args=()
+        if [ -n "${CONTAINER:-}" ]; then args+=(--build-arg "CONTAINER=$CONTAINER"); fi
+        if [ -n "${ARCH:-}" ]; then args+=(--build-arg "ARCH=$ARCH"); fi
+        docker build "${args[@]}" -t sdk "$ACTION_PATH"
 
     # Persistente Caches vorbereiten: Named Volumes anlegen und dem SDK-Build-User
     # (uid 1000) uebereignen, damit der Container hineinschreiben darf.

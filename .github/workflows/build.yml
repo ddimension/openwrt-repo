@@ -81,21 +81,11 @@ jobs:
           rm -rf "${GITHUB_WORKSPACE:?}"/*
       - uses: actions/checkout@v4
 
-      # authenticated docker.io pulls (qemu binfmt inside gh-action-sdk) —
-      # avoids the anonymous-pull rate-limit/timeout flakes.
-      #
-      # continue-on-error: the login is an optimisation, not a requirement — it
-      # only lifts the anonymous pull limit. Yet docker.io itself flakes
-      # ("net/http: TLS handshake timeout" reaching registry-1.docker.io), and a
-      # failed login step turned the WHOLE matrix red three runs in a row
-      # (36185475232, 36190510953, 36201899551) before a single package was
-      # built. Let it fail and carry on anonymously; if the pull limit then
-      # bites, the build step says so.
-      - uses: docker/login-action@v3
-        continue-on-error: true
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # No docker.io login any more: the SDK action builds its image with plain
+      # `docker build` from ghcr.io and pulls nothing from docker.io, so there is
+      # no anonymous pull limit left to lift. It used to be needed for the qemu
+      # binfmt image, and docker.io's TLS timeouts then killed whole matrices
+      # (36185475232, 36190510953, 36201899551, 36208538174).
 
       # Per-package mode: the SDK action builds exactly these source packages
       # plus their real dependencies — no whole-feed surface, no exposure to
@@ -143,11 +133,10 @@ jobs:
         uses: ./.github/actions/openwrt-sdk
         env:
           ARCH: ${{ matrix.arch }}${{ matrix.release != 'snapshot' && format('-{0}', matrix.release) || '' }}
-          # NOTE on registry flakes: the SDK image already comes from ghcr.io
-          # (action default; CONTAINER would be the UNTAGGED image — the
-          # action appends :$ARCH itself). docker.io is only touched for the
-          # embedded qemu binfmt pull, authenticated via the login step
-          # above. Should a job still flake: gh run rerun --failed on the
+          # NOTE on registry flakes: the SDK image comes from ghcr.io (action
+          # default; CONTAINER would be the UNTAGGED image — the action appends
+          # :$ARCH itself), and nothing else is pulled — no docker.io, no
+          # buildkit, no binfmt. Should a job still flake: gh run rerun --failed on the
           # newest run of the branch (an older run builds but does not publish,
           # see the publish job) — never on a run from before the channel
           # split, whose publish step would delete main/ and stable/.
