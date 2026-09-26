@@ -148,7 +148,7 @@ index d4316f2..5dfa703 100644
  				break;
 diff --git a/src/ipa/scard_stdio.c b/src/ipa/scard_stdio.c
 new file mode 100644
-index 0000000..f6c46c3
+index 0000000..5b58991
 --- /dev/null
 +++ b/src/ipa/scard_stdio.c
 @@ -0,0 +1,513 @@
@@ -643,7 +643,7 @@ index 0000000..f6c46c3
 +	 * the eIM. That power cycle closes every logical channel, so ours is
 +	 * re-opened here before libipa talks to the card again. */
 +	fflush(stdout);
-+	printf("{\"type\":\"ipa\",\"payload\":{\"event\":\"profile_changed\"}}\n");
++	printf("{\"type\":\"event\",\"payload\":{\"event\":\"profile_changed\"}}\n");
 +	fflush(stdout);
 +
 +	if (!read_line(line, sizeof(line))) {
@@ -796,36 +796,36 @@ index 0000000..831320d
 +}
 diff --git a/tests/scard_stdio/scard_stdio_test.in b/tests/scard_stdio/scard_stdio_test.in
 new file mode 100644
-index 0000000..e806be0
+index 0000000..50d2f24
 --- /dev/null
 +++ b/tests/scard_stdio/scard_stdio_test.in
 @@ -0,0 +1,12 @@
 +{"type":"apdu","payload":{"ecode":0}}
 +{"type":"apdu","payload":{"ecode":3}}
 +{"type":"apdu","payload":{"ecode":0,"data":"A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A59000"}}
-+{"type":"ipa","payload":{"online":true}}
++{"type":"event","payload":{"online":true}}
 +{"type":"apdu","payload":{"ecode":2}}
 +{"type":"apdu","payload":{"ecode":0,"data":"6A88"}}
 +{"type":"apdu","payload":{"ecode":0,"data":"AABB9110"}}
-+{"type":"ipa","payload":{"online":false}}
++{"type":"event","payload":{"online":false}}
 +{"type":"apdu","payload":{"ecode":4}}
 +{"type":"apdu","payload":{"ecode":0,"data":"9000"}}
 +{"type":"apdu","payload":{"ecode":0}}
 +{"type":"apdu","payload":{"ecode":0}}
 diff --git a/tests/scard_stdio/scard_stdio_test.ok b/tests/scard_stdio/scard_stdio_test.ok
 new file mode 100644
-index 0000000..371eff8
+index 0000000..2e653d9
 --- /dev/null
 +++ b/tests/scard_stdio/scard_stdio_test.ok
 @@ -0,0 +1,13 @@
 +{"type":"apdu","payload":{"func":"connect","param":null}}
 +{"type":"apdu","payload":{"func":"logic_channel_open","param":"A0000005591010FFFFFFFF8900000100"}}
 +{"type":"apdu","payload":{"func":"transmit","param":"83E2910003BF2200"}}
-+{"type":"ipa","payload":{"event":"profile_changed"}}
++{"type":"event","payload":{"event":"profile_changed"}}
 +{"type":"apdu","payload":{"func":"logic_channel_open","param":"A0000005591010FFFFFFFF8900000100"}}
 +{"type":"apdu","payload":{"func":"transmit","param":"82E2910003BF2B00"}}
 +{"type":"apdu","payload":{"func":"transmit","param":"82E2910003BF2D00"}}
-+{"type":"ipa","payload":{"event":"profile_changed"}}
++{"type":"event","payload":{"event":"profile_changed"}}
 +{"type":"apdu","payload":{"func":"logic_channel_open","param":"A0000005591010FFFFFFFF8900000100"}}
 +{"type":"apdu","payload":{"func":"transmit","param":"C0E2910003BF2B00"}}
 +{"type":"apdu","payload":{"func":"logic_channel_close","param":"04"}}
