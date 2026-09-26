@@ -162,8 +162,25 @@ Skript auf ein Bare-Repo statt auf GitHub.
 - **Paketliste:** `.github/ci/packages` (auch Default von `scripts/local-build.sh`).
   Leer = Fehler, denn eine leere `PACKAGES` baut im SDK den ganzen Feed.
 - Baut via **gevendorter** `openwrt/gh-action-sdk` (`.github/actions/openwrt-sdk`),
-  Matrix Release × Arch. **Docker-basiert** (gh-action-sdk = `docker run` des
-  SDK-Containers, `docker/login`) → Runner braucht Docker.
+  Matrix Release × Arch. **Docker-basiert** (`docker build` des SDK-Images aus
+  `ghcr.io/openwrt/sdk:<arch>`, dann `docker run`) → Runner braucht Docker.
+  **Kein docker.io mehr:** qemu/buildx und der docker.io-Login sind raus — sie
+  zogen `tonistiigi/binfmt` und `moby/buildkit` von docker.io, und deren
+  TLS-Timeouts legten ganze Matrizen still (36185475232, 36190510953,
+  36201899551, 36208538174). Der Feed-Build spricht jetzt nur ghcr.io + github.com.
+- **Parallelität:** `make -j` im Container kommt als `NPROC` aus dem Workflow, der
+  die cgroup-Quota des Runner-CT liest — `nproc` im verschachtelten Container
+  meldet die Kerne der ganzen Node und baut massiv überparallel.
+- **`-j1`-Wiederholung:** scheitert ein Paket, baut der Entrypoint es **einmal
+  seriell** nach, bevor das Leg rot wird. Grund ist hostapds
+  `PKG_PARALLEL_VARIANTS`: seine Varianten teilen sich `$(TMP_DIR)/<pkg>.list`
+  und dieselben Ausgabe-apks (`hostapd-utils`, `wpa-cli`, `eapol-test`), was das
+  Feature ausdrücklich verbietet → „mv: cannot stat …hostapd-utils.list" bzw.
+  „Package wpa-cli is missing dependencies". Nur snapshot betroffen, nur
+  gelegentlich. Wer serielle Wiederholung braucht, sieht das als Warnung im Log.
+- **Log-Artefakt bei rotem Leg:** `logs-<release>-<arch>` enthält die
+  Per-Paket-Logs (`logs/package/…/compile.txt`) — dort steht der echte
+  Compiler-Fehler, den das Job-Log nur als „failed to build" zeigt.
 - **Cache** (node-lokale Named Volumes, arch-übergreifend geteilt, angelegt+gechownt
   auf uid 1000): `openwrt-dl`→`/dl`, `openwrt-ccache`→`/ccache`.
   - dl: OpenWrt nutzt `$(TOPDIR)/dl` → im Entrypoint `dl`→`/dl` symlinken.

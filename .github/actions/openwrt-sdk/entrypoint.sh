@@ -277,22 +277,47 @@ else
 
 	RET=0
 
+	# One compile attempt of a package at the given parallelism.
+	pkg_compile() {
+		make \
+			BUILD_LOG="$BUILD_LOG" \
+			IGNORE_ERRORS="$IGNORE_ERRORS" \
+			CONFIG_AUTOREMOVE=y \
+			V="$V" \
+			-j "$1" \
+			"package/$PKG/compile"
+	}
+
 	for PKG in $PACKAGES; do
 		if ! grep -m1 -qE "(^|/)$PKG$" enabled-package-subdirs.txt; then
 			echo "::warning file=$PKG::Skipping $PKG due to unsupported architecture"
 			continue
 		fi
 
-		make \
-			BUILD_LOG="$BUILD_LOG" \
-			IGNORE_ERRORS="$IGNORE_ERRORS" \
-			CONFIG_AUTOREMOVE=y \
-			V="$V" \
-			-j "$NPROC" \
-			"package/$PKG/compile" || {
-				RET=$?
-				break
-			}
+		# Second attempt at -j1 before giving up. Reason: hostapd sets
+		# PKG_PARALLEL_VARIANTS (upstream b029d56e), but its variants DO share
+		# files outside their build directories -- which that feature forbids.
+		# Every variant shipping hostapd-utils/wpa-cli/eapol-test writes the
+		# global $(TMP_DIR)/<pkg>.list (include/package-pack.mk; TMP_DIR is
+		# $(TOPDIR)/tmp) and the same bin/packages/… apk, so two overlapping
+		# variants produce "mv: cannot stat '/builder/tmp/hostapd-utils.list'"
+		# or "Package wpa-cli is missing dependencies for the following
+		# libraries". Only snapshot is affected (25.12 has no such hostapd) and
+		# only sometimes: bounding -j narrowed it from 7 legs of 16 to 1
+		# (36220704725, snapshot/x86_64, variant supplicant-mini) but cannot
+		# close it. -j1 builds the variants one after another, so the race is
+		# gone; a package that fails serially too is a real error and stays red.
+		rc=0
+		pkg_compile "$NPROC" || rc=$?
+		if [ "$rc" -ne 0 ]; then
+			echo "::warning file=$PKG::$PKG failed at -j$NPROC (rc=$rc), retrying serially with -j1"
+			rc=0
+			pkg_compile 1 || rc=$?
+		fi
+		if [ "$rc" -ne 0 ]; then
+			RET=$rc
+			break
+		fi
 	done
 fi
 
