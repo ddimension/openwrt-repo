@@ -21,13 +21,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand-rsim
-PKG_VERSION:=0.0.1_p21
+PKG_VERSION:=0.0.1_p25
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand-rsim.git
-PKG_SOURCE_VERSION:=9d90c92dc6e512eab7a716c791d4f94c86ab703b
-PKG_MIRROR_HASH:=1f1f0d0ced2413e14dca4e828a613c064d43ca153151084516bfc5c05fa71a78
+PKG_SOURCE_VERSION:=d611c38b6e04448ba6755a080affe592e56cd074
+PKG_MIRROR_HASH:=a83570f272b8e9c2171213da478c386757fb691acafd46918992bddadaec7d46
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_LICENSE_FILES:=LICENSE
@@ -36,17 +36,25 @@ PKG_MAINTAINER:=
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
 
-# the helper is the repo's helper/ subtree; PC/SC stays out of this package
-# (the Smartmouse USB and Phoenix readers need none of it), libusb is for the
-# Smartmouse USB, whose clock and mode are set and whose UART is driven over
-# USB directly — no kernel serial driver needed
+# The helper is the repo's helper/ subtree, in two builds (VARIANTs, built one
+# after the other — no PKG_PARALLEL_VARIANTS, see the hostapd race in this
+# feed's history): rsim-card without PC/SC — the Smartmouse USB, Phoenix and
+# AT readers need none of it, and pcscd is a daemon a small SIM host should
+# not have to run — and rsim-card-pcsc with it, for any CCID reader through
+# pcscd. libusb is for the Smartmouse USB in both: its clock and mode are set
+# and its UART driven over USB directly, no kernel serial driver needed.
 CMAKE_SOURCE_SUBDIR:=helper
 CMAKE_BINARY_SUBDIR:=build
 CMAKE_OPTIONS += \
-	-DWITH_PCSC=OFF \
 	-DWITH_LIBUSB=ON \
 	-DBUILD_TESTING=OFF \
 	-DRSIM_WERROR=OFF
+
+ifeq ($(BUILD_VARIANT),pcsc)
+  CMAKE_OPTIONS += -DWITH_PCSC=ON
+else
+  CMAKE_OPTIONS += -DWITH_PCSC=OFF
+endif
 
 # Beside the package: the same helper, linked statically, as a file the site
 # hands out. A SIM host reached with `ssh:<user>@<host>:<reader>` runs
@@ -63,7 +71,8 @@ CMAKE_OPTIONS += \
 # reason the same switch cannot produce a static USB build on a glibc distro.
 RSIM_STATIC_ARCHS:=x86_64
 
-ifneq ($(filter $(ARCH),$(RSIM_STATIC_ARCHS)),)
+# once, from the plain build: the static file carries no PC/SC either
+ifeq ($(BUILD_VARIANT)$(filter $(ARCH),$(RSIM_STATIC_ARCHS)),nopcsc$(ARCH))
   define Build/Compile/StaticTool
 	mkdir -p $(PKG_BUILD_DIR)/build-static
 	(cd $(PKG_BUILD_DIR)/build-static; \
@@ -109,6 +118,27 @@ define Package/rsim-card
   TITLE:=SIM card reader helper for wwand-rsim (SIM host)
   # libusb-1.0: the Smartmouse USB backend (clock, mode and UART over USB)
   DEPENDS:=+libusb-1.0
+  VARIANT:=nopcsc
+endef
+
+define Package/rsim-card-pcsc
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WWAN
+  TITLE:=SIM card reader helper for wwand-rsim, with PC/SC readers
+  # pcscd + ccid: a CCID reader needs the daemon and its driver, and a
+  # helper that can reach neither would only fail at the first card
+  DEPENDS:=+libusb-1.0 +libpcsclite +pcscd +ccid
+  VARIANT:=pcsc
+  PROVIDES:=rsim-card
+  CONFLICTS:=rsim-card
+endef
+
+define Package/rsim-card-pcsc/description
+ rsim-card with the PC/SC backend as well (pcsc:<reader name or index>):
+ any CCID smart-card reader through pcscd, besides the Smartmouse USB,
+ Phoenix and AT readers. Installed instead of rsim-card; pulls in pcscd
+ and the CCID driver. `rsim-card --list` shows the readers pcscd knows.
 endef
 
 define Package/rsim-card/description
@@ -131,6 +161,7 @@ define Package/wwand-rsim
   # channel (core dep qmi_client); rsim-card: the helper for a reader on this
   # router (the plugin looks for it in /usr/bin since upstream 56c9a71)
   DEPENDS:=+wwand-qmi +rsim-card
+  VARIANT:=nopcsc
 endef
 
 define Package/wwand-rsim/description
@@ -152,6 +183,7 @@ define Package/luci-app-wwand-rsim
   TITLE:=Remote SIM page for wwand-rsim
   DEPENDS:=+luci-base +wwand-rsim
   PKGARCH:=all
+  VARIANT:=nopcsc
 endef
 
 define Package/luci-app-wwand-rsim/description
@@ -164,6 +196,8 @@ define Package/rsim-card/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(CMAKE_BINARY_DIR)/rsim-card $(1)/usr/bin/
 endef
+
+Package/rsim-card-pcsc/install = $(Package/rsim-card/install)
 
 define Package/wwand-rsim/install
 	$(INSTALL_DIR) $(1)$(UCDIR)/plugins $(1)$(UCDIR)/ctl
@@ -184,5 +218,6 @@ define Package/luci-app-wwand-rsim/install
 endef
 
 $(eval $(call BuildPackage,rsim-card))
+$(eval $(call BuildPackage,rsim-card-pcsc))
 $(eval $(call BuildPackage,wwand-rsim))
 $(eval $(call BuildPackage,luci-app-wwand-rsim))
