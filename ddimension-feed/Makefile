@@ -1,12 +1,15 @@
 #
-# The feed's own address and signing key, as a package.
+# The feeds' addresses and signing key, as a package.
 #
-# Every device that should follow this feed needs the same two files: the
-# public half of the key under /etc/apk/keys, and a .list naming the tree for
-# its channel, release and architecture. Putting them in by hand is three
-# commands that have to be got right per device and are then never touched
-# again — which is how a fleet ends up pointing at a URL that moved two years
-# ago.
+# Every device that should follow our packages needs the same files: the public
+# half of the key under /etc/apk/keys, and one .list per feed naming the tree
+# for its channel, release and architecture. Since 2026-10-04 there are two
+# feeds — openwrt-repo (the modem stack) and openwrt-addon-feed (apman,
+# snapcast-mptcp/homesync, the wpad variants, nsca-ng, usb-relay-hid, the lua
+# bindings) — signed with the SAME key, so the one key covers both. Putting all
+# that in by hand is four commands that have to be got right per device and are
+# then never touched again — which is how a fleet ends up pointing at a URL that
+# moved two years ago.
 #
 # As a package they are maintained the way everything else is: install it once,
 # by name, from the tree it describes, untrusted —
@@ -34,11 +37,11 @@
 # package from the other channel's tree the same way (README.md, "On the
 # device").
 #
-# Neither installed file is a conffile, and that is deliberate. A conffile is
+# None of the installed files is a conffile, and that is deliberate. A conffile is
 # kept across upgrades, which is right for something the operator owns and
 # wrong for this: an address that cannot be corrected by an update is exactly
 # the problem the package exists to solve. Anyone who wants a different feed
-# should add their own .list next to this one rather than edit this one — apk
+# should add their own .list next to ours rather than edit one of them — apk
 # reads every file in repositories.d.
 #
 # The tree is chosen at build time, not on the device. It has to match the
@@ -70,7 +73,13 @@ PKG_VERSION:=1
 # that broke the build before any package came out of it.
 # 3: the channel is part of the address (stable/… or main/…). The pre-channel
 # path mirrors stable, so every device still on it moves to stable/ with this.
-PKG_RELEASE:=3
+# 4: two feeds. The add-on packages (apman, snapcast-mptcp/homesync, the wpad
+# variants, nsca-ng, usb-relay-hid, the lua bindings) live in
+# ddimension/openwrt-addon-feed since 2026-10-04, published on its own site and
+# signed with the same key — so this package writes a second .list and the one
+# key keeps covering both. A device that upgrades to r4 follows both feeds
+# without any further step.
+PKG_RELEASE:=4
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Andre Valentin <avalentin@marcant.net>
 # The two environment knobs decide what the package contains, so they belong
@@ -81,11 +90,14 @@ PKG_CONFIG_DEPENDS += DDIMENSION_FEED_CHANNEL DDIMENSION_FEED_RELEASE
 include $(INCLUDE_DIR)/package.mk
 
 FEED_BASE:=https://ddimension.github.io/openwrt-repo
+# The second feed: same channels, releases and architectures, same signing key,
+# its own site (ddimension/openwrt-addon-feed).
+ADDON_BASE:=https://ddimension.github.io/openwrt-addon-feed
 
 define Package/ddimension-feed
   SECTION:=base
   CATEGORY:=Base system
-  TITLE:=ddimension package feed: address and signing key
+  TITLE:=ddimension package feeds: addresses and signing key
   URL:=https://github.com/ddimension/openwrt-repo
   # No DEPENDS. Depending on apk-mbedtls looked careful and was wrong twice
   # over: a package that installs into /etc/apk is installed *by* apk, so apk
@@ -99,18 +111,19 @@ define Package/ddimension-feed
 endef
 
 define Package/ddimension-feed/description
-  Points apk at the ddimension package feed and installs the public key its
+  Points apk at the ddimension package feeds and installs the public key their
   indexes are signed with.
 
-  Install it once by name from the feed, with --allow-untrusted; after that
-  the feed is trusted and every further change to its address or key arrives
-  as an ordinary upgrade.
+  Install it once by name from the modem feed, with --allow-untrusted; after
+  that both feeds are trusted and every further change to an address or to the
+  key arrives as an ordinary upgrade.
 
-  The .list it writes names the tree for the channel (stable or main),
-  release and architecture this package was built for. Neither file is a
-  conffile: an address that an update cannot correct is the problem this
-  package exists to avoid. To follow a second feed, add another file in
-  /etc/apk/repositories.d rather than editing this one.
+  The two .list files it writes name the trees for the channel (stable or
+  main), release and architecture this package was built for: the modem feed
+  and the add-on feed, both signed with the key installed here. None of the
+  files is a conffile: an address that an update cannot correct is the problem
+  this package exists to avoid. To follow a further feed, add another file in
+  /etc/apk/repositories.d rather than editing these.
 endef
 
 Build/Configure:=
@@ -156,7 +169,10 @@ define Build/Compile
 	dir="$$$${DDIMENSION_FEED_RELEASE:-$$$$dir}"; \
 	echo "$(FEED_BASE)/$$$$channel/$$$$dir/$(ARCH_PACKAGES)/packages.adb" \
 		> $(PKG_BUILD_DIR)/ddimension.list; \
-	echo "ddimension-feed: channel '$$$$channel', version '$$$$release' -> $$$$(cat $(PKG_BUILD_DIR)/ddimension.list)"
+	echo "$(ADDON_BASE)/$$$$channel/$$$$dir/$(ARCH_PACKAGES)/packages.adb" \
+		> $(PKG_BUILD_DIR)/ddimension-addon.list; \
+	echo "ddimension-feed: channel '$$$$channel', version '$$$$release' -> $$$$(cat $(PKG_BUILD_DIR)/ddimension.list)"; \
+	echo "ddimension-feed: add-on feed -> $$$$(cat $(PKG_BUILD_DIR)/ddimension-addon.list)"
 endef
 
 define Package/ddimension-feed/install
@@ -164,6 +180,7 @@ define Package/ddimension-feed/install
 	$(INSTALL_DIR) $(1)/etc/apk/repositories.d
 	$(INSTALL_DATA) ./files/ddimension.pem $(1)/etc/apk/keys/ddimension.pem
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ddimension.list $(1)/etc/apk/repositories.d/ddimension.list
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ddimension-addon.list $(1)/etc/apk/repositories.d/ddimension-addon.list
 endef
 
 $(eval $(call BuildPackage,ddimension-feed))
