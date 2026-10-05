@@ -1,24 +1,49 @@
 # Build the feed for every release branch × package architecture and publish
 # the binary package repositories to GitHub Pages (gh-pages branch).
 #
-# One workflow, two channels — the channel is the branch:
-#   main    -> main/<release>/<arch>/     development
-#   stable  -> stable/<release>/<arch>/   releases, mirrored to the pre-channel
-#              path <release>/<arch>/ that devices set up before the split
-#              still follow
+# One workflow, two channels:
+#   push to main          -> builds and publishes main/<release>/<arch>/ (development)
+#   push to stable        -> builds only: stable is prepared over several pushes
+#                            (cherry-picks, scripts/stable-take.sh) and nothing of
+#                            it reaches devices yet
+#   release tag on stable -> builds and publishes stable/<release>/<arch>/,
+#     (YYYY.MM.DD[.N],       mirrored to the pre-channel path <release>/<arch>/
+#     release-stable.sh)     that devices set up before the split still follow
 # A workflow_dispatch on any other branch builds but publishes nothing.
 #
-# Efficiency: a new push cancels the still-running build of the same branch
-# (main and stable never cancel each other), .md-only changes don't trigger at
-# all, and gh-pages is a single orphan commit so the branch never grows
-# (.github/ci/publish-pages.sh, the only writer of that branch).
+# Efficiency: a new push cancels the still-running build of the same ref
+# (main, stable and every tag are separate groups), .md-only branch pushes don't
+# trigger at all (path filters do not apply to tag pushes), and gh-pages is a
+# single orphan commit so the branch never grows (.github/ci/publish-pages.sh,
+# the only writer of that branch).
 name: build
 
 on:
   push:
     branches: [main, stable]
+    tags: ['20[0-9][0-9].[0-9][0-9].[0-9][0-9]*']
     paths-ignore: ['**.md']
   workflow_dispatch:
+    inputs:
+      # Repair path: a build was green but its publish lost the race — main had
+      # moved on by the time the publish job ran (publish-feed.sh refuses to
+      # roll a channel back, which is right). Rebuilding the same packages for
+      # hours is the wrong answer when the newer commits touched no package at
+      # all, as CI-only commits do. This publishes that run's artifacts, which
+      # live for 30 days. Leave empty for a normal build.
+      publish_run:
+        description: 'nur veroeffentlichen: Artefakte dieses Build-Laufs (Reparatur), leer = normal bauen'
+        type: string
+        default: ''
+      publish_sha:
+        description: 'Commit jenes Laufs (Stempel der veroeffentlichten Baeume)'
+        type: string
+        default: ''
+      publish_channel:
+        description: 'Kanal jenes Laufs'
+        type: choice
+        options: [main, stable]
+        default: main
 
 concurrency:
   group: build-${{ github.ref_name }}
@@ -27,12 +52,15 @@ concurrency:
 env:
   # The channel of this run: where its packages are published, and the tree the
   # ddimension-feed package built here points devices at (the SDK action passes
-  # it into the build). Any branch but stable builds as main; only main and
-  # stable publish at all (see the publish job).
-  DDIMENSION_FEED_CHANNEL: ${{ github.ref_name == 'stable' && 'stable' || 'main' }}
+  # it into the build). A release tag and the stable branch build as stable,
+  # anything else as main; only main pushes and release tags publish (see the
+  # publish job).
+  DDIMENSION_FEED_CHANNEL: ${{ (github.ref_type == 'tag' || github.ref_name == 'stable') && 'stable' || 'main' }}
 
 jobs:
   build:
+    # beim Reparatur-Dispatch wird nichts gebaut, nur publiziert
+    if: ${{ inputs.publish_run == '' }}
     runs-on: [self-hosted, openwrt]
     # 120 was enough until luci-app-wwand-statistics arrived (f21d172): it
     # depends on luci-app-statistics, which pulls collectd and with it gnutls
@@ -182,6 +210,9 @@ jobs:
           # snapshot/25.12+. Empty secrets simply leave the index unsigned.
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PUBLISH_RUN: ${{ inputs.publish_run }}
+          PUBLISH_SHA: ${{ inputs.publish_sha }}
+          PUBLISH_CHANNEL: ${{ inputs.publish_channel }}
           # ddimension-feed can work this out from the buildroot version, but
           # here it need not guess: this is the directory the publish job below
           # writes to, so the .list it installs and the tree it points at cannot
@@ -238,12 +269,14 @@ jobs:
     # Publish whatever succeeded even if some matrix legs failed: a leg without
     # an artifact leaves its published tree as it is. !cancelled() keeps that —
     # without a status function GitHub adds success() and one red leg would
-    # block the whole publish. Only the two channel branches publish.
+    # block the whole publish. Only main pushes and release tags publish; a push
+    # to the stable branch only builds.
     needs: build
-    if: ${{ !cancelled() && (github.ref_name == 'main' || github.ref_name == 'stable') }}
+    if: ${{ !cancelled() && (inputs.publish_run != '' || (github.ref_type == 'branch' && github.ref_name == 'main') || github.ref_type == 'tag') }}
     runs-on: [self-hosted, openwrt]
     permissions:
       contents: write
+      actions: read # Artefakte eines ANDEREN Laufs lesen (Reparaturpfad)
     steps:
       # s.o.: vollen Baum erzwingen, sonst fehlen z.B. keys/ und .github/ci/.
       - name: Reset workspace
@@ -258,10 +291,32 @@ jobs:
           persist-credentials: false
 
       - uses: actions/download-artifact@v4
+        if: ${{ inputs.publish_run == '' }}
         with:
           pattern: repo-*
           path: fresh
           merge-multiple: true
+
+      # Reparaturpfad: die Artefakte des genannten Laufs statt der eigenen.
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.publish_run != '' }}
+        with:
+          pattern: repo-*
+          path: fresh
+          merge-multiple: true
+          run-id: ${{ inputs.publish_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The publisher keeps the last versions of every package in a tree and
+      # therefore rebuilds and re-signs the index — with apk, which exists
+      # neither here nor on the runner. It runs apk-tools from our registry
+      # (.github/ci/apk-retention.sh); docker.io is deliberately not involved.
+      - name: Login to image registry
+        uses: docker/login-action@v3
+        with:
+          registry: image-registry.ddimension.net
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
 
       # Replaces exactly <channel>/<release>/<arch> for every leg that built
       # (plus the pre-channel mirror for stable) and nothing else — the other
@@ -271,9 +326,28 @@ jobs:
       - name: Publish to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Same key the SDK signs a fresh index with: the publisher rebuilds
+          # the index whenever a tree keeps more than one version per package,
+          # and an unsigned index would be a regression for every device.
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PUBLISH_RUN: ${{ inputs.publish_run }}
+          PUBLISH_SHA: ${{ inputs.publish_sha }}
+          PUBLISH_CHANNEL: ${{ inputs.publish_channel }}
         # The same script publishes a finished run by hand when only its
         # publish failed (.github/ci/publish-feed.sh <run-id>) — no rebuild.
         # It also refuses when the branch has moved on since this run.
         run: |
+          if [ -n "$PUBLISH_RUN" ]; then
+            # Reparatur: Kanal, Commit und Lauf-Id kommen aus den Eingaben, und
+            # --force hebt die Spitzenpruefung auf — gedacht fuer genau den
+            # Fall, dass seit dem Bau nur CI/Doku committet wurde. Vorher
+            # pruefen, ob das stimmt, ist Sache dessen, der dispatcht.
+            [ -n "$PUBLISH_SHA" ] || { echo "::error::publish_sha fehlt"; exit 1; }
+            .github/ci/publish-feed.sh --dir fresh \
+              --channel "$PUBLISH_CHANNEL" --sha "$PUBLISH_SHA" --run "$PUBLISH_RUN" --force
+            exit $?
+          fi
+          tag=()
+          [ "$GITHUB_REF_TYPE" != tag ] || tag=(--tag "$GITHUB_REF_NAME")
           .github/ci/publish-feed.sh --dir fresh \
-            --channel "$DDIMENSION_FEED_CHANNEL" --sha "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
+            --channel "$DDIMENSION_FEED_CHANNEL" --sha "$GITHUB_SHA" --run "$GITHUB_RUN_ID" "${tag[@]}"

@@ -1,22 +1,28 @@
 # CI- und Build-Infrastruktur
 
-Alles läuft auf **eigenen self-hosted Runnern** (derzeit n5–n7). `ddimension` ist
-ein **User-Account, keine Org** → Runner sind **repo-scoped an dieses Repo**;
-geteilte/Org-Runner gibt es nicht. Deshalb liegen auch die Image-Build-Workflows
-hier (nicht im openwrt-Fork), obwohl sie OpenWrt-Quellen bauen — der Fork hat
-keine Runner und Actions ist dort aus.
+Alles läuft auf **eigenen self-hosted Runnern** (n401–n412, Label `openwrt`).
+`ddimension` ist ein **User-Account, keine Org** → Runner sind **repo-scoped an
+dieses Repo**; geteilte/Org-Runner gibt es nicht. Deshalb liegen auch die
+Image-Build-Workflows hier (nicht im openwrt-Fork), obwohl sie OpenWrt-Quellen
+bauen — der Fork hat keine Runner und Actions ist dort aus. Aus demselben Grund
+hat **ddimension/openwrt-addon-feed** (die Addon-Pakete, seit 2026-10-04 eigenes
+Repo) seine eigenen CTs: drei der elf sind dorthin umgezogen.
 
 Zwei Branches = zwei Kanäle des Feeds (Details: Haupt-README, „Branches and
-channels“): **`main`** = Entwicklung, **`stable`** = Releases
-(`scripts/release-stable.sh`: Fast-Forward + Tag `YYYY.MM.DD`).
+channels“): **`main`** = Entwicklung, **`stable`** = Releases. Beide sind
+eigenständige Linien: stable übernimmt per Cherry-Pick oder
+`scripts/stable-take.sh` von main, was fertig ist. Ein Push auf stable baut nur;
+**publiziert wird stable nur durch einen Release-Tag** `YYYY.MM.DD[.N]`
+(`scripts/release-stable.sh`).
 
 Zwei Workflows:
-- **`build.yml`** — baut den **Paket-Feed** für den gepushten Branch und
-  publiziert ihn nach `https://ddimension.github.io/openwrt-repo/<kanal>/<release>/<arch>/`;
-  stable zusätzlich in den Alt-Pfad `<release>/<arch>/`.
+- **`build.yml`** — baut den **Paket-Feed** für den gepushten Branch oder Tag und
+  publiziert ihn nach `https://ddimension.github.io/openwrt-repo/<kanal>/<release>/<arch>/`
+  (main bei jedem Push, stable nur bei einem Release-Tag); stable zusätzlich in
+  den Alt-Pfad `<release>/<arch>/`.
 - **`build-device-images.yml`** — baut fertige **Firmware-Images** (chateau,
-  nbg7815, nr7101, lte3301-plus) mit wwand-Stack und `ddimension-feed`, immer
-  gegen den **stable**-Kanal.
+  nbg7815, nr7101, LTE3301-M209/Q222, lte3301-plus) mit wwand-Stack und
+  `ddimension-feed`, immer gegen den **stable**-Kanal.
 
 Beide schreiben gh-pages **ausschließlich** über `.github/ci/publish-pages.sh`.
 
@@ -97,8 +103,8 @@ Layout der Site:
 ```
 /keys/…                        Signaturschlüssel (nur überlagert, nie gelöscht)
 /main/<release>/<arch>/        Entwicklungskanal   (nur main-Läufe)
-/stable/<release>/<arch>/      Release-Kanal       (nur stable-Läufe)
-/<release>/<arch>/             Alt-Pfad = Kopie von stable (nur stable-Läufe)
+/stable/<release>/<arch>/      Release-Kanal       (nur Release-Tag-Läufe)
+/<release>/<arch>/             Alt-Pfad = Kopie von stable (nur Release-Tag-Läufe)
 /images/<gruppe>/<base>/       Device-Images (build-device-images.yml)
 ```
 
@@ -122,6 +128,43 @@ Layout der Site:
   `<UTC-Zeit> <kanal> <quell-commit> <run-id>`. Daraus kommen die Daten in den
   Verzeichnis-Indexen (die mtime wäre für alles, was der Lauf nicht geschrieben
   hat, die Checkout-Zeit), und darauf wartet der zyxel-Leg.
+- **Versionshistorie: die letzten 10 je Paket.** Ein Feed-Ziel wird nicht mehr
+  stumpf ersetzt: vorhandene `.apk` werden beiseitegelegt, der frische Baum
+  kopiert, die alten Versionen zurückgelegt (gleicher Dateiname → der frische
+  gewinnt) und dann auf die neuesten N je Paketname gekürzt —
+  `--keep 'main/*=10' --keep 'stable/*=10'` setzt `publish-feed.sh`
+  (`KEEP_VERSIONS`), der Alt-Pfad behält wie bisher eine. Danach baut
+  `.github/ci/apk-retention.sh` **packages.adb neu und signiert ihn** (das
+  kann `apk mkndx` nur über alle Dateien auf einmal, `-x` hängt nicht an) und
+  erzeugt `index.json` mit upstreams `make-index-json.py` (vendort) sowie
+  `versions.json`/`.versions.tsv` mit Version, Bauzeit (aus dem Paket) und
+  Erst-Veröffentlichung je Datei. Die Verzeichnis-Listings zeigen das statt
+  eines Datums für alles. Scheitert der Schritt, scheitert der Publish —
+  ein Index, der auf fehlende Dateien zeigt, wäre schlimmer als kein Update.
+  **Pakete, die der Build nicht mehr erzeugt, fallen raus** (nach der
+  Aufteilung also apman & Co.): mitgenommen wird nur, wovon der frische Baum
+  mindestens eine Version enthält.
+- **GitHub-Release als Archiv.** Bei einem Release-Tag haengt
+  `.github/ci/release-assets.sh` zusaetzlich an das GitHub-Release: je Baum ein
+  `<release>-<arch>.zip` (alle `.apk`, signierte `packages.adb`, `index.json`),
+  die losen `ddimension-feed-<release>-<arch>.apk`, die Host-Tools — und aus
+  `build-device-images.yml` die fertigen Images desselben Releases
+  (`needs.feed.outputs.tag`). Gruende: Release-Assets zaehlen **nicht** gegen
+  das 1-GB-Limit der Pages-Site, sie ueberleben das Zehner-Fenster im Baum, und
+  eine Firmware-Datei gehoert auf eine Release-Seite. Es ist ausdruecklich
+  **kein** installierbares Repo: die Assets eines Tags liegen in einem flachen
+  Namensraum (gleicher Paketdateiname ueber acht Archs kollidiert), und apk holt
+  Paketdateien relativ zum Index. Der Schritt ist nicht fatal — schlaegt der
+  Upload fehl, steht der Feed trotzdem (`::warning`), und `RELEASE_ASSETS=0`
+  schaltet ihn ab. Gezippt wird im apk-tools-Container, weil das Runner-Image
+  kein `zip` zusichert; die REST-Aufrufe macht `curl` (kein `gh`, kein `jq`).
+- **apk im Publish-Job:** die Runner haben kein apk v3, das SDK-apk nur in
+  einem fertigen SDK-Baum. Der Publisher startet deshalb
+  `image-registry.ddimension.net/myadmin/apk-tools` (Alpine + python3,
+  `~/projects/containers/apk-tools`); der Job loggt sich dafür in die Registry
+  ein und bekommt `PRIVATE_KEY` — denselben Schlüssel, mit dem das SDK den
+  frischen Index signiert. Ohne Schlüssel bricht der Publisher ab
+  (`PAGES_ALLOW_UNSIGNED=1` nur für Tests gegen ein Bare-Repo).
 - **Token** nur über env-gescopte git-Config (`GIT_CONFIG_*`), nie in einer
   Clone-URL — die landete früher in `.git/config` im persistenten Workspace. Der
   erste, leere Eintrag leert die Header-Liste: actions/checkout hinterlegt selbst
@@ -153,12 +196,17 @@ Skript auf ein Bare-Repo statt auf GitHub.
 ## Workflow 1: `build.yml` (Paket-Feed)
 
 - **Auslöser:** Push auf `main` oder `stable` (reine `.md`-Pushes nicht:
-  `paths-ignore`), `workflow_dispatch`. Ein Dispatch auf einem anderen Branch
-  baut nur, publiziert nicht.
-- **Kanal = Branch:** `DDIMENSION_FEED_CHANNEL` (Workflow-env) bestimmt das
-  Publish-Ziel und die URL, die `ddimension-feed` auf Geräten einträgt.
-- **Concurrency je Branch** (`build-<branch>`, cancel-in-progress): ein neuer
-  main-Push bricht nur den laufenden main-Build ab, nie stable.
+  `paths-ignore`), Release-Tags `20[0-9][0-9].[0-9][0-9].[0-9][0-9]*` (für Tags
+  gelten keine Pfadfilter), `workflow_dispatch`.
+- **Publiziert wird:** main-Push → Kanal main; Release-Tag → Kanal stable. Ein
+  Push auf den stable-Branch und ein Dispatch auf einem anderen Branch bauen nur.
+  `DDIMENSION_FEED_CHANNEL` (Workflow-env: Tag oder stable → stable, sonst main)
+  bestimmt Publish-Ziel und die URL, die `ddimension-feed` auf Geräten einträgt.
+- **Concurrency je Ref** (`build-<ref>`, cancel-in-progress): ein neuer main-Push
+  bricht nur den laufenden main-Build ab, nie stable oder einen Tag-Lauf.
+- **`publish-feed.sh`** verweigert (Warnung, exit 0) für main einen Lauf, dessen
+  Commit nicht mehr die Spitze ist, für stable einen Tag, der nicht mehr auf den
+  Lauf-Commit zeigt oder hinter dem schon ein neuerer Release-Tag steht.
 - **Paketliste:** `.github/ci/packages` (auch Default von `scripts/local-build.sh`).
   Leer = Fehler, denn eine leere `PACKAGES` baut im SDK den ganzen Feed.
 - Baut via **gevendorter** `openwrt/gh-action-sdk` (`.github/actions/openwrt-sdk`),
@@ -205,8 +253,10 @@ Skript auf ein Bare-Repo statt auf GitHub.
 ## Workflow 2: `build-device-images.yml` (Firmware-Images)
 
 **Auslöser:**
-- **Automatisch** nach jedem erfolgreichen Feed-Lauf (`build`) auf **`stable`** —
-  via `workflow_run` (nur bei `conclusion == success`). main-Läufe lösen nichts aus.
+- **Automatisch** nach jedem erfolgreichen Feed-Lauf (`build`) eines
+  **Release-Tags** — via `workflow_run` (nur bei `conclusion == success`; der
+  `branches`-Filter greift auf `head_branch`, bei Tag-Läufen der Tag-Name).
+  main-Läufe und Pushes auf den stable-Branch lösen nichts aus.
   `concurrency` verhindert Stapeln.
 - **Manuell:** `gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`
   (`-f testing_kernel=true`: nur die master-Voll-Builds mit Testkernel; stable- und
@@ -218,14 +268,16 @@ main (Änderungen wirken sofort), die Pakete kommen explizit aus stable
 (`FEED_CHANNEL: stable` im Workflow-env).
 
 **Ein Feed-Commit je Lauf:** Der `feed`-Job löst ihn einmal auf — nach
-`workflow_run` den `head_sha` des Feed-Laufs, von Hand die Spitze von stable.
+`workflow_run` den `head_sha` des Feed-Laufs, von Hand den Commit des neuesten
+Release-Tags (nicht die Spitze von stable — die kann unveröffentlichte
+Vorbereitung tragen).
 Voll-Builds pinnen ihn, der zyxel-Leg wartet auf seinen `.published`-Stempel,
 `publish-images` stempelt die Images mit ihm. Ohne grünen Feed-Lauf (Job
 `feed` übersprungen) wird nichts gebaut und nichts publiziert.
 
 **Ort der Images:**
 - dauerhaft auf gh-pages unter `images/<gruppe>/<base>/`
-  (`<gruppe>` = chateau | nbg7815 | nr7101 | zyxel, `<base>` = OpenWrt-Basis master |
+  (`<gruppe>` = chateau | nbg7815 | nr7101 | lte3301 | zyxel, `<base>` = OpenWrt-Basis master |
   stable), flach, ohne Paket-Repo, mit `.published`;
 - als **Run-Artefakte** `images-<gruppe>-<base>` (Retention **30 Tage**,
   `if-no-files-found: warn`). Holen:
@@ -240,7 +292,7 @@ Die Namen bleiben, weil Volumes (`owrt-src-<slug>-<base>`, `owrt-ib-<base>`) und
 Artefakte daran hängen — ein Rename kostet den chateau-Leg sein warmes `build_dir`
 (~12 h Kaltbau).
 
-### Voll-Buildroot (chateau, nbg7815, nr7101)
+### Voll-Buildroot (chateau, nbg7815, nr7101, lte3301)
 
 Kein ImageBuilder möglich: die Geräte gibt es **nur in PR-Branches** des Forks
 `ddimension/openwrt` (chateau zusätzlich Kernel-Patch `routerbootpart.c`, eigenes
@@ -267,6 +319,16 @@ DTS, LZMA-Loader). Quellen:
   verschiebt upstream den Kontext, scheitert der Leg laut — dann Patch neu
   erzeugen (er liegt in keinem Branch). Das Gerät lief vorher im zyxel-Leg
   (ImageBuilder), der keinen eigenen Kernel bauen kann.
+- **lte3301 (nur master):** Fork-Branch `lte3301` für **LTE3301-M209/Q222** —
+  Geräte, die es upstream **nicht** gibt: der Branch bringt DTS
+  (`mt7620n_zyxel_lte3301-{m209,q222}.dts`), die mt7620-Image-Rezepte, einen
+  U-Boot-Patch und jboot-tools mit. Target ramips/**mt7620** (nicht mt7621 wie
+  der LTE3301-**PLUS**, der weiter im zyxel-ImageBuilder-Leg läuft); Paket-Arch
+  bleibt `mipsel_24kc`. Nur master, der Branch sitzt auf openwrt main.
+  Besonderheit: dieser Branch trägt in `feeds.conf.default` eine **eigene**
+  wwand-Zeile. `build-images.sh` entfernt vorhandene wwand-Feeds, bevor es den
+  gepinnten anhängt — sonst stünde der Feed zweimal drin und welcher Klon
+  gewinnt, entschiede `scripts/feeds` statt wir.
 - **wwand-Feed:** `src-git` dieses Repos, gepinnt auf den Feed-Commit des
   Laufs (`…openwrt-repo.git^<sha>`). `scripts/feeds` merkt sich die Quelle
   (`feeds/wwand.tmp/location`) und klont bei Änderung neu — aber es schreibt
@@ -282,8 +344,25 @@ DTS, LZMA-Loader). Quellen:
   unberührt. `build-images.sh` prüft nach `defconfig`, dass jedes
   `CONFIG_PACKAGE_…=y` daraus wirklich gesetzt ist: ein Symbol, das das Target
   nicht kennt, verschwindet dort still.
+- **Mehrere Geräte in einem Leg** (`devices: a b`, heute nur lte3301): die
+  Profil-Symbole `CONFIG_TARGET_<t>_<st>_DEVICE_<name>` liegen alle in **einer**
+  kconfig-`choice` ("Target Profile") — ein zweites `=y` überschreibt dort nur
+  das erste, `defconfig` behielte das **letzte** Gerät. `build-images.sh` schaltet
+  ab zwei Geräten deshalb auf `CONFIG_TARGET_MULTI_PROFILE=y` +
+  `CONFIG_TARGET_DEVICE_<t>_<st>_DEVICE_<name>=y` um (die defaulten nur unter
+  `TARGET_ALL_PROFILES` auf `y`, es kommt also kein fremdes Gerät dazu) und prüft
+  nach `defconfig` die passende Form. Ein-Geräte-Legs behalten die alte Form,
+  damit ihr warmer Baum nicht wegen eines Config-Wechsels neu baut.
 - Cache: `owrt-src-<slug>-<base>` (Quellbaum **inkl. build_dir/staging** persistent) +
   geteilt `owrt-dl`/`owrt-ccache`. `CONFIG_CCACHE_DIR=/ccache`, `dl`→`/dl`.
+- **Hänger beim Packen, zweiter Versuch mit `-j1`.** Am 2026-10-04 stand der
+  `nr7101 stable`-Leg (Lauf 37194316303) 45 min ohne CPU-Last in **zwei
+  parallelen** `apk mkpkg` unter fakeroot (`pipe_read`, die `faked` in
+  `do_select`) — und zwar **mit** gesetztem `--ulimit nofile`, die fd-Limit-
+  Erklärung von früher deckt also nicht alles ab. `build-images.sh` wertet
+  deshalb rc=124 (Wachhund) anders als einen echten Fehler: einmal aufräumen
+  (`pkill` auf `apk mkpkg`/`faked`) und `make -j1` nachschieben. An der Stelle
+  ist der Baum praktisch fertig, serialisiert kostet das Minuten.
 - **`--ulimit nofile=1024:1048576`** an beiden `docker run` (Voll-Build und
   ImageBuilder): Dockers quasi-unbegrenztes fd-Limit lässt fakeroot/`apk mkpkg`
   in der fd-close-Schleife hängen. Der kalte `nr7101 stable`-Leg (Lauf
@@ -316,14 +395,20 @@ seiner DTS-Änderung im `fullbuild`-Leg. wwand kommt **signiert** aus gh-pages:
 
 ## Betrieb — Kurzreferenz
 
-- **Release:** `scripts/release-stable.sh` (Fast-Forward stable + Tag, fragt vor dem
-  Push; verweigert `_p`-Versionen und Refs, die nicht auf origin/main liegen).
-  Hotfix-Weg: Haupt-README.
-- **wwand/LuCI-Quelle pinnen:** `scripts/bump-source.sh <paket> <tag|commit>` —
-  Version aus `git describe` (`vX.Y.Z` → `X.Y.Z`, danach `X.Y.Z_pN`; rc-Tags
-  zählen nicht), `PKG_RELEASE:=1`, Mirror-Hash im SDK-Container; stellt das
-  Makefile wieder her, wenn der Hash scheitert. Verweigert gleiche Version für
-  anderen Commit und Rückschritte (`--force`).
+- **stable füttern:** `git cherry-pick -x` auf stable, oder `scripts/stable-take.sh
+  <paket>…` / `--ci` (`.github/`) / `--all` (merge main) — ein Push baut nur.
+- **Release:** `scripts/release-stable.sh [<commit>]` (Tag auf stable, Default die
+  Spitze; fragt vor dem Push; verweigert Commits nicht auf origin/stable, ohne
+  grünen Build, schon released, oder mit `_p`/`_pre`-Versionen — `--allow-dev`).
+  Nur der Tag wird gepusht; der Tag-Lauf publiziert stable.
+- **wwand/LuCI-Quelle pinnen:** `scripts/bump-source.sh <paket> <tag|commit>` auf
+  dem Feed-Branch, für den es ist — Kanal aus dem Branch (`--channel`): stable
+  pinnt Quell-stable (`vX.Y.Z` → `X.Y.Z`, danach `X.Y.Z_pN`), main pinnt
+  Quell-main (ab Marker `vX.Y.Z-dev` → `X.Y.Z_preN`); der Commit muss auf dem
+  gleichnamigen Quell-Branch liegen. `PKG_RELEASE:=1`, Mirror-Hash im
+  SDK-Container; stellt das Makefile wieder her, wenn der Hash scheitert.
+  Verweigert gleiche Version für anderen Commit und Rückschritte (`--force`).
+  `--dry-run` zeigt nur, was es täte.
 - **Feed-Build von Hand:** `gh workflow run build.yml -R ddimension/openwrt-repo --ref stable`
   (bzw. `--ref main`). Nötig u. a., wenn ein neuer Branch ohne neue Commits
   gepusht wurde — GitHub startet dann wegen `paths-ignore` ggf. keinen Lauf.

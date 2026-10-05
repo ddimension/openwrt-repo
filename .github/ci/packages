@@ -6,24 +6,20 @@
 # '#' starts a comment.
 #
 # Deliberately NOT here — in the feed, never built by CI:
-#   heatingrod         builds rust/host from source (~35-45 GB build dir)
 #   pcie_mhi           vendor MHI driver; the RG650E does not finish the M0
 #                      handshake over PCIe, so there is nothing to ship yet
 #   python3-edlclient  host-side flashing tool, built on demand
-# libubus-lua-async is not listed either, yet it is built: apman depends on it.
+#
+# The add-on packages (apman, snapcast-mptcp/homesync, the wpad variants,
+# nsca-ng, usb-relay-hid, luacurl, lua-mosquitto, libubus-lua-async,
+# heatingrod) moved to ddimension/openwrt-addon-feed on 2026-10-04 — a push
+# here no longer rebuilds boost, hostapd and collectd. Nothing in this feed
+# depends on them.
 
-apman
 ddimension-feed
-homesync
-luacurl
-lua-mosquitto
 qfirehose
 qflash
 qlog
-snapcast-mptcp
-usb-relay-hid
-wpad-ieee8021x
-wpad-saeradh2e
 wwand
 wwand-lpac
 wwand-ipad

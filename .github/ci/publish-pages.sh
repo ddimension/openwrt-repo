@@ -6,7 +6,8 @@
 # generator, one way onto the branch. A call replaces exactly the directories
 # it is given and nothing else; whatever another run put there stays.
 #
-#   publish-pages.sh -m MSG [--channel C] [--keys DIR] [--remove DEST]... [SRC=DEST]...
+#   publish-pages.sh -m MSG [--channel C] [--keys DIR] [--remove DEST]...
+#                    [--keep PATTERN=N]... [SRC=DEST]...
 #
 #   SRC=DEST       replace DEST (relative to the site root) wholesale with the
 #                  contents of SRC. Guarded, so a half-failed build cannot
@@ -17,8 +18,18 @@
 #   --keys DIR     overlay DIR onto keys/: files are added or updated, never
 #                  deleted — a device may know a key under an old name
 #   --channel C    recorded in the .published stamps
+#   --keep PAT=N   keep the last N versions of each package in destinations
+#                  matching the glob PAT (repeatable, first match wins,
+#                  default 1 = only what the build produced). With N > 1 the
+#                  older .apk files already on the site are carried over,
+#                  pruned to N per package and the index is rebuilt and signed
+#                  (.github/ci/apk-retention.sh, needs docker and PRIVATE_KEY)
+#                  — that is what lets a device go back: apk add pkg=<version>.
 #
-# Env: GH_TOKEN (push credentials), GITHUB_REPOSITORY, GITHUB_SHA,
+# Env: PRIVATE_KEY (the apk signing key, needed with --keep N>1; the same
+#      secret the SDK signs the freshly built index with),
+#      PAGES_ALLOW_UNSIGNED=1 to re-index without it anyway (tests only).
+#      GH_TOKEN (push credentials), GITHUB_REPOSITORY, GITHUB_SHA,
 #      GITHUB_RUN_ID. PAGES_STAMP_SHA / PAGES_STAMP_RUN override the commit and
 #      the run id put into the stamps (publish-feed.sh sets them),
 #      PAGES_SITE_URL the absolute site address shown on the start page.
@@ -55,7 +66,8 @@ set -euo pipefail
 die() { echo "publish-pages: $*" >&2; exit 1; }
 
 MSG="" CHANNEL="-" KEYS=""
-REMOVE=() PAIRS=()
+REMOVE=() PAIRS=() KEEP_RULES=()
+HERE="$(cd "$(dirname "$0")" && pwd)"
 
 need_arg() { [ "$2" -ge 2 ] || die "$1 needs an argument"; }
 while [ $# -gt 0 ]; do
@@ -64,6 +76,15 @@ while [ $# -gt 0 ]; do
 	--channel) need_arg "$1" $#; CHANNEL="$2"; shift 2 ;;
 	--keys) need_arg "$1" $#; KEYS="$2"; shift 2 ;;
 	--remove) need_arg "$1" $#; REMOVE+=("$2"); shift 2 ;;
+	--keep)
+		need_arg "$1" $#
+		case "$2" in
+		*=*[!0-9]* | *=) die "--keep wants PATTERN=<number>, got '$2'" ;;
+		*=*) KEEP_RULES+=("$2") ;;
+		*) die "--keep wants PATTERN=<number>, got '$2'" ;;
+		esac
+		shift 2
+		;;
 	-h | --help) sed -n '2,/^set -euo/{/^set -euo/d;s/^# \{0,1\}//;p}' "$0"; exit 0 ;;
 	-*) die "unknown option $1" ;;
 	*=*) PAIRS+=("$1"); shift ;;
@@ -71,6 +92,24 @@ while [ $# -gt 0 ]; do
 	esac
 done
 [ -n "$MSG" ] || die "-m MSG is required"
+
+# How many versions of each package a destination keeps. First matching rule
+# wins; without a rule it is 1, which is exactly the old behaviour (the tree is
+# whatever the build produced).
+keep_for() {
+	local rule pat
+	for rule in ${KEEP_RULES[@]+"${KEEP_RULES[@]}"}; do
+		pat="${rule%=*}"
+		# shellcheck disable=SC2254 # the pattern is meant to glob
+		case "$1" in
+		$pat)
+			printf '%s' "${rule##*=}"
+			return 0
+			;;
+		esac
+	done
+	printf '1'
+}
 
 # A destination is a plain relative path inside the site: no '..', no '.git',
 # not the root itself.
@@ -170,6 +209,24 @@ cd "$WORK" # out of the caller's repository (see above); every path from here is
 SITE="$WORK/site"
 OLD=""
 
+# Re-indexing a tree that keeps several versions needs the signing key. It
+# lives in the environment (the same secret the SDK gets), is written here with
+# a tight umask and never goes near $SITE. Refuse rather than publish an
+# unsigned index to devices; tests against a bare repo can say so explicitly.
+KEYFILE=""
+needs_key=0
+for pair in ${ACCEPTED[@]+"${ACCEPTED[@]}"}; do
+	[ "$(keep_for "${pair#*=}")" -gt 1 ] && needs_key=1
+done
+if [ "$needs_key" = 1 ]; then
+	if [ -n "${PRIVATE_KEY:-}" ]; then
+		KEYFILE="$WORK/sign-key.pem"
+		(umask 077; printf '%s\n' "$PRIVATE_KEY" >"$KEYFILE")
+	elif [ "${PAGES_ALLOW_UNSIGNED:-}" != 1 ]; then
+		die "--keep N>1 rebuilds the index and needs PRIVATE_KEY (PAGES_ALLOW_UNSIGNED=1 to accept an unsigned one)"
+	fi
+fi
+
 # ---- read the current state ------------------------------------------------
 # Returns 1 on any network or git failure, so the caller can retry: it runs as
 # an if condition, where set -e does not apply.
@@ -203,7 +260,7 @@ stamp() {
 }
 
 apply_changes() {
-	local d pair src dest f keys_changed=0
+	local d pair src dest f n pname keepn hold keys_changed=0
 	for d in ${REMOVE_OK[@]+"${REMOVE_OK[@]}"}; do
 		[ -e "$SITE/$d" ] || continue
 		rm -rf "${SITE:?}/$d"
@@ -212,11 +269,50 @@ apply_changes() {
 	for pair in ${ACCEPTED[@]+"${ACCEPTED[@]}"}; do
 		src="${pair%%=*}"
 		dest="${pair#*=}"
+		keepn="$(keep_for "$dest")"
+		# Versions already on the site are kept aside before the destination
+		# goes, and put back afterwards unless this build produced the same
+		# file name (then the fresh one wins). versions.json comes along: it
+		# carries the publish dates, which nothing else can reconstruct.
+		hold=""
+		if [ "$keepn" -gt 1 ] && [ -d "$SITE/$dest" ]; then
+			hold="$WORK/hold"
+			rm -rf "$hold"
+			mkdir -p "$hold"
+			find "$SITE/$dest" -maxdepth 1 -name '*.apk' -exec cp -a {} "$hold/" \; 2>/dev/null || true
+			[ -f "$SITE/$dest/versions.json" ] && cp -a "$SITE/$dest/versions.json" "$hold/"
+		fi
 		rm -rf "${SITE:?}/$dest"
 		mkdir -p "$SITE/$dest"
-		cp -R "$src/." "$SITE/$dest/"
+		cp -a "$src/." "$SITE/$dest/" # -a: keep the timestamps the build gave them
+		if [ -n "$hold" ]; then
+			for f in "$hold"/*.apk; do
+				[ -e "$f" ] || continue
+				n="${f##*/}"
+				[ -e "$SITE/$dest/$n" ] && continue # this build rebuilt it
+				# Only for packages this build still produces: a package that
+				# left the feed (moved to the other repo, dropped from
+				# .github/ci/packages) must not stay on the site for ever.
+				# <name>-<version>-r<n>.apk, and a version carries no dash.
+				pname="${n%.apk}"
+				pname="${pname%-*-*}"
+				compgen -G "$SITE/$dest/$pname-*.apk" >/dev/null || continue
+				cp -a "$f" "$SITE/$dest/"
+			done
+			[ -f "$hold/versions.json" ] && [ ! -f "$SITE/$dest/versions.json" ] &&
+				cp -a "$hold/versions.json" "$SITE/$dest/"
+			rm -rf "$hold"
+		fi
+		if [ "$keepn" -gt 1 ]; then
+			# Prunes to the newest $keepn per package and rebuilds the signed
+			# index over what is left. Fails the publish if it cannot — a tree
+			# whose index names missing files is worse than no new publish.
+			PUB_TIME="$NOW" PUB_COMMIT="$STAMP_SHA" PUB_RUN="$RUN_ID" \
+				"$HERE/apk-retention.sh" --dir "$SITE/$dest" --keep "$keepn" \
+				--arch "${dest##*/}" ${KEYFILE:+--key "$KEYFILE"}
+		fi
 		stamp "$SITE/$dest"
-		echo "published $dest"
+		echo "published $dest${hold:+ (history kept: last $keepn versions)}"
 	done
 	if [ -n "$KEYS" ]; then
 		mkdir -p "$SITE/keys"
@@ -238,7 +334,10 @@ apply_changes() {
 # ---- directory indexes (GitHub Pages serves no listings) -------------------
 # Dates come from the .published stamps: a file is as old as the publish of the
 # nearest stamped directory at or above it, a directory as new as the newest
-# stamp inside it. Dotfiles are not listed.
+# stamp inside it. Dotfiles are not listed. In a tree that keeps several
+# versions per package, each .apk gets its own two dates instead — build time
+# from the package itself, publish time from when we first shipped that
+# version (.versions.tsv, written by apk-retention.py).
 stamp_time() {
 	local t _
 	[ -r "$1" ] && read -r t _ <"$1" && printf '%s' "$t"
@@ -373,17 +472,38 @@ landing() {
 }
 
 write_index() {
-	local d="$1" rel e n t ft
+	local d="$1" rel e n t ft f ver built pub nver=0
+	local -A V_VER V_BUILT V_PUB
 	rel="${d#"$SITE"}"
 	rel="${rel#/}"
 	ft="$(file_time "$d")"
+	# A tree that keeps several versions per package carries .versions.tsv
+	# (apk-retention.py): file, version, build time (epoch), publish time. Then
+	# the listing shows those instead of one date for every file — with ten
+	# versions of a package that is the difference between useful and noise.
+	if [ -r "$d/.versions.tsv" ]; then
+		while IFS=$'\t' read -r f ver built pub; do
+			[ -n "$f" ] || continue
+			V_VER["$f"]="$ver"
+			V_BUILT["$f"]="$built"
+			V_PUB["$f"]="$pub"
+			nver=$((nver + 1))
+		done <"$d/.versions.tsv"
+	fi
 	{
 		printf '<!doctype html><meta charset="utf-8">'
 		printf '<meta name="viewport" content="width=device-width,initial-scale=1">'
 		printf '<title>openwrt-repo/%s</title><style>%s</style>' "$rel" "$CSS"
 		printf '<h1>%s</h1>' "$(breadcrumb "$rel")"
 		[ -z "$rel" ] && landing
-		printf '<table><tr><th>Name</th><th>Size</th><th>Date</th><th>Time (UTC)</th></tr>'
+		if [ "$nver" -gt 0 ]; then
+			printf '<p>Several versions of a package are kept here, newest first.'
+			printf ' To go back: <code>apk add &lt;package&gt;=&lt;version&gt;</code>'
+			printf ' — that pins it; <code>apk add &lt;package&gt;</code> lifts the pin again.</p>'
+			printf '<table><tr><th>Name</th><th>Version</th><th>Size</th><th>Built</th><th>Published</th></tr>'
+		else
+			printf '<table><tr><th>Name</th><th>Size</th><th>Date</th><th>Time (UTC)</th></tr>'
+		fi
 		[ -n "$rel" ] && printf '<tr><td><a href="../">../</a></td><td></td><td></td><td></td></tr>'
 		for e in "$d"/*; do
 			[ -e "$e" ] || continue
@@ -393,6 +513,15 @@ write_index() {
 				t="$(dir_time "$e")"
 				printf '<tr><td><a href="%s/">%s/</a></td><td></td><td>%s</td><td>%s</td></tr>' \
 					"$n" "$n" "$(day "$t")" "$(hm "$t")"
+			elif [ "$nver" -gt 0 ]; then
+				built="${V_BUILT[$n]:-}"
+				[ -n "$built" ] && built="$(date -u -d "@$built" +%Y-%m-%d 2>/dev/null || printf '')"
+				pub="$(day "${V_PUB[$n]:-}")"
+				printf '<tr><td><a href="%s">%s</a></td><td>%s</td><td class="n">%s</td><td>%s</td><td>%s</td></tr>' \
+					"$n" "$n" "${V_VER[$n]:-<span class=\"dim\">—</span>}" \
+					"$(LC_ALL=C numfmt --to=iec --suffix=B "$(stat -c%s "$e")")" \
+					"${built:-<span class=\"dim\">—</span>}" \
+					"${pub:-$(day "$ft")}"
 			else
 				printf '<tr><td><a href="%s">%s</a></td><td class="n">%s</td><td>%s</td><td>%s</td></tr>' \
 					"$n" "$n" "$(LC_ALL=C numfmt --to=iec --suffix=B "$(stat -c%s "$e")")" \
