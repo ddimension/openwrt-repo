@@ -45,13 +45,14 @@ build throws its SDK tree away on every run.
 | `qfirehose` | Quectel QFirehose V1.4.21, firmware flasher | same | bundled source zip | ✓ |
 | `qflash` | Quectel QFlash 2.0, legacy firmware flasher | same | bundled source tarball | ✓ |
 | `qlog` | Quectel QLog V1.5.8, diagnostic log capture with Quectel's filter profiles | same | bundled source zip | ✓ |
-| `pcie_mhi` | Quectel PCIe/MHI host driver V1.3.8, ported to kernel 6.18 ([pcie_mhi/README.md](pcie_mhi/README.md)) | `kmod-pcie_mhi` | bundled source | — |
+| `pcie_mhi` | Quectel PCIe MHI 1.6.0, with ordinary and NSS variants ([pcie_mhi/README.md](pcie_mhi/README.md)) | `kmod-pcie_mhi`, `kmod-pcie_mhi_nss` | bundled source | — |
+| `rmnet-nss` | Vendor QMAP interfaces through Qualcomm NSS ([rmnet-nss/README.md](rmnet-nss/README.md)) | `kmod-rmnet-nss` | bundled QSDK-derived source | — |
 | `python3-edlclient` | Qualcomm EDL/DIAG toolkit, scoped to `qc_diag` | same | upstream [bkerler/edl](https://github.com/bkerler/edl) | — |
 
 **CI**: ✓ = built and published for every architecture; the list is
 [`.github/ci/packages`](.github/ci/packages). — = in the feed, deliberately not
-built by CI: `pcie_mhi` does not get the RG650E past the MHI M0 handshake yet,
-`python3-edlclient` is built on demand. Build those locally or in a buildroot.
+built by CI: the MHI and NSS driver packages require local builds and hardware
+tests. `python3-edlclient` is built on demand. Build these in a compatible buildroot.
 
 ## Binary package repositories
 

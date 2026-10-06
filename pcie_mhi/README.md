@@ -1,14 +1,29 @@
-# pcie_mhi — Quectel PCIe/MHI host driver (Kernel 6.18 port)
+# Quectel PCIe MHI 1.6.0
 
-Base: ChaingTsung/Quectel_MHI (Quectel_Linux_PCIE_MHI_Driver V1.3.8), has
-SDX7X/0x0309 (RG650E). Ported to kernel 6.18 (qualcommax/ipq60xx):
-- `src/Makefile`: `-Wno-missing-prototypes -Wno-error`
-- `src/devices/mhi_netdev_quectel.c`: `hrtimer_init`->`hrtimer_setup` (>=6.15)
+This package provides Quectel PCIe control ports and QMAP network interfaces.
+It supports ordinary networking and an optional Qualcomm NSS variant.
 
-Status (2026-08-10): builds + loads + binds RG650E (17cb:0309) as `mhi_q`,
-reaches MHI READY. BUT the RG650E over PCIe does NOT complete the MHI M0
-handshake (modem emits no MSI; MHI-EP stays state 0) — same as in-tree
-mhi_pci_generic. Blocker is modem-firmware-side, not this driver.
-See chateau_5g notes/24. Newer base: FUjr/QModem V1.4 (already 6.18-ready).
+## Use
 
-Blacklist in-tree mhi to use this: rmmod mhi_pci_generic mhi (+clients) first.
+Select one driver:
+
+- `kmod-pcie_mhi`: ordinary networking, without NSS.
+- `kmod-pcie_mhi_nss`: NSS networking, with `kmod-rmnet-nss`.
+
+The NSS variant requires a compatible `qca-nss-drv` package and NSS firmware.
+It supports OpenWrt `qualcommax/ipq807x` and `qualcommax/ipq50xx` targets.
+With wwand, select `wwand-qmi` and `wwand-datapath-rmnet_nss_mhi`.
+
+Do not load this driver alongside `mhi_pci_generic`.
+Load `rmnet_nss` before `pcie_mhi` for NSS support.
+The NSS variant has no automatic module loading.
+
+Controller and UCI logging default to errors and critical messages.
+The UCI parameter `uci_msg_lvl=0` enables verbose UCI logging.
+
+## Source and license
+
+Source: [Quectel PCIe MHI 1.6.0 archive](https://www.quectel.com/content/uploads/2026/09/Quectel_Linux_PCIE_MHI_Driver_V1.6_EN.zip).
+Archive SHA256: `1ba81ad4aaf746bdcb4807c916cf281e398a410dade4d664587ebeb67f4b1a93`.
+
+Vendor copyright notices remain in the source. See `LICENSE` for GPL version 2.

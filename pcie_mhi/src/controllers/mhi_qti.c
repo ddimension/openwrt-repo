@@ -126,7 +126,7 @@ static const struct firmware_info firmware_table[] = {
 static int debug_mode;
 module_param_named(debug_mode, debug_mode, int, 0644);
 
-int mhi_debugfs_trigger_m0(void *data, u64 val)
+static int mhi_debugfs_trigger_m0(void *data, u64 val)
 {
 	struct mhi_controller *mhi_cntrl = data;
 	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
@@ -140,7 +140,7 @@ int mhi_debugfs_trigger_m0(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(debugfs_trigger_m0_fops, NULL,
 			mhi_debugfs_trigger_m0, "%llu\n");
 
-int mhi_debugfs_trigger_m3(void *data, u64 val)
+static int mhi_debugfs_trigger_m3(void *data, u64 val)
 {
 	struct mhi_controller *mhi_cntrl = data;
 	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
@@ -446,7 +446,7 @@ static int mhi_system_resume(struct device *dev)
 	return ret;
 }
 
-int mhi_system_suspend(struct device *dev)
+static int mhi_system_suspend(struct device *dev)
 {
 	struct mhi_controller *mhi_cntrl = dev_get_drvdata(dev);
 	int ret;
@@ -550,14 +550,45 @@ static int mhi_lpm_enable(struct mhi_controller *mhi_cntrl, void *priv)
 	return ret;
 }
 
+
+
+
 static int mhi_power_up(struct mhi_controller *mhi_cntrl)
 {
 	enum mhi_dev_state dev_state = mhi_get_mhi_state(mhi_cntrl);
 	const u32 delayus = 10;
 	int itr = DIV_ROUND_UP(mhi_cntrl->timeout_ms * 1000, delayus);
 	int ret;
+	u32 val;
+
 
 	MHI_LOG("dev_state:%s\n", TO_MHI_STATE_STR(mhi_get_mhi_state(mhi_cntrl)));
+
+	write_lock_irq(&mhi_cntrl->pm_lock);
+	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIOFF, &val);
+	if (ret) {
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		MHI_ERR("Error getting bhi offset\n");
+		return -EIO;
+	}
+
+	mhi_cntrl->bhi = mhi_cntrl->regs + val;
+	/* setup bhie offset */
+	if (mhi_cntrl->fbc_download || true) {
+		ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIEOFF, &val);
+		if (ret) {
+			write_unlock_irq(&mhi_cntrl->pm_lock);
+			MHI_ERR("Error getting bhie offset\n");
+			return -EIO;
+		}
+
+		mhi_cntrl->bhie = mhi_cntrl->regs + val;
+	}
+
+	// init BHI_INTVEC
+	mhi_write_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_INTVEC, mhi_cntrl->msi_irq_base);
+	write_unlock_irq(&mhi_cntrl->pm_lock);
+
 
 	/*
 	 * It's possible device did not go thru a cold reset before
@@ -578,6 +609,12 @@ static int mhi_power_up(struct mhi_controller *mhi_cntrl)
 		/* device still in error state, abort power up */
 		if (dev_state == MHI_STATE_SYS_ERR)
 			return -EIO;
+
+		/*
+		* device cleares INTVEC as part of RESET processing,
+		* re-program it
+		*/
+		mhi_write_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_INTVEC, mhi_cntrl->msi_irq_base);
 	}
 
 	ret = mhi_async_power_up(mhi_cntrl);
@@ -896,6 +933,7 @@ static void mhi_pci_show_link(struct mhi_controller *mhi_cntrl, struct pci_dev *
 
 }
 
+
 int mhi_pci_probe(struct pci_dev *pci_dev,
 		  const struct pci_device_id *device_id)
 {
@@ -1072,6 +1110,10 @@ static struct pci_device_id mhi_pcie_device_id[] = {
 	{PCI_DEVICE(0x1eac, 0x1002)}, //EM160
 	{PCI_DEVICE(0x1eac, 0x1004)}, //RM520
 	{PCI_DEVICE(0x1eac, 0x100b)}, //RM255
+	{PCI_DEVICE(0x1eac, 0x1012)}, //SDX35_1
+	{PCI_DEVICE(0x1eac, 0x1013)}, //SDX35_2
+	{PCI_DEVICE(0x1eac, 0x1014)}, //SDX35_3
+	{PCI_DEVICE(0x1eac, 0x1015)}, //SDX35_4
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, MHI_PCIE_DEBUG_ID)},
 	{0},
 };
@@ -1206,16 +1248,16 @@ void mhi_arch_pcie_deinit(struct mhi_controller *mhi_cntrl)
 {
 	mhi_arch_set_bus_request(mhi_cntrl, 0);
 }
-
-int mhi_arch_platform_init(struct mhi_dev *mhi_dev)
+/*
+static int mhi_arch_platform_init(struct mhi_dev *mhi_dev)
 {
 	return 0;
 }
 
-void mhi_arch_platform_deinit(struct mhi_dev *mhi_dev)
+static void mhi_arch_platform_deinit(struct mhi_dev *mhi_dev)
 {
 }
-
+*/
 int mhi_arch_link_off(struct mhi_controller *mhi_cntrl,
 				    bool graceful)
 {

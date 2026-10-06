@@ -1,4 +1,3 @@
-ccflags-y += -Wno-missing-prototypes -Wno-error
 #ccflags-y += -g
 obj-m += pcie_mhi.o
 pcie_mhi-objs := core/mhi_init.o core/mhi_main.o core/mhi_pm.o core/mhi_boot.o core/mhi_dtr.o  controllers/mhi_qti.o
