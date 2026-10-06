@@ -1,0 +1,155 @@
+Backport tools/fakeroot 2.1.3 from openwrt main to openwrt-25.12.
+
+Why: on openwrt-25.12 the host fakeroot is 1.37.1.2, and with it `apk mkpkg`
+deadlocks in our builder container (debian trixie). The fingerprint, seen four
+times on 2026-10-04/06 in the nr7101-stable image leg (runs 37194316303,
+37214945447, 37436829266): zero CPU load, the fakeroot wrapper blocked in
+pipe_read with no apk process of its own, and faked idle in do_select — the
+wrapper never gets the key its command substitution waits for. It is not a
+parallel-build race; it reproduces with make -j1 from a cleanly killed tree.
+
+The correlation across our legs is exact:
+
+  nr7101  master   upstream main                fakeroot 2.1.3      green
+  nr7101  stable   upstream openwrt-25.12       fakeroot 1.37.1.2   hangs
+  chateau stable   fork chateau-stable-backport fakeroot 2.1.3      green
+  chateau master / nbg7815 / lte3301 (forks)    fakeroot 2.1.3      green
+
+Every leg with 2.1.3 builds; the only leg with 1.37.1.2 hangs. The fork
+branches carry the bump already, upstream 25.12 does not — so this patch gives
+the one leg that builds from upstream 25.12 the same tool.
+
+Generated as `git diff openwrt-25.12 main -- tools/fakeroot` and applied by
+.github/ci/build-images.sh. It can go once 25.12 bumps fakeroot itself; then
+the patch stops applying and the leg fails loudly, which is the intended way
+to notice.
+
+diff --git a/tools/fakeroot/Makefile b/tools/fakeroot/Makefile
+index 1b8fba25..f8b0233c 100644
+--- a/tools/fakeroot/Makefile
++++ b/tools/fakeroot/Makefile
+@@ -5,16 +5,18 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=fakeroot
+-PKG_VERSION:=1.37.1.2
++PKG_VERSION:=2.1.3
+ PKG_RELEASE:=1
+ 
+-PKG_SOURCE:=$(PKG_NAME)_$(PKG_VERSION).orig.tar.gz
++PKG_SOURCE:=$(PKG_NAME)_$(PKG_VERSION).orig.tar.xz
+ PKG_SOURCE_URL:=@DEBIAN/pool/main/f/fakeroot
+-PKG_HASH:=959496928c8a676ec8377f665ff6a19a707bfad693325f9cc4a4126642f53224
++PKG_HASH:=f28e33187b19ab0b6358ee40d5d8762f149cb19fa0423b6f40f605f5c80446bf
+ PKG_LICENSE:=GPL-3.0-or-later
+ PKG_LICENSE_FILES:=COPYING
+ PKG_FIXUP:=autoreconf
+ 
++HOST_CONFIGURE_CACHE:=1
++
+ include $(INCLUDE_DIR)/host-build.mk
+ 
+ HOST_CONFIGURE_VARS += \
+diff --git a/tools/fakeroot/patches/300-time64-hack.patch b/tools/fakeroot/patches/300-time64-hack.patch
+index 46132cdd..6c191875 100644
+--- a/tools/fakeroot/patches/300-time64-hack.patch
++++ b/tools/fakeroot/patches/300-time64-hack.patch
+@@ -1,6 +1,6 @@
+ --- a/configure.ac
+ +++ b/configure.ac
+-@@ -390,7 +390,7 @@ dnl  Digital Unix: stat
++@@ -404,7 +404,7 @@ dnl  Digital Unix: stat
+  time64_hack=no
+  AH_TEMPLATE([TIME64_HACK], [time64 shuffle])
+  AC_MSG_CHECKING([if we need to cope with time64])
+diff --git a/tools/fakeroot/patches/400-alpine-libc.musl-fix.patch b/tools/fakeroot/patches/400-alpine-libc.musl-fix.patch
+deleted file mode 100644
+index 59360349..00000000
+--- a/tools/fakeroot/patches/400-alpine-libc.musl-fix.patch
++++ /dev/null
+@@ -1,23 +0,0 @@
+-Alpine linux libc.musl build error fix
+-
+-Prevent build error on Alpine Linux host:
+-libfakeroot.c error: conflicting types for 'id_t'
+-Error relocating openwrt/staging_dir/host/lib/libfakeroot.so: SEND_GET_XATTR: symbol not found
+-
+---- a/libfakeroot.c
+-+++ b/libfakeroot.c
+-@@ -86,12 +86,14 @@
+- #define SEND_STAT64(a,b,c) send_stat64(a,b,c)
+- #define SEND_GET_STAT(a,b) send_get_stat(a,b)
+- #define SEND_GET_STAT64(a,b) send_get_stat64(a,b)
+-+#define SEND_GET_XATTR(a,b,c) send_get_xattr(a,b,c)
+- #define SEND_GET_XATTR64(a,b,c) send_get_xattr64(a,b,c)
+- #else
+- #define SEND_STAT(a,b,c) send_stat(a,b)
+- #define SEND_STAT64(a,b,c) send_stat64(a,b)
+- #define SEND_GET_STAT(a,b) send_get_stat(a)
+- #define SEND_GET_STAT64(a,b) send_get_stat64(a)
+-+#define SEND_GET_XATTR(a,b,c) send_get_xattr(a,b)
+- #define SEND_GET_XATTR64(a,b,c) send_get_xattr64(a,b)
+- #endif
+- 
+diff --git a/tools/fakeroot/patches/600-macOS.patch b/tools/fakeroot/patches/600-macOS.patch
+deleted file mode 100644
+index df4eb2d6..00000000
+--- a/tools/fakeroot/patches/600-macOS.patch
++++ /dev/null
+@@ -1,56 +0,0 @@
+---- a/communicate.c
+-+++ b/communicate.c
+-@@ -441,6 +441,10 @@ void semaphore_down(){
+- 
+- #else /* FAKEROOT_FAKENET */
+- 
+-+#ifndef SOL_TCP
+-+# define SOL_TCP 6 /* this should probably be done with getprotoent */
+-+#endif
+-+
+- static struct sockaddr *get_addr(void)
+- {
+-   static struct sockaddr_in addr = { 0, 0, { 0 } };
+---- a/libfakeroot_inode64.c
+-+++ b/libfakeroot_inode64.c
+-@@ -25,7 +25,7 @@
+- #include "config.h"
+- #include "communicate.h"
+- 
+--#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+-+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5 && !__DARWIN_ONLY_64_BIT_INO_T
+- 
+- #include <stdio.h>
+- #include <spawn.h>
+---- a/wrapfunc.inp
+-+++ b/wrapfunc.inp
+-@@ -51,9 +51,11 @@ getattrlist$UNIX2003;int;(const char *pa
+- #endif
+- #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+- #include <spawn.h>
+-+#if !__DARWIN_ONLY_64_BIT_INO_T
+- lstat$INODE64;int;(const char *file_name, struct stat *buf);(file_name, buf)
+- stat$INODE64;int;(const char *file_name, struct stat *buf);(file_name, buf)
+- fstat$INODE64;int;(int fd, struct stat *buf);(fd, buf)
+-+#endif
+- posix_spawn;int;(pid_t * __restrict pid, const char * __restrict path, const posix_spawn_file_actions_t *file_actions, const posix_spawnattr_t * __restrict attrp, char *const argv[ __restrict], char *const envp[ __restrict]);(pid, path, file_actions, attrp, argv, envp)
+- posix_spawnp;int;(pid_t * __restrict pid, const char * __restrict path, const posix_spawn_file_actions_t *file_actions, const posix_spawnattr_t * __restrict attrp, char *const argv[ __restrict], char *const envp[ __restrict]);(pid, path, file_actions, attrp, argv, envp)
+- #endif
+-@@ -235,7 +237,7 @@ facl;int;(int fd, int cmd, int cnt, void
+- #ifdef HAVE_FTS_READ
+- fts_read;FTSENT *;(FTS *ftsp);(ftsp)
+- #ifdef __APPLE__
+--#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+-+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5 && !__DARWIN_ONLY_64_BIT_INO_T
+- fts_read$INODE64;FTSENT *;(FTS *ftsp);(ftsp)
+- #endif
+- #endif /* ifdef __APPLE__ */
+-@@ -243,7 +245,7 @@ fts_read$INODE64;FTSENT *;(FTS *ftsp);(f
+- #ifdef HAVE_FTS_CHILDREN
+- fts_children;FTSENT *;(FTS *ftsp, int options);(ftsp, options)
+- #ifdef __APPLE__
+--#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+-+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5 && !__DARWIN_ONLY_64_BIT_INO_T
+- fts_children$INODE64;FTSENT *;(FTS *ftsp, int options);(ftsp, options)
+- #endif
+- #endif /* ifdef __APPLE__ */

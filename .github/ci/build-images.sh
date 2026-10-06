@@ -8,6 +8,7 @@
 #   /out    = Artefakt-Ausgabe (Workspace/out)
 # Env: SRC_URL SRC_BRANCH PATCH SLUG TARGET SUBTARGET DEVICES WWAND_FEED
 #   SLUG waehlt zusaetzlich .github/ci/config.<slug>, falls vorhanden
+#   PATCH ist eine Liste von Patch-Pfaden (relativ zum Repo), Reihenfolge zaehlt
 #   WWAND_FEED ist die src-git-Quelle dieses Feeds: <url>;<branch> (Kanal-Spitze)
 #   oder <url>^<sha> (genau ein Commit). scripts/feeds merkt sich die Quelle und
 #   klont feeds/wwand neu, sobald sie sich aendert.
@@ -34,12 +35,15 @@ fi
 git --no-pager log --oneline -1
 echo "::endgroup::"
 
-if [ -n "$PATCH" ]; then
-	echo "::group::backport ${PATCH}"
-	git apply --index --whitespace=nowarn "/ci/${PATCH}" \
-		|| { echo "FEHLER: Backport-Patch ${PATCH} applied nicht sauber auf ${SRC_BRANCH}"; exit 2; }
+# PATCH ist eine LISTE (durch Leerzeichen getrennt): ein Leg braucht manchmal
+# mehr als eine Aenderung am upstream-Baum — nr7101/stable etwa die DTS-GPIO und
+# den fakeroot-Backport. Reihenfolge = Reihenfolge in der Matrix.
+for patch in $PATCH; do
+	echo "::group::backport ${patch}"
+	git apply --index --whitespace=nowarn "/ci/${patch}" \
+		|| { echo "FEHLER: Backport-Patch ${patch} applied nicht sauber auf ${SRC_BRANCH}"; exit 2; }
 	echo "::endgroup::"
-fi
+done
 
 # Download-Cache (OpenWrt nutzt $(TOPDIR)/dl)
 rm -rf dl && ln -s /dl dl
