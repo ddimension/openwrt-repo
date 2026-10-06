@@ -6,8 +6,10 @@
 # '#' starts a comment.
 #
 # Deliberately NOT here — in the feed, never built by CI:
-#   pcie_mhi           vendor MHI driver; the RG650E does not finish the M0
-#                      handshake over PCIe, so there is nothing to ship yet
+#   pcie_mhi           vendor MHI driver (1.6.0, plain + NSS variant): a kernel
+#   rmnet-nss          module needs a target build, and the NSS variants need
+#                      Qualcomm NSS hardware to mean anything. Both are built
+#                      and tested in a matching buildroot (PR #1).
 #   python3-edlclient  host-side flashing tool, built on demand
 #
 # The add-on packages (apman, snapcast-mptcp/homesync, the wpad variants,
