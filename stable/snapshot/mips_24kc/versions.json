@@ -1,0 +1,234 @@
+{
+ "ddimension-feed-1-r3.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "ddimension-feed",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 1471,
+  "version": "1-r3"
+ },
+ "ddimension-feed-1-r4.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "ddimension-feed",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 1597,
+  "version": "1-r4"
+ },
+ "libubus-lua-async-2026.06.28~24864e78-r2.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "libubus-lua-async",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 8821,
+  "version": "2026.06.28~24864e78-r2"
+ },
+ "luci-app-wwand-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "luci-app-wwand",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 148705,
+  "version": "1.6.9-r1"
+ },
+ "luci-app-wwand-ipa-0.1.0_p7-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "luci-app-wwand-ipa",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 4089,
+  "version": "0.1.0_p7-r1"
+ },
+ "luci-app-wwand-rsim-0.0.1_p55-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "luci-app-wwand-rsim",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 16997,
+  "version": "0.0.1_p55-r1"
+ },
+ "luci-app-wwand-statistics-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "luci-app-wwand-statistics",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 3544,
+  "version": "1.6.9-r1"
+ },
+ "luci-proto-wwand-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "luci-proto-wwand",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 13736,
+  "version": "1.6.9-r1"
+ },
+ "qfirehose-1.4.21-r2.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "qfirehose",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 39697,
+  "version": "1.4.21-r2"
+ },
+ "qflash-2.0-r2.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "qflash",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 49989,
+  "version": "2.0-r2"
+ },
+ "qlog-1.5.8-r2.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "qlog",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 42354,
+  "version": "1.5.8-r2"
+ },
+ "rsim-card-0.0.1_p55-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "rsim-card",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 44953,
+  "version": "0.0.1_p55-r1"
+ },
+ "rsim-card-pcsc-0.0.1_p55-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "rsim-card-pcsc",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 46374,
+  "version": "0.0.1_p55-r1"
+ },
+ "wwand-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 256388,
+  "version": "1.6.9-r1"
+ },
+ "wwand-apntest-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-apntest",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 4344,
+  "version": "1.6.9-r1"
+ },
+ "wwand-datapath-rmnet_nss-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-datapath-rmnet_nss",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 8816,
+  "version": "1.6.9-r1"
+ },
+ "wwand-datapath-rmnet_nss_mhi-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-datapath-rmnet_nss_mhi",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 5145,
+  "version": "1.6.9-r1"
+ },
+ "wwand-esim-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-esim",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 20373,
+  "version": "1.6.9-r1"
+ },
+ "wwand-gps-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-gps",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 8886,
+  "version": "1.6.9-r1"
+ },
+ "wwand-ipa-0.1.0_p7-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-ipa",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 19904,
+  "version": "0.1.0_p7-r1"
+ },
+ "wwand-ipad-0.1.0_p40-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-ipad",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 304681,
+  "version": "0.1.0_p40-r1"
+ },
+ "wwand-lpac-2.3.0-r4.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-lpac",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 472926,
+  "version": "2.3.0-r4"
+ },
+ "wwand-mbim-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-mbim",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 47797,
+  "version": "1.6.9-r1"
+ },
+ "wwand-mhi-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-mhi",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 1707,
+  "version": "1.6.9-r1"
+ },
+ "wwand-ncm-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-ncm",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 21064,
+  "version": "1.6.9-r1"
+ },
+ "wwand-qlog-0.1.0-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-qlog",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 10531,
+  "version": "0.1.0-r1"
+ },
+ "wwand-qmi-1.6.9-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-qmi",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 30319,
+  "version": "1.6.9-r1"
+ },
+ "wwand-rsim-0.0.1_p55-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-rsim",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 53677,
+  "version": "0.0.1_p55-r1"
+ },
+ "wwand-rsim-provider-0.0.1_p55-r1.apk": {
+  "commit": "e23a39daa4dd364b8b9974c8e5c8ee8b97cf4934",
+  "name": "wwand-rsim-provider",
+  "published": "2026-10-06T08:30:42Z",
+  "run": "37410799220",
+  "size": 4513,
+  "version": "0.0.1_p55-r1"
+ }
+}

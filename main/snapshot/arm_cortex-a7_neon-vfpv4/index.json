@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "architecture": "arm_cortex-a7_neon-vfpv4",
+  "packages": {
+    "ddimension-feed": "1-r4",
+    "luci-app-wwand": "1.7.0_pre6-r1",
+    "luci-app-wwand-ipa": "0.2.0-r1",
+    "luci-app-wwand-rsim": "0.1.0-r1",
+    "luci-app-wwand-statistics": "1.7.0_pre6-r1",
+    "luci-proto-wwand": "1.7.0_pre1-r1",
+    "qfirehose": "1.4.21-r2",
+    "qflash": "2.0-r2",
+    "qlog": "1.5.8-r2",
+    "rsim-card": "0.1.0-r1",
+    "rsim-card-pcsc": "0.1.0-r1",
+    "wwand": "1.7.0_pre20-r1",
+    "wwand-apntest": "1.7.0_pre20-r1",
+    "wwand-datapath-rmnet_nss": "1.7.0_pre20-r1",
+    "wwand-datapath-rmnet_nss_mhi": "1.7.0_pre20-r1",
+    "wwand-esim": "1.7.0_pre20-r1",
+    "wwand-gps": "1.7.0_pre20-r1",
+    "wwand-ipa": "0.2.0-r1",
+    "wwand-ipad": "0.2.0-r1",
+    "wwand-lpac": "2.3.0-r4",
+    "wwand-mbim": "1.7.0_pre20-r1",
+    "wwand-mhi": "1.7.0_pre20-r1",
+    "wwand-ncm": "1.7.0_pre20-r1",
+    "wwand-qlog": "0.1.0-r1",
+    "wwand-qmi": "1.7.0_pre20-r1",
+    "wwand-rsim": "0.1.0-r1",
+    "wwand-rsim-provider": "0.1.0-r1"
+  }
+}

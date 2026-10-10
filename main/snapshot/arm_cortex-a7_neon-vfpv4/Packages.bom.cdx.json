@@ -1,0 +1,350 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:4c5114b0-7d1e-50e9-983f-3c0dd49cc2c5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-09T21:04:41Z"
+  },
+  "components": [
+    {
+      "name": "ddimension-feed",
+      "version": "1-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand",
+      "version": "1.7.0_pre6-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-ipa",
+      "version": "0.2.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-rsim",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-statistics",
+      "version": "1.7.0_pre6-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-proto-wwand",
+      "version": "1.7.0_pre1-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qfirehose",
+      "version": "1.4.21-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Proprietary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qflash",
+      "version": "2.0-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Proprietary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qlog",
+      "version": "1.5.8-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Customer-Use"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rsim-card",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rsim-card-pcsc",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-apntest",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-datapath-rmnet_nss",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-datapath-rmnet_nss_mhi",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-esim",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-gps",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ipa",
+      "version": "0.2.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ipad",
+      "version": "0.2.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-lpac",
+      "version": "2.3.0-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "AGPL-3.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "GPL-3.0-or-later"
+          }
+        },
+        {
+          "license": {
+            "name": "curl"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-mbim",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-mhi",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ncm",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qlog",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qmi",
+      "version": "1.7.0_pre20-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-rsim",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-rsim-provider",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    }
+  ]
+}
