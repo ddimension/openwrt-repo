@@ -50,13 +50,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand
-PKG_VERSION:=1.6.9
+PKG_VERSION:=1.7.0_pre33
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand.git
-PKG_SOURCE_VERSION:=3a1fcc492e4c79b6ebee9189c3725300df65cc50
-PKG_MIRROR_HASH:=bdd707dd8ed6b19aa1e317ae644b2d2ff1828db338c9156be48fa59fb372e4e0
+PKG_SOURCE_VERSION:=5281731de7f5465552a9bba1b909b082b3050fae
+PKG_MIRROR_HASH:=8483aafe680ca616cb84fd32eaab07fffdc573a397343da094458b54904dd650
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -104,7 +104,7 @@ WWAND_BASE_UC:=apndb.uc atcmd.uc atcmd_parse.uc atport.uc backend.uc board.uc \
 	simops.uc siminventory.uc sms.uc sms_pdu.uc telemetry_mbim.uc telemetry_ncm.uc \
 	telemetry_qmi.uc transport.uc ubus.uc version.uc wwandctl_fmt.uc
 WWAND_BASE_CODEC:=arfcn_bands.uc hex.uc qmux.uc tlv.uc
-WWAND_BASE_SCHEMA:=cat.uc ctl.uc dms.uc dsd.uc loc.uc loc_lazy.uc merge.uc nas.uc pdc.uc rat.uc \
+WWAND_BASE_SCHEMA:=cat.uc ctl.uc dms.uc dsd.uc merge.uc nas.uc pdc.uc rat.uc \
 	tmd.uc uim.uc wda.uc wds.uc wms.uc wms_lazy.uc
 
 # DEVELOPERS: set CONFIG_WWAND_UCODE_SOURCE to ship readable .uc source
@@ -342,6 +342,9 @@ define Package/wwand-qmi/install
 	$(INSTALL_DATA) $(WWAND_UCODE)/qmi_backend.uc $(1)$(UCDIR)/
 	$(INSTALL_DATA) $(WWAND_UCODE)/callend.uc $(1)$(UCDIR)/
 	$(INSTALL_DATA) $(WWAND_UCODE)/qmi_lazy.uc $(1)$(UCDIR)/
+	# modem.uc imports it at load time, so it ships beside it: without it
+	# every QMI modem fails to load, QRTR or not
+	$(INSTALL_DATA) $(WWAND_UCODE)/qmi_over_qrtr.uc $(1)$(UCDIR)/
 endef
 
 # ---------------------------------------------------------------------------
@@ -551,6 +554,10 @@ define Package/wwand-gps/description
  GSV/GLL/VTG/ZDA from ANY talker, reported through `modem_gps` as numbers, with
  the satellites in view and their SNR, the fix type and the DOP values.
 
+ A modem WITHOUT an NMEA port gets the same NMEA over QMI LOC instead — on a
+ QMI modem natively, on an MBIM modem over the QMI passthrough. The port wins
+ where there is one. The LOC session is stopped before its client is released.
+
  ONE READER PER MODEM, so a two-modem router has two positions. `option
  gnss_set_time` hands the receiver's clock to wwand's own set_clock, which only
  ever steps a clock that is plainly unset and so never fights sysntpd.
@@ -565,6 +572,8 @@ define Package/wwand-gps/install
 	$(INSTALL_DIR) $(1)$(UCDIR)
 	$(INSTALL_DATA) $(WWAND_UCODE)/gps.uc $(1)$(UCDIR)/
 	$(INSTALL_DATA) $(WWAND_UCODE)/nmea.uc $(1)$(UCDIR)/
+	$(INSTALL_DIR) $(1)$(UCDIR)/codec/schema
+	$(INSTALL_DATA) $(WWAND_UCODE)/codec/schema/loc.uc $(1)$(UCDIR)/codec/schema/
 endef
 
 # ---------------------------------------------------------------------------
@@ -641,14 +650,29 @@ endef
 
 define Package/wwand-apntest/description
 Runs the configured APN tests in sequence on a dedicated test box: selects the
-SIM (physical slot or eUICC profile), dials each APN through wwand, runs the
-configured checks and reports one verdict per test. Tests are grouped by SIM so
-each slot switch or profile enable happens once per run.
+SIM (physical slot), dials each APN through wwand and netifd, checks the address
+pool and resolvers, pings, and reports one verdict per check to an NSCA monitor
+(send_nsca, when `monitor` is configured). Tests are grouped by SIM so each slot
+switch happens once per run. Scheduled from cron (globals.schedule).
+endef
+
+define Package/wwand-apntest/conffiles
+/etc/config/apntest
 endef
 
 define Package/wwand-apntest/install
 	$(INSTALL_DIR) $(1)$(UCDIR)/apntest
 	$(INSTALL_DATA) $(WWAND_UCODE)/apntest/plan.uc $(1)$(UCDIR)/apntest/
+	$(INSTALL_DATA) $(WWAND_UCODE)/apntest/runner.uc $(1)$(UCDIR)/apntest/
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_BIN) $(WWAND_UCODE)/apntest_cli.uc $(1)/usr/sbin/wwand-apntest
+	# no daemon: the init script only keeps the cron line of the plan's
+	# schedule in root's crontab (start, reload_config, stop)
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/wwand-apntest.init $(1)/etc/init.d/wwand-apntest
+	# empty plan by default: nothing runs until a test is configured
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/files/apntest.config $(1)/etc/config/apntest
 endef
 
 $(eval $(call BuildPackage,wwand))
