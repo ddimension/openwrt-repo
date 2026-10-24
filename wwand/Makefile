@@ -137,6 +137,32 @@ config WWAND_UCODE_SOURCE
 	  cmake capability probe falls back to shipping source on its own.
 endef
 
+# The ucode this build links and compiles against, as a version floor for the
+# device. wwand_io.so links libucode.so.<abi> and the tree may be bytecode, so
+# a wwand built against a newer ucode cannot run on an older one — and with
+# a plain +ucode apk installed it there anyway: a feed build from after
+# OpenWrt master moved libucode 20230711 -> 20261009 (2026-10-19) went onto a
+# snapshot from before it and died on "Error loading shared library
+# libucode.so.20261009" (ddimension/wwand#67). `ucode (>=<date>)` makes apk
+# refuse instead. apk sorts the package's own "2026.10.18~d2e8b8d2-r1" above
+# "2026.10.18" (apk 3.0.5 `version --test`), so the build's own ucode passes.
+#
+# Read from ucode's Makefile because no build variable carries another
+# package's version: package/utils/ucode in a buildroot, the base feed in an
+# SDK (`feeds update` puts it under feeds/base and links package/feeds/base).
+# Not found (an unusual tree) means no floor, as before — never a guess.
+#
+# Deliberately NOT +libucode by name, though that would record the
+# ABI-versioned libucode<abi>: on a later ucode upgrade it keeps the old
+# library installed, and wwand_io.so then loads it into an interpreter running
+# the new one — two libucode ABIs in one process. Without it the library goes
+# and files/wwand.init says why the daemon cannot start.
+UCODE_MAKEFILE:=$(firstword $(wildcard \
+	$(TOPDIR)/package/utils/ucode/Makefile \
+	$(TOPDIR)/package/feeds/base/ucode/Makefile \
+	$(TOPDIR)/feeds/base/package/utils/ucode/Makefile))
+UCODE_BUILT:=$(if $(UCODE_MAKEFILE),$(subst -,.,$(shell sed -n 's/^PKG_SOURCE_DATE:=//p' '$(UCODE_MAKEFILE)')))
+
 # ---------------------------------------------------------------------------
 # base: daemon + framework + codec/client + shared core. No backend on its own;
 # the daemon loads whichever wwand-qmi/-mbim/-ncm package is present.
@@ -152,6 +178,7 @@ define Package/wwand
   # wwand-private, always version-locked to the ucode side). PROVIDES keeps
   # configs/upgrades from the era of the separate ucode-mod-wwand-io working.
   PROVIDES:=ucode-mod-wwand-io
+  EXTRA_DEPENDS:=$(if $(UCODE_BUILT),ucode (>=$(UCODE_BUILT)))
 endef
 
 define Package/wwand/description
