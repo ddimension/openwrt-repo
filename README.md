@@ -45,6 +45,7 @@ build throws its SDK tree away on every run.
 | `qfirehose` | Quectel QFirehose V1.4.21, firmware flasher | same | bundled source zip | ✓ |
 | `qflash` | Quectel QFlash 2.0, legacy firmware flasher | same | bundled source tarball | ✓ |
 | `qlog` | Quectel QLog V1.5.8, diagnostic log capture with Quectel's filter profiles | same | bundled source zip | ✓ |
+| `qrtr` | upstream qrtr 1.2 from linux-msm, `qrtr-lookup` only: lists the services on the QRTR bus, for debugging PCIe/MHI modems whose QMI runs over QRTR | `qrtr-lookup` | [linux-msm/qrtr](https://github.com/linux-msm/qrtr) | ✓ |
 | `pcie_mhi` | Quectel PCIe MHI 1.6.0, with ordinary and NSS variants ([pcie_mhi/README.md](pcie_mhi/README.md)) | `kmod-pcie_mhi`, `kmod-pcie_mhi_nss` | bundled source | — |
 | `rmnet-nss` | Vendor QMAP interfaces through Qualcomm NSS ([rmnet-nss/README.md](rmnet-nss/README.md)) | `kmod-rmnet-nss` | bundled QSDK-derived source | — |
 | `python3-edlclient` | Qualcomm EDL/DIAG toolkit, scoped to `qc_diag` | same | upstream [bkerler/edl](https://github.com/bkerler/edl) | — |
