@@ -39,12 +39,17 @@ FEED="${FEED_ROOT}/${FEED_CHANNEL}/${GHP_DIR}/${ARCH}"
 echo "${FEED}/packages.adb" >> repositories
 echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
 
-# wwand-qmi is the QMI backend (wwand itself is backend-neutral) and is also the
-# hard dependency of wwand-esim, which carries the eSIM/eUICC profile management
-# -- wwand-lpac only ships the lpac binary. Keep the two together.
+# wwand itself is backend-neutral: every backend the full builds carry
+# (config.wwand) goes in here too. With wwand-qmi alone, a sysupgrade took the
+# MBIM backend away from an LTE3301-PLUS whose EG06 runs in MBIM mode, and the
+# modem stayed UNRESOLVED ("wwand-mbim package not installed") until it was
+# installed by hand (2026-10-30). wwand-qmi is also the hard dependency of
+# wwand-esim, which carries the eSIM/eUICC profile management -- wwand-lpac
+# only ships the lpac binary.
 # ddimension-feed comes from the same stable tree and names it: the flashed
 # device follows this feed's stable channel, key included, with no bootstrap.
-PKGS="wwand wwand-qmi wwand-esim wwand-lpac luci-app-wwand luci-proto-wwand \
+PKGS="wwand wwand-qmi wwand-mbim wwand-ncm wwand-mhi wwand-esim wwand-lpac \
+luci-app-wwand luci-proto-wwand \
 ddimension-feed \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
 kmod-usb-serial-option kmod-vrf luci"
