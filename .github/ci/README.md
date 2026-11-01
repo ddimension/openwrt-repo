@@ -355,6 +355,28 @@ DTS, LZMA-Loader). Quellen:
   damit ihr warmer Baum nicht wegen eines Config-Wechsels neu baut.
 - Cache: `owrt-src-<slug>-<base>` (Quellbaum **inkl. build_dir/staging** persistent) +
   geteilt `owrt-dl`/`owrt-ccache`. `CONFIG_CCACHE_DIR=/ccache`, `dl`→`/dl`.
+- **`apk mkpkg` verklemmt sich mit fakeroot 1.37 — Ursache gefunden.** Der
+  `nr7101 stable`-Leg hing viermal (2026-10-04/06) an derselben Stelle:
+  `package/libs/toolchain`, Last 0.00, der fakeroot-Wrapper in `pipe_read`
+  **ohne eigenen apk-Prozess**, `faked` idle in `do_select` — der Wrapper
+  bekommt den Key nie, auf den seine Kommandosubstitution wartet. Es ist kein
+  Parallelitätsrennen: es reproduziert mit `-j1` aus einem sauber gekillten
+  Baum. Die Korrelation über unsere Legs ist exakt:
+
+  | Leg | Quelle | fakeroot | |
+  |---|---|---|---|
+  | nr7101 master | upstream main | 2.1.3 | grün |
+  | nr7101 stable | upstream openwrt-25.12 | **1.37.1.2** | hing |
+  | chateau stable | Fork `chateau-stable-backport` | 2.1.3 | grün |
+  | chateau master, nbg7815, lte3301 | Forks | 2.1.3 | grün |
+
+  Jeder Leg mit 2.1.3 baut, der einzige mit 1.37.1.2 hing. Die Fork-Branches
+  tragen den Bump schon, upstream 25.12 nicht — deshalb bekommt der eine Leg,
+  der von upstream 25.12 baut, den Backport `.github/ci/fakeroot-2.1.3.patch`
+  (erzeugt als `git diff openwrt-25.12 main -- tools/fakeroot`). `PATCH` ist
+  dafür jetzt eine **Liste**: der Leg wendet DTS-Änderung und fakeroot-Backport
+  nacheinander an. Bumpt 25.12 fakeroot selbst, appliziert der Patch nicht mehr
+  und der Leg scheitert laut — so soll man es merken.
 - **Hänger beim Packen, zweiter Versuch mit `-j1`.** Am 2026-10-04 stand der
   `nr7101 stable`-Leg (Lauf 37194316303) 45 min ohne CPU-Last in **zwei
   parallelen** `apk mkpkg` unter fakeroot (`pipe_read`, die `faked` in

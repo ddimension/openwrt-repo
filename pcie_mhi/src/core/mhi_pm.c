@@ -153,7 +153,7 @@ void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
 }
 
 /* set device wake */
-void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
+static void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
 {
 	unsigned long flags;
 
@@ -193,7 +193,7 @@ void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
 }
 
 /* clear device wake */
-void mhi_deassert_dev_wake(struct mhi_controller *mhi_cntrl, bool override)
+static void mhi_deassert_dev_wake(struct mhi_controller *mhi_cntrl, bool override)
 {
 	unsigned long flags;
 
@@ -812,7 +812,7 @@ void mhi_pm_st_worker(struct work_struct *work)
 int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 {
 	int ret;
-	u32 val, regVal;
+	u32 /*val,*/ regVal;
 	enum mhi_ee current_ee;
 	enum MHI_ST_TRANSITION next_state;
 
@@ -877,12 +877,15 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 
 	/* setup bhi offset & intvec */
 	write_lock_irq(&mhi_cntrl->pm_lock);
+
+#if 0
 	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIOFF, &val);
 	if (ret) {
 		write_unlock_irq(&mhi_cntrl->pm_lock);
 		MHI_ERR("Error getting bhi offset\n");
 		goto error_bhi_offset;
 	}
+
 
 	mhi_cntrl->bhi = mhi_cntrl->regs + val;
 
@@ -899,6 +902,9 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 	}
 
 	mhi_write_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_INTVEC, mhi_cntrl->msi_irq_base);
+
+#endif
+
 	mhi_cntrl->pm_state = MHI_PM_POR;
 	mhi_cntrl->ee = MHI_EE_MAX;
 	current_ee = mhi_get_exec_env(mhi_cntrl);
@@ -935,9 +941,9 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 
 	return 0;
 
-error_bhi_offset:
-	if (!mhi_cntrl->pre_init)
-		mhi_deinit_free_irq(mhi_cntrl);
+//error_bhi_offset:
+if (!mhi_cntrl->pre_init)
+	mhi_deinit_free_irq(mhi_cntrl);
 
 error_setup_irq:
 	if (!mhi_cntrl->pre_init)

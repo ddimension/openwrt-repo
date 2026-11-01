@@ -156,7 +156,11 @@ jobs:
             base: stable
             src_url: https://github.com/openwrt/openwrt.git
             src_branch: openwrt-25.12
-            patch: .github/ci/nr7101-lte-power.patch
+            # zwei Patches: die DTS-Aenderung wie auf master, dazu der
+            # fakeroot-Backport — mit 25.12s fakeroot 1.37.1.2 verklemmt sich
+            # `apk mkpkg` in unserem Builder-Container reproduzierbar (viermal
+            # am 2026-10-04/06), mit 2.1.3 aus main baut derselbe Leg durch.
+            patch: .github/ci/nr7101-lte-power.patch .github/ci/fakeroot-2.1.3.patch
             target: ramips
             subtarget: mt7621
             devices: zyxel_nr7101

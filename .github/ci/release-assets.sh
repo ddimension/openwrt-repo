@@ -20,7 +20,8 @@
 # index anyway. Devices keep installing from gh-pages.
 #
 # Re-runnable: an asset of the same name is replaced, the release is created if
-# it does not exist yet. Needs GH_TOKEN with contents:write (the publish jobs
+# it does not exist yet (with a body that explains the files; an existing
+# release keeps whatever notes it has). Needs GH_TOKEN with contents:write (the publish jobs
 # have it) and docker for zip (the apk-tools image, which the publish job
 # already pulls).
 set -euo pipefail
@@ -77,11 +78,50 @@ release_id() {
 	grep -m1 -oE '"id": *[0-9]+' <<<"$j" | grep -oE '[0-9]+'
 }
 
+# A release page is read by people, so a newly created one gets a body that
+# says what these files are and what they are not. An existing release is left
+# alone — whoever edited its notes meant it.
+release_body() {
+	local site="https://${REPO%%/*}.github.io/${REPO#*/}" what="package trees"
+	case "$REPO" in
+	*/openwrt-repo) what="package trees, host tools and device images" ;;
+	esac
+	cat <<-TXT
+	The feed as published for release **$TAG**, as an archive: $what.
+
+	**Not a repository to install from.** A device installs from the feed, where
+	the index and the package files sit next to each other:
+
+	\`\`\`sh
+	apk --allow-untrusted \\
+	  -X $site/stable/<release>/<arch>/packages.adb \\
+	  add ddimension-feed
+	apk update
+	\`\`\`
+
+	These assets are for keeping: what exactly went out with this release, long
+	after the feed tree has moved on. Each tree keeps the last ten versions of a
+	package, so going back on a device is \`apk add <package>=<version>\`.
+
+	| Asset | What it is |
+	|---|---|
+	| \`<release>-<arch>.zip\` | the complete package tree of that architecture: every \`.apk\`, the signed \`packages.adb\`, \`index.json\` |
+	| \`ddimension-feed-<release>-<arch>.apk\` | the bootstrap package of that tree, for a direct download |
+	| \`<base>-openwrt-…\` | device images built against this release |
+	| other single files | host tools, e.g. the static \`rsim-card\` |
+
+	Signed with the usual key: <$site/keys/ddimension.pem>.
+	TXT
+}
+
 rid="$(release_id || true)"
 if [ -z "$rid" ]; then
 	echo "release-assets: creating release $TAG"
+	# the body as JSON, without a JSON tool: python3 is on every runner image
+	# we use, and it is the only thing here that has to escape anything.
+	body="$(release_body | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
 	api -X POST "$API/releases" \
-		-d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"generate_release_notes\":false}" >/dev/null ||
+		-d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"body\":$body,\"generate_release_notes\":false}" >/dev/null ||
 		die "could not create the release for $TAG"
 	rid="$(release_id || true)"
 fi

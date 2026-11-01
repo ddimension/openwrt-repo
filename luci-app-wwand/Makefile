@@ -17,16 +17,19 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-wwand
-PKG_VERSION:=1.7.0
+PKG_VERSION:=1.8.0_pre8
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/luci-app-wwand.git
-PKG_SOURCE_VERSION:=b3d0345d3d39f42e972a6f14134d2f1ae7dae969
-PKG_MIRROR_HASH:=a5729ec9868be632050486285f1a1c1c4e2830219d396ec5c219fe8d308ef19b
+PKG_SOURCE_VERSION:=a5c1229559fd7626334b948d274211ade24afba5
+PKG_MIRROR_HASH:=2040f6e16bab184a5e73bf9954954f4bf2633f1c56085a9856a1bb1a0cf00631
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
+
+# po2lmo, for the translation packages below
+PKG_BUILD_DEPENDS:=luci-base/host
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -109,5 +112,60 @@ define Package/luci-app-wwand-statistics/install
 		$(1)/www/luci-static/resources/statistics/rrdtool/definitions/
 endef
 
+# Translations: one luci-i18n-wwand-<lang> per po/<lang>/wwand.po in the
+# source. luci.mk finds the languages by listing po/ next to the Makefile while
+# make parses it, and a git source is not there yet at that point — so they are
+# named here, and a new translation needs its language (and its name, for
+# LuCI's language list) added in the same bump that pins it. Named, like the
+# files above: a language listed without its .po fails the build instead of
+# shipping an empty package.
+#
+# Same package names, Kconfig defaults, .lmo names and luci.languages entry
+# as luci.mk (feeds/luci luci.mk LuciTranslation, 2026-10): the .po directory
+# is LuCI's language tag (pt_BR), the .lmo carries its short code where the two
+# differ (LUCI_LC_ALIAS there). The entry matters: the language selector and
+# the Accept-Language match read only luci.languages (luci-mod-system
+# system.js, luci-base dispatcher.uc, 2026-10), and this package does not pull
+# in the luci-i18n-base-<lang> that would otherwise write it.
+LUCI_WWAND_LANGS:=
+LUCI_WWAND_LC.bn_BD:=bn
+LUCI_WWAND_LC.nb_NO:=no
+LUCI_WWAND_LC.pt_BR:=pt-br
+LUCI_WWAND_LC.zh_Hans:=zh-cn
+LUCI_WWAND_LC.zh_Hant:=zh-tw
+# LUCI_WWAND_NAME.<lang>:=<name as LUCI_LANG.<lang> in luci.mk>, e.g.
+# LUCI_WWAND_NAME.pl:=Polski (Polish)
+
+# 1: LuCI language code (package and .lmo name), 2: po directory
+define LuciWwandTranslation
+  define Package/luci-i18n-wwand-$(1)
+    SECTION:=luci
+    CATEGORY:=LuCI
+    TITLE:=luci-app-wwand - $(1) translation
+    HIDDEN:=1
+    DEFAULT:=LUCI_LANG_$(2)||(ALL&&m)
+    DEPENDS:=luci-app-wwand
+    PKGARCH:=all
+  endef
+
+  define Package/luci-i18n-wwand-$(1)/description
+    Translation for luci-app-wwand ($(2)).
+  endef
+
+  define Package/luci-i18n-wwand-$(1)/install
+	$$(INSTALL_DIR) $$(1)/etc/uci-defaults
+	echo "uci set luci.languages.$(subst -,_,$(1))='$(or $(LUCI_WWAND_NAME.$(2)),$(2))'; uci commit luci" \
+		> $$(1)/etc/uci-defaults/luci-i18n-wwand-$(1)
+	$$(INSTALL_DIR) $$(1)/usr/lib/lua/luci/i18n
+	po2lmo $(PKG_BUILD_DIR)/po/$(2)/wwand.po \
+		$$(1)/usr/lib/lua/luci/i18n/wwand.$(1).lmo
+  endef
+
+  LUCI_WWAND_I18N += luci-i18n-wwand-$(1)
+endef
+
+$(foreach lang,$(LUCI_WWAND_LANGS),$(eval $(call LuciWwandTranslation,$(or $(LUCI_WWAND_LC.$(lang)),$(lang)),$(lang))))
+
 $(eval $(call BuildPackage,luci-app-wwand))
 $(eval $(call BuildPackage,luci-app-wwand-statistics))
+$(foreach pkg,$(LUCI_WWAND_I18N),$(eval $(call BuildPackage,$(pkg))))

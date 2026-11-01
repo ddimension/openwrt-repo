@@ -62,11 +62,13 @@ struct uci_dev {
 	int ref_count;
 	bool enabled;
 	unsigned rx_error;
-	unsigned nr_trb;
+	unsigned rp_trb;
+	unsigned wp_trb;
 	unsigned nr_trbs;
 	struct uci_buf *uci_buf;
 	struct ktermios	termios;
 	size_t bytes_xferd;
+	bool queue_inbound;
 };
 
 struct mhi_uci_drv {
@@ -100,6 +102,11 @@ module_param( uci_msg_lvl, uint, S_IRUGO | S_IWUSR);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
 #ifdef TCGETS2
+__weak int user_termios_to_kernel_termios(struct ktermios *k, struct termios2 __user *u);
+__weak int kernel_termios_to_user_termios(struct termios2 __user *u, struct ktermios *k);
+__weak int user_termios_to_kernel_termios_1(struct ktermios *k, struct termios __user *u);
+__weak int kernel_termios_to_user_termios_1(struct termios __user *u, struct ktermios *k);
+
 __weak int user_termios_to_kernel_termios(struct ktermios *k,
 						 struct termios2 __user *u)
 {
@@ -149,7 +156,8 @@ static int mhi_queue_inbound(struct uci_dev *uci_dev)
 	int ret = -EIO, i;
 
 	if (uci_dev->uci_buf == NULL) {
-		uci_dev->nr_trb = 0;
+		uci_dev->rp_trb = 0;
+		uci_dev->wp_trb = 0;
 		uci_dev->nr_trbs = (nr_trbs + 1);
 		uci_dev->uci_buf = kmalloc_array(uci_dev->nr_trbs, sizeof(*uci_buf), GFP_KERNEL);
 		if (!uci_dev->uci_buf)
@@ -178,7 +186,7 @@ static int mhi_queue_inbound(struct uci_dev *uci_dev)
 		uci_buf = buf + mtu;
 		uci_buf->data = buf;
 		#else
-		uci_buf = &uci_dev->uci_buf[i];
+		uci_buf = &uci_dev->uci_buf[uci_dev->wp_trb];
 		buf = uci_buf->data;
 		#endif
 
@@ -193,6 +201,9 @@ static int mhi_queue_inbound(struct uci_dev *uci_dev)
 			MSG_ERR("Failed to queue buffer %d\n", i);
 			return ret;
 		}
+		uci_dev->wp_trb++;
+		if (uci_dev->wp_trb == uci_dev->nr_trbs)
+			uci_dev->wp_trb = 0;
 	}
 
 	return ret;
@@ -630,7 +641,9 @@ static int mhi_uci_open(struct inode *inode, struct file *filp)
 			goto error_open_chan;
 		}
 
+		uci_dev->queue_inbound = true;
 		ret = mhi_queue_inbound(uci_dev);
+		uci_dev->queue_inbound = false;
 		if (ret)
 			goto error_rx_queue;
 
@@ -819,24 +832,24 @@ static void mhi_dl_xfer_cb(struct mhi_device *mhi_dev,
 	struct uci_chan *uci_chan = &uci_dev->dl_chan;
 	unsigned long flags;
 	struct uci_buf *buf;
-	unsigned nr_trb = uci_dev->nr_trb;
+	unsigned rp_trb = uci_dev->rp_trb;
 
-	buf = &uci_dev->uci_buf[nr_trb];
+	buf = &uci_dev->uci_buf[rp_trb];
 	if (buf == NULL) {
 		MSG_ERR("buf = NULL");
 		return;
 	}
-	if (buf->nr_trb != nr_trb || buf->data != mhi_result->buf_addr)
+	if (buf->nr_trb != rp_trb || buf->data != mhi_result->buf_addr)
 	{
 		uci_dev->rx_error++;
 		MSG_ERR("chan[%d]: uci_buf[%u] = %p , mhi_result[%u] = %p\n",
-			mhi_dev->dl_chan_id, buf->nr_trb, buf->data, nr_trb, mhi_result->buf_addr);
+			mhi_dev->dl_chan_id, buf->nr_trb, buf->data, rp_trb, mhi_result->buf_addr);
 		return;
 	}
 
-	uci_dev->nr_trb++;
-	if (uci_dev->nr_trb == uci_dev->nr_trbs)
-		uci_dev->nr_trb = 0;
+	uci_dev->rp_trb++;
+	if (uci_dev->rp_trb == uci_dev->nr_trbs)
+		uci_dev->rp_trb = 0;
 
 	if (mhi_result->transaction_status == -ENOTCONN) {
 		return;
@@ -872,28 +885,37 @@ static void mhi_dl_xfer_cb(struct mhi_device *mhi_dev,
 		int skip_buf = 0;
 
 #ifdef QUEC_MHI_UCI_ALWAYS_OPEN
-		if (uci_dev->ref_count == 1)
+		if (uci_dev->ref_count == 1 && !uci_dev->queue_inbound)
 			skip_buf++;
 #endif
+
 		if (!skip_buf)
-			tmp_buf = (struct uci_buf *)kmalloc(buf->len + sizeof(struct uci_buf), GFP_ATOMIC);;
-		
+			tmp_buf = (struct uci_buf *)kmalloc(buf->len + sizeof(struct uci_buf), GFP_ATOMIC);
+
 		if (tmp_buf) {
 			tmp_buf->page = NULL;
 			tmp_buf->data = ((void *)tmp_buf) + sizeof(struct uci_buf);
 			tmp_buf->len = buf->len;
 			memcpy(tmp_buf->data, buf->data, buf->len);
 		}
-
-		if (buf) {
-			struct uci_buf *uci_buf = buf;
-			unsigned nr_trb = uci_buf->nr_trb ? (uci_buf->nr_trb - 1) : (uci_dev->nr_trbs - 1);
-
-			uci_buf = &uci_dev->uci_buf[nr_trb];
-			mhi_queue_transfer(mhi_dev, DMA_FROM_DEVICE, uci_buf->data, uci_dev->mtu, MHI_EOT);
-		}
-
 		buf = tmp_buf;
+
+		if (!uci_dev->queue_inbound) {
+			int nr_trbs = mhi_get_no_free_descriptors(mhi_dev, DMA_FROM_DEVICE);
+			int i;
+
+			for (i = 0; i < nr_trbs; i++) {
+				struct uci_buf *uci_buf = &uci_dev->uci_buf[uci_dev->wp_trb];
+				int ret = mhi_queue_transfer(mhi_dev, DMA_FROM_DEVICE, uci_buf->data, uci_dev->mtu, MHI_EOT);
+				if (ret) {
+					MSG_ERR("Failed to queue buffer %d\n", i);
+					break;
+				}
+				uci_dev->wp_trb++;
+				if (uci_dev->wp_trb == uci_dev->nr_trbs)
+					uci_dev->wp_trb = 0;
+			}
+		}
 	}
 
 	if (buf)

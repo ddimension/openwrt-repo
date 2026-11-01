@@ -1,4 +1,36 @@
 Release Notes
+[V1.6.0]
+Date:   11/08/2026
+enhancement
+  1. ‌Version 1.6.0 submitted for testing
+
+[V1.5.1]V1.5.1 version modification
+Date:   11/08/2026
+fix:
+  1. fix mhi_uci dl recycle race during inbound prequeue window
+  2. fix the out-of-bounds error when accessing index 31
+  jira：FAE-236690 FAE-239337
+
+[V1.5.0]
+Date:   22/10/2025
+enhancement:
+  1. support new hwid
+  2. fix bhi_intvec not set
+
+[V1.4.1]
+Date:   21/10/2025
+enhancement:
+  1. support new hwid
+  2. fix bhi_intvec not set
+
+
+Release Notes
+[V1.4]
+Date:   08/08/2025
+enhancement:
+  1. support Linux Kernel V6.12
+
+Release Notes
 [V1.3.8]
 Date:   27/06/2024
 enhancement:

@@ -1,12 +1,33 @@
 # openwrt-repo
 
 OpenWrt **package feed** for the [wwand](https://github.com/ddimension/wwand)
-cellular connection manager and a few companions — signed binary repositories
-for seven architectures on
+cellular connection manager and the modem tooling around it — signed binary
+repositories for eight architectures on
 [ddimension.github.io/openwrt-repo](https://ddimension.github.io/openwrt-repo/),
 in two channels: **stable** (releases) and **main** (development). This repo
 carries the OpenWrt package definitions; most sources live in their own
 repositories, pinned to a commit.
+
+Our other packages — AP management (`apman`), multiroom audio
+(`snapcast-mptcp`, `homesync`), the `wpad` variants, `nsca-ng`,
+`usb-relay-hid`, the Lua bindings and `heatingrod` — live in
+[ddimension/openwrt-addon-feed](https://github.com/ddimension/openwrt-addon-feed)
+since 2026-10-04 and are published at
+[ddimension.github.io/openwrt-addon-feed](https://ddimension.github.io/openwrt-addon-feed/).
+Both feeds are independent and signed with the same key; `ddimension-feed`
+installs a `.list` for each. One package here reaches across: `wwand-apntest`
+reports its results with `send_nsca`, which is `nsca-ng` — in the add-on feed.
+A box that runs APN tests therefore needs both feeds, which r4 of
+`ddimension-feed` sets up by itself.
+
+One order has to be kept while the add-on feed is young: r4 points at
+`…/openwrt-addon-feed/<channel>/<release>/<arch>/`, so **that tree must exist
+before r4 reaches a device**, or `apk update` reports a 404 for it. The add-on
+feed publishes its stable channel only from a release tag, so a release of
+this feed that carries r4 comes *after* the add-on feed's first release. On
+the main channel it is enough that the add-on feed has built main once. The split exists for build time: a one-line change
+in `wwand` used to rebuild boost, hostapd and collectd too, because the feed
+build throws its SDK tree away on every run.
 
 ## Packages
 
@@ -20,28 +41,19 @@ repositories, pinned to a commit.
 | `wwand-ipa` | eSIM fleet management: the router as the SGP.32 IoT Profile Assistant of an eIM, as a wwand plugin, plus its LuCI page | `wwand-ipa`, `luci-app-wwand-ipa` | [ddimension/wwand-ipa](https://github.com/ddimension/wwand-ipa) | ✓ |
 | `wwand-ipad` | the assistant `wwand-ipa` drives: ipad, an SGP.32 v1.3 IPA (IoT eUICC, or an SGP.22 card through an emulation signed with a device key) that reaches the card through lpac's stdio APDU protocol so wwand relays it over the modem's own channel; mbedTLS linked in statically | same | [ddimension/ipad](https://github.com/ddimension/ipad) | ✓ |
 | `wwand-rsim` | remote SIM for wwand (QMI UIM Remote): a modem runs on a card that is not in its own slot — in a reader on the router or on a SIM host over SSH (Smartmouse/Phoenix, PC/SC), in a phone over Bluetooth SAP, in a modem wwand does not manage (AT+CSIM), in another modem of the router (SIM sponsor), in a modem of another wwand router, or in an osmo-remsim SIM bank (RSPRO); `wwandctl rsim` and a LuCI page. `rsim-card` is the card-side helper alone, for a SIM host; `wwand-rsim-provider` lets this router's modem cards be borrowed by other routers | `wwand-rsim`, `wwand-rsim-provider`, `rsim-card`, `rsim-card-pcsc`, `luci-app-wwand-rsim` | [ddimension/wwand-rsim](https://github.com/ddimension/wwand-rsim) | ✓ |
-| `ddimension-feed` | this feed's address and signing key, see [Set up a device](#set-up-a-device) | same | local (`files/`) | ✓ |
-| `apman` | AP manager: ubus↔MQTT bridge, collectd plugin, on-AP RADIUS server ([apman/README.md](apman/README.md)) | same | [ddimension/apman-agent](https://github.com/ddimension/apman-agent) | ✓ |
-| `libubus-lua-async` | the stock ubus Lua binding plus `conn:call_async()` | same | upstream [ubus](https://git.openwrt.org/project/ubus.git) | via `apman` |
-| `homesync` | synchronised multiroom speaker: UCI front end for `snapclient-mptcp` | same | local (`files/`) | ✓ |
-| `snapcast-mptcp` | Snapcast with Multipath-TCP | `snapserver-mptcp`, `snapclient-mptcp` | [ddimension/snapcast](https://github.com/ddimension/snapcast) | ✓ |
-| `luacurl` | Lua binding for libcurl | same | upstream [Lua-cURL/Lua-cURLv3](https://github.com/Lua-cURL/Lua-cURLv3) | ✓ |
-| `lua-mosquitto` | Lua binding for libmosquitto | same | upstream [flukso/lua-mosquitto](https://github.com/flukso/lua-mosquitto) | ✓ |
+| `ddimension-feed` | both feeds' addresses and the signing key, see [Set up a device](#set-up-a-device) | same | local (`files/`) | ✓ |
 | `qfirehose` | Quectel QFirehose V1.4.21, firmware flasher | same | bundled source zip | ✓ |
 | `qflash` | Quectel QFlash 2.0, legacy firmware flasher | same | bundled source tarball | ✓ |
 | `qlog` | Quectel QLog V1.5.8, diagnostic log capture with Quectel's filter profiles | same | bundled source zip | ✓ |
-| `usb-relay-hid` | control for cheap USB HID relay boards | same | upstream [OzFalcon/usb-relay-hid](https://github.com/OzFalcon/usb-relay-hid) | ✓ |
-| `wpad-ieee8021x` | `ieee8021x` netifd protocol: wired 802.1X through wpa_supplicant's ubus interface | same | local (`files/`) | ✓ |
-| `wpad-saeradh2e` | OpenWrt's full/OpenSSL wpad plus our SAE-over-RADIUS patches (also in [ddimension/hostapd](https://github.com/ddimension/hostapd) `sae-radius-h2e`) | same | OpenWrt `hostapd` + patches | ✓ |
-| `heatingrod` | PV-surplus heating rod controller, Rust ([heatingrod/README.md](heatingrod/README.md)) | same | bundled snapshot of [heatingrod-controller](https://github.com/ddimension/heatingrod-controller) | — |
-| `pcie_mhi` | Quectel PCIe/MHI host driver V1.3.8, ported to kernel 6.18 ([pcie_mhi/README.md](pcie_mhi/README.md)) | `kmod-pcie_mhi` | bundled source | — |
+| `qrtr` | upstream qrtr 1.2 from linux-msm, `qrtr-lookup` only: lists the services on the QRTR bus, for debugging PCIe/MHI modems whose QMI runs over QRTR | `qrtr-lookup` | [linux-msm/qrtr](https://github.com/linux-msm/qrtr) | ✓ |
+| `pcie_mhi` | Quectel PCIe MHI 1.6.0, with ordinary and NSS variants ([pcie_mhi/README.md](pcie_mhi/README.md)) | `kmod-pcie_mhi`, `kmod-pcie_mhi_nss` | bundled source | — |
+| `rmnet-nss` | Vendor QMAP interfaces through Qualcomm NSS ([rmnet-nss/README.md](rmnet-nss/README.md)) | `kmod-rmnet-nss` | bundled QSDK-derived source | — |
 | `python3-edlclient` | Qualcomm EDL/DIAG toolkit, scoped to `qc_diag` | same | upstream [bkerler/edl](https://github.com/bkerler/edl) | — |
 
 **CI**: ✓ = built and published for every architecture; the list is
 [`.github/ci/packages`](.github/ci/packages). — = in the feed, deliberately not
-built by CI: `heatingrod` builds rust/host from source (~35–45 GB build dir),
-`pcie_mhi` does not get the RG650E past the MHI M0 handshake yet,
-`python3-edlclient` is built on demand. Build those locally or in a buildroot.
+built by CI: the MHI and NSS driver packages require local builds and hardware
+tests. `python3-edlclient` is built on demand. Build these in a compatible buildroot.
 
 ## Binary package repositories
 
@@ -54,6 +66,22 @@ https://ddimension.github.io/openwrt-repo/<channel>/<release>/<arch>/
 `ddimension-feed.apk`, the feed's address and key for exactly that tree (see
 [Set up a device](#set-up-a-device)); **tree** is the repository itself, browsable.
 
+Each tree keeps the **last 10 versions** of every package — the index lists them
+all, so a device can go back (see [Go back to an older package
+version](#go-back-to-an-older-package-version)). `versions.json` in the tree
+says per file which version it is, when it was built and when it was first
+published; the pre-channel mirror keeps the newest version only.
+
+Beyond that window, every release is archived on its
+[GitHub release](https://github.com/ddimension/openwrt-repo/releases): one
+`<release>-<arch>.zip` per package tree (all `.apk`, the signed `packages.adb`,
+`index.json`), the loose `ddimension-feed-<release>-<arch>.apk`, the static
+`rsim-card`, and the device images built against that release. Those assets do
+not count against the 1 GB a Pages site may have, and they stay. They are an
+archive, not a repository: the assets of a tag share one flat namespace, so the
+same package file name of eight architectures would collide, and apk resolves
+package files relative to its index — a device installs from the feed above.
+
 | Arch | Covers (among others) | stable · 25.12 | stable · snapshot | main · 25.12 | main · snapshot |
 |---|---|---|---|---|---|
 | `aarch64_cortex-a53` | qualcommax (MikroTik Chateau, ipq807x, ipq60xx), mediatek/filogic | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/aarch64_cortex-a53/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/aarch64_cortex-a53/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/aarch64_cortex-a53/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/aarch64_cortex-a53/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/aarch64_cortex-a53/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/aarch64_cortex-a53/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/aarch64_cortex-a53/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/aarch64_cortex-a53/) |
@@ -62,7 +90,7 @@ https://ddimension.github.io/openwrt-repo/<channel>/<release>/<arch>/
 | `arm_cortex-a15_neon-vfpv4` | ipq806x | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/arm_cortex-a15_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/arm_cortex-a15_neon-vfpv4/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/arm_cortex-a15_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/arm_cortex-a15_neon-vfpv4/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/arm_cortex-a15_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/arm_cortex-a15_neon-vfpv4/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/arm_cortex-a15_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/arm_cortex-a15_neon-vfpv4/) |
 | `arm_cortex-a7_neon-vfpv4` | ipq40xx | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/arm_cortex-a7_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/arm_cortex-a7_neon-vfpv4/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/arm_cortex-a7_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/arm_cortex-a7_neon-vfpv4/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/arm_cortex-a7_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/arm_cortex-a7_neon-vfpv4/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/arm_cortex-a7_neon-vfpv4/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/arm_cortex-a7_neon-vfpv4/) |
 | `mips_24kc` | ath79 (Ubiquiti) | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/mips_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/mips_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/mips_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/mips_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/mips_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/mips_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/mips_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/mips_24kc/) |
-| `mipsel_24kc` | ramips/mt7621 (Zyxel NR7101, LTE3301-PLUS) | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/mipsel_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/mipsel_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/mipsel_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/mipsel_24kc/) |
+| `mipsel_24kc` | ramips/mt7621 (Zyxel NR7101, LTE3301-PLUS), ramips/mt7620 (LTE3301-M209/Q222) | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/mipsel_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/mipsel_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/mipsel_24kc/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/mipsel_24kc/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/mipsel_24kc/) |
 | `x86_64` | x86/64 (VMs, APU, router PCs) | [apk](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/x86_64/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/openwrt-25.12/x86_64/) | [apk](https://ddimension.github.io/openwrt-repo/stable/snapshot/x86_64/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/stable/snapshot/x86_64/) | [apk](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/x86_64/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/openwrt-25.12/x86_64/) | [apk](https://ddimension.github.io/openwrt-repo/main/snapshot/x86_64/ddimension-feed.apk) · [tree](https://ddimension.github.io/openwrt-repo/main/snapshot/x86_64/) |
 
 The [start page](https://ddimension.github.io/openwrt-repo/) shows the same
@@ -90,11 +118,12 @@ install -m755 rsim-card /usr/local/bin/rsim-card
 
 ### Set up a device
 
-The feed's address and key are themselves a package, `ddimension-feed`.
+The feeds' addresses and key are themselves a package, `ddimension-feed`.
 Install it once, **by name**, from the tree matching the channel, the
-installed release and the architecture, and the device follows this feed from
-then on — including any later change to the address or the key, which arrives
-as an ordinary upgrade rather than as a note somebody has to act on.
+installed release and the architecture, and the device follows **both** feeds
+from then on — this one and the add-on feed — including any later change to an
+address or to the key, which arrives as an ordinary upgrade rather than as a
+note somebody has to act on.
 
 ```
 apk --allow-untrusted \
@@ -123,17 +152,19 @@ A package installed from a file is recorded in `/etc/apk/world` pinned to that
 file's checksum (`ddimension-feed><Q1…>`), and a plain `apk upgrade` never
 upgrades a pinned package; the last line replaces the pin with the plain name.
 
-It installs two files, neither of them a conffile:
+It installs three files, none of them a conffile:
 
 | | |
 |---|---|
-| `/etc/apk/keys/ddimension.pem` | the public half the indexes are signed with |
-| `/etc/apk/repositories.d/ddimension.list` | the tree for this channel, release and architecture |
+| `/etc/apk/keys/ddimension.pem` | the public half both feeds' indexes are signed with |
+| `/etc/apk/repositories.d/ddimension.list` | this feed's tree for the channel, release and architecture |
+| `/etc/apk/repositories.d/ddimension-addon.list` | the add-on feed's tree, same channel, release and architecture |
 
 Not conffiles on purpose — a feed address that an update cannot correct is the
-problem the package exists to avoid. To follow another feed as well, add a
-second file in `/etc/apk/repositories.d`; apk reads all of them. Do not edit
-this one, it is replaced on upgrade.
+problem the package exists to avoid. To follow a further feed, add another file
+in `/etc/apk/repositories.d`; apk reads all of them. Do not edit ours, they are
+replaced on upgrade. (Up to r3 there was only the first `.list`; r4 added the
+second when the add-on packages moved to their own repository.)
 
 The package is built per channel, release and architecture, because the URL it
 installs names all three. After upgrading a device to a new OpenWrt release,
@@ -150,6 +181,9 @@ follow the stable channel from the first boot.
 wget -O /etc/apk/keys/ddimension.pem https://ddimension.github.io/openwrt-repo/keys/ddimension.pem
 echo "https://ddimension.github.io/openwrt-repo/stable/snapshot/aarch64_cortex-a53/packages.adb" \
   > /etc/apk/repositories.d/ddimension.list
+# only if the device also needs add-on packages (apman, snapclient-mptcp, wpad-*, …)
+echo "https://ddimension.github.io/openwrt-addon-feed/stable/snapshot/aarch64_cortex-a53/packages.adb" \
+  > /etc/apk/repositories.d/ddimension-addon.list
 apk update
 apk add wwand luci-app-wwand
 ```
@@ -174,6 +208,30 @@ the other tree. Back from `main` to `stable` works the same way with
 plain upgrade keeps the newer versions from main. `--available` acts on the
 whole system — every package is set to what the configured repositories
 offer, including packages from other feeds.
+
+### Go back to an older package version
+
+Every tree keeps the **last 10 versions** of each package, so a bad version can
+be undone on the spot:
+
+```
+apk list wwand                      # what the tree offers
+apk add wwand=1.6.9-r1              # go back to that one
+```
+
+apk reports `Downgrading` and writes the pin `wwand=1.6.9-r1` into
+`/etc/apk/world`; `apk upgrade`, `apk upgrade --available` included, leaves a
+pinned package alone. Lift the pin when the next good version is out:
+
+```
+apk add wwand                       # floating again
+apk upgrade
+```
+
+Which versions a tree has, with their build and publish dates, is in its
+`versions.json` (and in the directory listing). The pre-channel path
+`…/<release>/<arch>/` keeps only the newest — downgrades need `stable/…` or
+`main/…`.
 
 ### Migrate a device set up before the channels
 
@@ -228,6 +286,7 @@ master and stable base each, by
 | MikroTik Chateau 5G R17 ax | fork branch `chateau-ci` | fork branch `chateau-stable-backport` | full buildroot (device only exists in a PR) |
 | ZyXEL NBG7815 | fork branch `nbg7815-update` | — | full buildroot (PR branch) |
 | Zyxel NR7101 | upstream `main` + our patch | upstream `openwrt-25.12` + our patch | full buildroot (the patch changes the DTS, so a kernel has to be built) |
+| Zyxel LTE3301-M209/Q222 | fork branch `lte3301` | — | full buildroot (the devices do not exist upstream: DTS, mt7620 image recipes, U-Boot and jboot-tools patches) |
 | Zyxel LTE3301-PLUS | `snapshot` | latest `25.12.x` | ImageBuilder |
 
 `master`/`stable` in this table is the **OpenWrt base**, not the feed
@@ -247,16 +306,17 @@ only pulse the reset line instead of power-cycling the modem. Should the patch
 stop applying after an upstream change, that leg fails loudly
 (`build-images.sh`) — refresh the patch, it is not carried in a branch.
 
-Every run builds against **one** stable commit: the one of the feed run that
-triggered it, or, started by hand, the tip of stable at that moment. Full
+Every run builds against **one** stable commit: the one of the release whose
+feed run triggered it, or, started by hand, the commit of the newest release
+tag. Full
 builds add this feed as `src-git` pinned to it (`…openwrt-repo.git^<sha>`);
 the ImageBuilder legs pull the packages **signed** from
 `stable/<release>/mipsel_24kc/` on gh-pages, after waiting until that tree
 carries the `.published` stamp of that commit; the published images are
 stamped with it.
 
-**Triggers:** automatically after every successful feed run on `stable`
-(i.e. after every release), and manually via
+**Triggers:** automatically after every successful feed run of a release tag,
+and manually via
 `gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`.
 `-f testing_kernel=true` builds only the master full builds, with
 `KERNEL_TESTING_PATCHVER`; the stable and ImageBuilder legs are skipped, and
@@ -266,7 +326,7 @@ the images stay run artifacts.
 
 - permanently on gh-pages:
   `https://ddimension.github.io/openwrt-repo/images/<group>/<base>/` —
-  `<group>` is `chateau`, `nbg7815`, `nr7101` or `zyxel`, `<base>` is `master` or
+  `<group>` is `chateau`, `nbg7815`, `nr7101`, `lte3301` or `zyxel`, `<base>` is `master` or
   `stable`. Flat: the images, `.manifest` (full package list, so you can
   verify the stack), `sha256sums`, `.published`. Each run replaces the
   directories it built; a leg that produced no sysupgrade image keeps the
@@ -289,10 +349,14 @@ Add to `feeds.conf` (or `feeds.conf.default`) of an OpenWrt buildroot or SDK:
 
 ```
 src-git wwand https://github.com/ddimension/openwrt-repo.git;stable
+src-git ddaddon https://github.com/ddimension/openwrt-addon-feed.git;stable
 ```
 
-`;stable` follows releases, `;main` development, and `^<commit>` pins one
-commit. Then:
+The second line is only needed for add-on packages; the two feed **names** must
+differ, or `scripts/feeds` decides which clone wins. `;stable` follows the
+stable branch (releases plus any preparation not yet released), `;main`
+development, and `^<commit>` pins one commit — the commit of a release tag for
+exactly what devices get. Then:
 
 ```
 ./scripts/feeds update wwand
@@ -411,7 +475,7 @@ scripts/backup-ap-configs.sh /srv/backup ap-attic ap-outdoor  # named APs
 scripts/backup-ap-configs.sh /srv/backup -f aps.txt -d .lan   # from a file
 ```
 
-Name no AP and the list comes from the MQTT broker: apman publishes
+Name no AP and the list comes from the MQTT broker: apman (add-on feed) publishes
 `properties/system/board` retained per AP, so subscribing to that pattern
 enumerates the fleet with no list to maintain (`-b`, or `APMAN_BROKER`;
 `APMAN_MQTT_OPTS` carries broker credentials). `-l` prints the list without
@@ -431,66 +495,77 @@ runners and the gh-pages publisher: [.github/ci/README.md](.github/ci/README.md)
 
 ### Branches and channels
 
-Two branches, and each one is a channel of the binary feed:
+Two long-lived branches, independent of each other, and each one is a channel
+of the binary feed:
 
-| Branch | Channel | Published under | For |
+| Branch | Channel | Published under | Published by |
 |---|---|---|---|
-| `main` | development | `…/main/<release>/<arch>/` | every change as soon as it is merged |
-| `stable` | releases | `…/stable/<release>/<arch>/` and the pre-channel `…/<release>/<arch>/` | devices, and the device images |
+| `main` | development | `…/main/<release>/<arch>/` | every push to `main` |
+| `stable` | releases | `…/stable/<release>/<arch>/` and the pre-channel `…/<release>/<arch>/` | a release tag `YYYY.MM.DD[.N]` on `stable` — a push to the `stable` branch only builds |
 
-Work happens on `main`. A release moves `stable` forward to a commit of `main`
-and tags it:
-
-```
-scripts/release-stable.sh             # stable -> origin/main, tag YYYY.MM.DD
-scripts/release-stable.sh <commit>    # release an older state of main
-```
-
-The script only ever fast-forwards `stable`, lists the commits and the package
-versions that change, and pushes branch and tag in one atomic push after
-asking. It refuses a ref that is not on `origin/main` (built there first),
-and while any package carries a development version (see
-[Versions](#versions)). That push starts the stable feed build; its success
-starts the device images. A release that changes only `.md` files starts no
-build — `gh workflow run build.yml -R ddimension/openwrt-repo --ref stable`.
-
-`stable` never moves backwards. A GitHub ruleset refuses force-pushes and
-deletion: every src-git checkout of this feed updates with `git pull
---ff-only`, and every installed device follows stable. A fix that cannot wait
-for `main` goes onto `stable` directly, and then back:
+`stable` is not a pointer onto `main`. It takes from main what is ready and
+leaves the rest, in any of these ways:
 
 ```
-git switch -c hotfix origin/stable     # fix, commit
-git push origin HEAD:stable            # builds and publishes stable
-git tag -a YYYY.MM.DD -m "…" && git push origin YYYY.MM.DD   # .2 if that day has one
-git switch main && git merge origin/stable && git push
+git switch -c take origin/stable && git cherry-pick -x <commit> && git push origin HEAD:stable
+scripts/stable-take.sh <pkg>...      # those package directories, as on main
+scripts/stable-take.sh --ci          # .github/ (workflows, CI scripts)
+scripts/stable-take.sh --all         # merge main into stable
 ```
 
-Until `origin/stable` is merged back, `release-stable.sh` refuses to release,
-because stable would lose the fix.
+and a fix that belongs on stable first is made there (and merged up into
+`main` afterwards). For the wwand stack the source repositories have the same
+two lines: feed stable pins their `stable` branch, feed main their `main`
+([Versions](#versions)).
 
-Each channel publishes with the CI scripts of its own branch, so a change to
-the publishing (`.github/ci/publish-pages.sh`, the site layout) reaches the
-stable side with the next release. The device-image workflow always runs from
-`main` (GitHub runs `workflow_run` workflows from the default branch), so a
-change there takes effect at once — still against stable packages.
+Pushes to `stable` build and publish nothing, so a release can be prepared in
+several steps. The release itself is a tag:
+
+```
+scripts/release-stable.sh             # tag the tip of stable YYYY.MM.DD
+scripts/release-stable.sh <commit>    # an earlier commit of stable
+```
+
+It refuses a commit that is not on `origin/stable`, one without a successful
+build run (`--no-ci-check` for a commit that built nothing), one already
+released, and while any package carries a development version
+(`X.Y.Z_pN`/`X.Y.Z_preN`; `--allow-dev` overrides). It lists the commits and
+package versions since the previous release tag and pushes only the tag; that
+build publishes stable, and its success starts the device images.
+
+`stable` still never moves backwards: a GitHub ruleset refuses force-pushes and
+deletion. Note for `src-git …;stable` users: that follows the stable BRANCH,
+which may carry preparation that is not released yet; pin a release with
+`^<commit of the tag>` for exactly what devices get.
+
+Each channel builds with the CI scripts of its own commit — a change to the
+publishing reaches stable with `scripts/stable-take.sh --ci`. The device-image
+workflow always runs from `main` (GitHub runs `workflow_run` workflows from the
+default branch), against the stable packages of the release that triggered it.
 
 ### Versions
 
-`wwand`, `luci-app-wwand` and `luci-proto-wwand` carry the version of the
-wwand release they belong to; the three source repositories are tagged
-`vX.Y.Z` together. [`scripts/bump-source.sh`](scripts/bump-source.sh) derives
-the package version from the pinned commit with `git describe`:
+`wwand`, `luci-app-wwand` and `luci-proto-wwand` have two lines in their
+source repositories as well: releases `vX.Y.Z` are tagged on their `stable`
+branch, and `main` carries a marker `vX.Y.0-dev` where the minor it develops
+opened. [`scripts/bump-source.sh`](scripts/bump-source.sh) derives the package
+version from the pinned commit and the channel (the checked-out feed branch,
+or `--channel`):
 
 | Pinned commit | Package version | Channel |
 |---|---|---|
-| tag `v1.6.6` | `1.6.6-r1` | stable |
-| 3 commits after `v1.6.6` | `1.6.6_p3-r1` | main |
+| tag `v1.6.10` on source stable | `1.6.10-r1` | stable (release) |
+| 3 commits after `v1.6.10` on source stable | `1.6.10_p3-r1` | stable (not releasable) |
+| 14 commits after `v1.7.0-dev` on source main | `1.7.0_pre14-r1` | main |
 
-apk orders `1.6.6` < `1.6.6_p3` < `1.6.7`, so both channels upgrade normally,
-and no build date is part of a version. `-rN` is OpenWrt's packaging revision:
-back to 1 with every new version, counted up by hand for packaging-only
-changes.
+apk orders `1.6.10` < `1.6.10_p3` < `1.7.0_pre1` < `1.7.0_pre14` < `1.7.0`, so
+main always sorts above every stable patch release, both channels upgrade
+normally, and no build date is part of a version. The pinned commit must be on
+the source branch of the same name. Opening a new minor: merge source main into
+source stable, tag `vX.Y.0` there, put the next `vX.(Y+1).0-dev` on main.
+`-rN` is OpenWrt's packaging revision: back to 1 with every new version,
+counted up by hand for packaging-only changes. Other git-source packages (one
+line, no source `stable` branch) keep `vX.Y.Z` → `X.Y.Z`, then `X.Y.Z_pN`.
 
 Until r73 / r34 / r17 these packages had no version of their own, and OpenWrt
 derived one from date and commit (`2026.09.11~c27f72e6`). apk sorts that above
@@ -500,26 +575,27 @@ apk's eyes — once, and only in number: 1.6.6 is the r73 / r34 / r17 code. See
 
 ### Updating a package to a newer source commit
 
-Changes go to `main`; stable gets them with the next release.
+Changes go to `main`; stable takes them when they are ready (above).
 
-For `wwand`, `luci-app-wwand` and `luci-proto-wwand` there is one command:
+For `wwand`, `luci-app-wwand` and `luci-proto-wwand` there is one command, run
+on the feed branch it is meant for:
 
 ```
-scripts/bump-source.sh wwand main         # development: e.g. 1.6.6_p3
-scripts/bump-source.sh wwand v1.6.7       # a release:   1.6.7
+scripts/bump-source.sh wwand main         # on feed main:   e.g. 1.7.0_pre3
+scripts/bump-source.sh wwand v1.6.10      # on feed stable: 1.6.10
 ```
 
 It pins the commit, sets `PKG_VERSION` from `git describe`
 ([Versions](#versions)), resets `PKG_RELEASE` to 1, and runs
 `scripts/update-hashes.sh` — restoring the Makefile if that fails; commit the
 Makefile. It refuses the same version for a different commit (the tarball
-name would be reused) and a lower version than the current one (`--force`). A release of the stack: tag
-`vX.Y.Z` in the wwand, luci-app-wwand and luci-proto-wwand repositories, pin
-the three tags, commit, `scripts/release-stable.sh`.
+name would be reused), a commit that is not on the channel's source branch,
+and a lower version than the current one (`--force`). A patch release of the
+stack: tag `vX.Y.Z` on the source `stable` branch of each repository that
+changed, pin the tags on feed stable, push (builds), `scripts/release-stable.sh`.
 
 The other git-source packages (upstreams with their own or no version scheme)
-are pinned via `PKG_SOURCE_VERSION` by hand. `apman` has its own release script
-([apman/README.md](apman/README.md)). To ship a new version:
+are pinned via `PKG_SOURCE_VERSION` by hand. To ship a new version:
 
 1. bump `PKG_SOURCE_VERSION` (and `PKG_VERSION` or `PKG_SOURCE_DATE`, as the
    package uses them) in the package's Makefile and increment `PKG_RELEASE`,
@@ -529,17 +605,18 @@ are pinned via `PKG_SOURCE_VERSION` by hand. `apman` has its own release script
    writes it into the Makefile,
 3. commit both changes together on `main` — CI builds and publishes it to the
    main channel,
-4. once it has proven itself there, release: `scripts/release-stable.sh`.
+4. once it has proven itself there, take it onto stable
+   (`scripts/stable-take.sh <package>`), and release with
+   `scripts/release-stable.sh` when stable is ready.
 
 CI runs gh-action-sdk in **per-package mode** (`PACKAGES`), which builds
 only the packages listed in [`.github/ci/packages`](.github/ci/packages) plus
 their real dependencies and enforces the mirror hash. The hash check is a
 no-op for the packages that build from `files/` in this repo and declare no
-`PKG_SOURCE` (`ddimension-feed`, `homesync`, `wpad-ieee8021x` and the `q*`
-packages). `homesync` needs `snapclient-mptcp` only at runtime
-(`EXTRA_DEPENDS`); `snapcast-mptcp` is on the list itself, so its C++ tree is
-compiled in CI. `heatingrod`, `pcie_mhi` and `python3-edlclient` are not on
-the list: a change to them is only as tested as your local build.
+`PKG_SOURCE` (`ddimension-feed` and the `q*` packages). `pcie_mhi` and
+`python3-edlclient` are not on the list: a change to them is only as tested as
+your local build. The add-on packages are not here at all any more — they are
+built by [ddimension/openwrt-addon-feed](https://github.com/ddimension/openwrt-addon-feed).
 
 ### Publishing
 
