@@ -17,13 +17,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-wwand
-PKG_VERSION:=1.8.0_pre8
+PKG_VERSION:=1.9.0_pre2
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/luci-app-wwand.git
-PKG_SOURCE_VERSION:=a5c1229559fd7626334b948d274211ade24afba5
-PKG_MIRROR_HASH:=2040f6e16bab184a5e73bf9954954f4bf2633f1c56085a9856a1bb1a0cf00631
+PKG_SOURCE_VERSION:=f8007b11d5239ed5081f6a63a051d72e91c57643
+PKG_MIRROR_HASH:=777b587b6e3c00e487d0e9d7f5d4664188f67c7099705afce8860d3f3b6f5733
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -127,14 +127,14 @@ endef
 # the Accept-Language match read only luci.languages (luci-mod-system
 # system.js, luci-base dispatcher.uc, 2026-10), and this package does not pull
 # in the luci-i18n-base-<lang> that would otherwise write it.
-LUCI_WWAND_LANGS:=
+LUCI_WWAND_LANGS:=pl
 LUCI_WWAND_LC.bn_BD:=bn
 LUCI_WWAND_LC.nb_NO:=no
 LUCI_WWAND_LC.pt_BR:=pt-br
 LUCI_WWAND_LC.zh_Hans:=zh-cn
 LUCI_WWAND_LC.zh_Hant:=zh-tw
-# LUCI_WWAND_NAME.<lang>:=<name as LUCI_LANG.<lang> in luci.mk>, e.g.
-# LUCI_WWAND_NAME.pl:=Polski (Polish)
+# LUCI_WWAND_NAME.<lang>:=<name as LUCI_LANG.<lang> in luci.mk>
+LUCI_WWAND_NAME.pl:=Polski (Polish)
 
 # 1: LuCI language code (package and .lmo name), 2: po directory
 define LuciWwandTranslation
