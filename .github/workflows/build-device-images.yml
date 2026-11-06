@@ -33,6 +33,10 @@ on:
         description: 'Nur die master-Voll-Builds mit KERNEL_TESTING_PATCHVER (z.B. 6.18) bauen; stable- und ImageBuilder-Legs werden uebersprungen. Nur Artefakte, kein Publish nach gh-pages.'
         type: boolean
         default: false
+      only:
+        description: 'Nur diesen Leg bauen (Matrix-Slug: chateau, nbg7815, nr7101, lte3301 oder zyxel); leer = alle. Publiziert wird dann nur dessen Images-Verzeichnis.'
+        type: string
+        default: ''
   # Nach jedem erfolgreichen Feed-Lauf eines RELEASE-TAGS automatisch Images
   # bauen, damit ein frisches Release direkt in Images landet. Bei einem
   # Tag-Lauf ist head_branch der Tag-Name, daher das Datumsmuster. Pushes auf
@@ -128,8 +132,10 @@ jobs:
             target: qualcommax
             subtarget: ipq60xx
             devices: mikrotik_chateau-5g-r17-ax
-          # ZyXEL NBG7815: RGB-LED, Bluetooth, Luefter/Temperatursensor und der
-          # 160-MHz-Boardfile-Schalter, PR-Branch nbg7815-update. Vorerst nur
+          # ZyXEL NBG7815: Bluetooth, der 160-MHz-Boardfile-Schalter und die
+          # PSKEY-Kopie aus dem Stock-Slot, PR-Branch nbg7815-update
+          # (openwrt#24881; LEDs, Luefter und Temperatursensor sind schon in
+          # main). bluez + unsquashfs kommen aus config.nbg7815. Vorerst nur
           # master - fuer stable gibt es keinen Backport-Branch.
           - slug: nbg7815
             base: master
@@ -209,7 +215,10 @@ jobs:
 
       - name: Build (full buildroot)
         # Bei testing_kernel nur master bauen (stable = openwrt-25.12 hat kein 6.18).
-        if: ${{ github.event.inputs.testing_kernel != 'true' || matrix.base == 'master' }}
+        # Mit `only` nur dieser Leg. Die Bedingung steht am Schritt, weil ein
+        # Job-`if` die Matrix nicht sehen kann; ein uebersprungener Leg laedt
+        # kein Artefakt hoch, publish-images ersetzt sein Verzeichnis also nicht.
+        if: ${{ (github.event.inputs.testing_kernel != 'true' || matrix.base == 'master') && (github.event.inputs.only == '' || github.event.inputs.only == matrix.slug) }}
         env:
           # Der wwand-Feed als src-git, gepinnt auf den feed-Commit
           # (scripts/feeds-Form <url>^<sha>) — dann traegt das Image dieselben
@@ -267,7 +276,7 @@ jobs:
             bash /ci/.github/ci/build-images.sh
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && (github.event.inputs.only == '' || github.event.inputs.only == matrix.slug) }}
         with:
           name: images-${{ matrix.slug }}-${{ matrix.base }}
           path: out/**
@@ -277,7 +286,7 @@ jobs:
   zyxel:
     needs: feed
     # Ein Testkernel betrifft nur Voll-Builds; der ImageBuilder bringt seinen Kernel mit.
-    if: ${{ github.event.inputs.testing_kernel != 'true' }}
+    if: ${{ github.event.inputs.testing_kernel != 'true' && (github.event.inputs.only == '' || github.event.inputs.only == 'zyxel') }}
     runs-on: [self-hosted, openwrt]
     timeout-minutes: 120
     strategy:

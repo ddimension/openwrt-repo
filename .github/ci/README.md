@@ -260,7 +260,9 @@ Skript auf ein Bare-Repo statt auf GitHub.
   `concurrency` verhindert Stapeln.
 - **Manuell:** `gh workflow run build-device-images.yml -R ddimension/openwrt-repo --ref main`
   (`-f testing_kernel=true`: nur die master-Voll-Builds mit Testkernel; stable- und
-  zyxel-Legs übersprungen, kein Publish).
+  zyxel-Legs übersprungen, kein Publish; `-f only=<slug>`: nur dieser Leg,
+  z.B. `nbg7815` nach einem Push auf seinen PR-Branch — publiziert wird dann nur
+  sein `images/<slug>/`, die anderen Verzeichnisse bleiben stehen).
 
 **`workflow_run`-Semantik:** GitHub führt immer die Workflow-Datei und den Checkout
 des **Default-Branch (main)** aus. Die Skripte unter `.github/ci` kommen also von
@@ -305,9 +307,11 @@ DTS, LZMA-Loader). Quellen:
   gecherry-pickt. Konflikte beim Backport in `02_network` und `11-ath11k-caldata`
   (master gruppiert dort andere Geräte) → nur den Chateau-Block einfügen,
   master-Kontext weglassen.
-- **nbg7815 (nur master):** Fork-Branch `nbg7815-update` (RGB-LED, Bluetooth,
-  Lüfter/Temperatursensor, 160-MHz-Boardfile-Schalter). Für stable gibt es keinen
-  Backport-Branch.
+- **nbg7815 (nur master):** Fork-Branch `nbg7815-update` = openwrt#24881
+  (Bluetooth, 160-MHz-Boardfile-Schalter, PSKEY-Kopie aus dem Stock-Slot; LEDs,
+  Lüfter und Temperatursensor sind schon in main). `config.nbg7815` legt
+  `bluez-utils`, `bluez-daemon` und `squashfs-tools-unsquashfs` ins Image, die
+  der PR selbst nicht mitliefert. Für stable gibt es keinen Backport-Branch.
 - **nr7101 (master + stable):** **kein** Fork-Branch — Quelle ist upstream
   (`main` bzw. `openwrt-25.12`), und die eine Änderung kommt als
   `PATCH=.github/ci/nr7101-lte-power.patch` (Matrix-Schlüssel `patch:`, von
