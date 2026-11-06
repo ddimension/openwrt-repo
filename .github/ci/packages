@@ -10,6 +10,8 @@
 #   rmnet-nss          module needs a target build, and the NSS variants need
 #                      Qualcomm NSS hardware to mean anything. Both are built
 #                      and tested in a matching buildroot (PR #1).
+#   qmi_wwan_q         vendor USB QMI driver, same reason; it goes into the
+#                      NR7101 image (config.nr7101) for the hwtest.
 #   python3-edlclient  host-side flashing tool, built on demand
 #
 # The add-on packages (apman, snapcast-mptcp/homesync, the wpad variants,
