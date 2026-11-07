@@ -324,15 +324,20 @@ DTS, LZMA-Loader). Quellen:
   erzeugen (er liegt in keinem Branch). Das Gerät lief vorher im zyxel-Leg
   (ImageBuilder), der keinen eigenen Kernel bauen kann.
 - **lte3301 (nur master):** Fork-Branch `lte3301` für **LTE3301-M209/Q222** —
-  Geräte, die es upstream **nicht** gibt: der Branch bringt DTS
-  (`mt7620n_zyxel_lte3301-{m209,q222}.dts`), die mt7620-Image-Rezepte, einen
-  U-Boot-Patch und jboot-tools mit. Target ramips/**mt7620** (nicht mt7621 wie
-  der LTE3301-**PLUS**, der weiter im zyxel-ImageBuilder-Leg läuft); Paket-Arch
-  bleibt `mipsel_24kc`. Nur master, der Branch sitzt auf openwrt main.
-  Besonderheit: dieser Branch trägt in `feeds.conf.default` eine **eigene**
-  wwand-Zeile. `build-images.sh` entfernt vorhandene wwand-Feeds, bevor es den
-  gepinnten anhängt — sonst stünde der Feed zweimal drin und welcher Klon
-  gewinnt, entschiede `scripts/feeds` statt wir.
+  Geräte, die es upstream **nicht** gibt. Der Branch ist der Stand von
+  openwrt/openwrt#25670 (DTS `mt7620n_zyxel_lte3301-{m209,q222}.dts` mit dem
+  Switch unter DSA, mt7620-Image-Rezepte, U-Boot-Patch, jboot-tools) plus zwei
+  Commits, die nicht in den PR gehören: openwrt/openwrt#24724 (FE/ESW/PPE-Reset
+  beim Neustart — ohne ihn kann das Ethernet unter DSA nach einem warmen
+  Neustart tot bleiben, laut #24493 ausdrücklich nicht dessen Umfang) und
+  `CI ONLY` jbootimage für `u-boot-install.bin`, solange
+  openwrt/firmware-utils#81 offen ist. Target ramips/**mt7620** (nicht mt7621
+  wie der LTE3301-**PLUS**, der weiter im zyxel-ImageBuilder-Leg läuft);
+  Paket-Arch bleibt `mipsel_24kc`. Nur master, der Branch sitzt auf openwrt
+  main. Ein früherer Stand des Branches trug in `feeds.conf.default` eine
+  eigene wwand-Zeile; `build-images.sh` entfernt vorhandene wwand-Feeds
+  weiterhin, bevor es den gepinnten anhängt — sonst stünde der Feed zweimal
+  drin und welcher Klon gewinnt, entschiede `scripts/feeds` statt wir.
 - **wwand-Feed:** `src-git` dieses Repos, gepinnt auf den Feed-Commit des
   Laufs (`…openwrt-repo.git^<sha>`). `scripts/feeds` merkt sich die Quelle
   (`feeds/wwand.tmp/location`) und klont bei Änderung neu — aber es schreibt
@@ -344,7 +349,8 @@ DTS, LZMA-Loader). Quellen:
   `.github/ci/build-images.sh`.
 - **Zusatz je Gerät:** `.github/ci/config.<slug>` wird, falls vorhanden, nach
   `config.wwand` angehängt (`$SLUG` = Matrix-Slug, aus dem Workflow gereicht) —
-  heute `config.chateau` mit `kmod-usb-serial-ftdi`. Andere Legs bleiben
+  heute `config.chateau` mit `kmod-usb-serial-ftdi` und `config.lte3301` mit
+  `lldpd`. Andere Legs bleiben
   unberührt. `build-images.sh` prüft nach `defconfig`, dass jedes
   `CONFIG_PACKAGE_…=y` daraus wirklich gesetzt ist: ein Symbol, das das Target
   nicht kennt, verschwindet dort still.

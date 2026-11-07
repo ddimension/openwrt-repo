@@ -1,0 +1,7 @@
+# Zusatz nur fuer den lte3301-Leg (Zyxel LTE3301-M209/Q222), Basis master.
+# Wird nach config.wwand an .config angehaengt (build-images.sh, ueber $SLUG).
+#
+# lldpd: die Geraete haengen im Testnetz ohne Konsole (kein Serial ohne das
+# Gehaeuse zu oeffnen); per LLDP meldet sich ein Geraet auch dann beim Switch,
+# wenn seine LAN-Adresse nach einem Upgrade nicht mehr stimmt.
+CONFIG_PACKAGE_lldpd=y
