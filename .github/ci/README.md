@@ -349,8 +349,13 @@ DTS, LZMA-Loader). Quellen:
   `.github/ci/build-images.sh`.
 - **Zusatz je Gerät:** `.github/ci/config.<slug>` wird, falls vorhanden, nach
   `config.wwand` angehängt (`$SLUG` = Matrix-Slug, aus dem Workflow gereicht) —
-  heute `config.chateau` mit `kmod-usb-serial-ftdi` und `config.lte3301` mit
-  `lldpd`. Andere Legs bleiben
+  heute `config.chateau` mit `kmod-usb-serial-ftdi`, `config.lte3301` mit
+  `lldpd` und `config.nr7101` mit
+  `kmod-qmi_wwan_q` + `wwand-datapath-rmnet_nss` (für den hwtest-Schritt
+  `vendorqmap`; das Modul lädt nicht beim Booten, ab Werk behält `qmi_wwan`
+  das Modem). Weil die Images gegen Feed **stable** bauen, die `config.*`
+  aber von main kommen, darf ein neues Paket hier erst stehen, wenn es auf
+  stable liegt — sonst scheitert der Leg an der Prüfung unten. Andere Legs bleiben
   unberührt. `build-images.sh` prüft nach `defconfig`, dass jedes
   `CONFIG_PACKAGE_…=y` daraus wirklich gesetzt ist: ein Symbol, das das Target
   nicht kennt, verschwindet dort still.
