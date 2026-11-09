@@ -5,3 +5,8 @@
 # (FT232/FT2232 adapters). The module is built into the image so that a
 # plugged-in cable shows up as /dev/ttyUSB* without installing anything.
 CONFIG_PACKAGE_kmod-usb-serial-ftdi=y
+# usb-modeswitch: the second modem on the test Chateau, a Huawei E392, comes up
+# as mass storage (12d1:1505) and only becomes a modem (12d1:1506) once
+# usbmode switches it; without it wwand waits for that modem forever (HW, image
+# r0-f91237f, 2026-11-09).
+CONFIG_PACKAGE_usb-modeswitch=y

@@ -352,7 +352,7 @@ DTS, LZMA-Loader). Quellen:
   `.github/ci/build-images.sh`.
 - **Zusatz je Gerät:** `.github/ci/config.<slug>` wird, falls vorhanden, nach
   `config.wwand` angehängt (`$SLUG` = Matrix-Slug, aus dem Workflow gereicht) —
-  heute `config.chateau` mit `kmod-usb-serial-ftdi`, `config.nbg7815` mit
+  heute `config.chateau` mit `kmod-usb-serial-ftdi` + `usb-modeswitch`, `config.nbg7815` mit
   bluez + unsquashfs und `config.nr7101` mit
   `kmod-qmi_wwan_q` + `wwand-datapath-rmnet_nss` (für den hwtest-Schritt
   `vendorqmap`; das Modul lädt nicht beim Booten, ab Werk behält `qmi_wwan`
