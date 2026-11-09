@@ -1,15 +1,15 @@
-# Zusatz nur fuer den nbg7815-Leg (Zyxel NBG7815), Basis master.
-# Wird nach config.wwand an .config angehaengt (build-images.sh, ueber $SLUG).
+# Addition for the nbg7815 leg only (Zyxel NBG7815), base master.
+# Appended to .config after config.wwand (build-images.sh, via $SLUG).
 #
-# Bluetooth: der PR-Branch (openwrt#24881) nimmt bluez bewusst aus
-# DEVICE_PACKAGES, weil bluez kein Kernpaket ist; ohne hciattach (bluez-utils)
-# und bluetoothd (bluez-daemon) bleibt der Dienst nbg7815-bluetooth unten. Das
-# Test-Image soll ihn aber gleich laufen lassen, damit der hwtest nicht erst
-# nachinstallieren muss (und ein frisch installiertes bluez-daemon braucht
-# ohnehin einen Neustart, bis bluetoothd auf den D-Bus kommt).
+# Bluetooth: the PR branch (openwrt#24881) keeps bluez out of DEVICE_PACKAGES on
+# purpose, because bluez is not a core package; without hciattach (bluez-utils)
+# and bluetoothd (bluez-daemon) the nbg7815-bluetooth service stays down. The
+# test image should run it right away, so hwtest does not have to install it
+# first (and a freshly installed bluez-daemon needs a reboot anyway before
+# bluetoothd gets onto D-Bus).
 CONFIG_PACKAGE_bluez-utils=y
 CONFIG_PACKAGE_bluez-daemon=y
-# Die PSKEY-Kopie aus dem Stock-Slot laeuft nur mit unsquashfs: der Kernel
-# mountet das Stock-squashfs nicht (seine xz-Optionen weist
-# squashfs_xz_comp_opts() zurueck, laut strrs' Commit 93e5c73, 2026-10-28).
+# The PSKEY copy from the stock slot only works with unsquashfs: the kernel
+# does not mount the stock squashfs (squashfs_xz_comp_opts() rejects its xz
+# options, per strrs' commit 93e5c73, 2026-10-28).
 CONFIG_PACKAGE_squashfs-tools-unsquashfs=y

@@ -1,12 +1,12 @@
-# Zusatz nur fuer den nr7101-Leg (Zyxel NR7101, RG502Q-EA), beide Basen.
-# Wird nach config.wwand an .config angehaengt (build-images.sh, ueber $SLUG).
+# Addition for the nr7101 leg only (Zyxel NR7101, RG502Q-EA), both bases.
+# Appended to .config after config.wwand (build-images.sh, via $SLUG).
 #
-# Der Vendor-Treiber qmi_wwan_q und das wwand-Datapath-Add-on dafuer, damit
-# hwtest (remote/vendorqmap.sh) den rmnet_nss-Datapath auf diesem Geraet
-# regulaer mitprueft: Umschalten, Start, Neustart (wwand#78), zurueck. Der
-# RG502Q-EA (2c7c:0800) bekommt von qmi_wwan_q use_rmnet_usb, also echte
-# QMAP-Kinder wie auf einem NSS-Board, nur ohne Offload. kmod-qmi_wwan_q
-# laedt NICHT beim Booten (qmi_wwan_q/Makefile): ab Werk behaelt qmi_wwan das
-# Modem, und dieses Image ist auch ein normales Image.
+# The vendor driver qmi_wwan_q and the wwand datapath add-on for it, so that
+# hwtest (remote/vendorqmap.sh) checks the rmnet_nss datapath on this device as
+# a regular step: switch over, start, restart (wwand#78), switch back. The
+# RG502Q-EA (2c7c:0800) gets use_rmnet_usb from qmi_wwan_q, i.e. real QMAP
+# children as on an NSS board, just without the offload. kmod-qmi_wwan_q does
+# NOT load at boot (qmi_wwan_q/Makefile): out of the box qmi_wwan keeps the
+# modem, and this image is an ordinary image as well.
 CONFIG_PACKAGE_kmod-qmi_wwan_q=y
 CONFIG_PACKAGE_wwand-datapath-rmnet_nss=y

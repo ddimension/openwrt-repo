@@ -1,4 +1,4 @@
-# Kompletter wwand-Stack ins Image (built-in). Wird an .config angehaengt.
+# The complete wwand stack in the image (built-in). Appended to .config.
 CONFIG_PACKAGE_wwand=y
 CONFIG_PACKAGE_wwand-qmi=y
 CONFIG_PACKAGE_wwand-mbim=y
