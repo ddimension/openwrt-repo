@@ -345,12 +345,15 @@ DTS, LZMA-Loader). Quellen:
   Bricht ein Lauf zwischen clone und checkout ab, stünde feeds/wwand stumm auf
   dem falschen Baum; `build-images.sh` vergleicht deshalb vor `feeds update`
   HEAD mit dem Pin und wirft den Klon im Zweifel weg.
-- Stack: `.github/ci/config.wwand` (inkl. `ddimension-feed`). Skript:
+- Stack: `.github/ci/config.wwand` (inkl. `ddimension-feed` und `lldpd`, das
+  in jedes Image gehört: per LLDP meldet sich ein Testgerät am Switch, auch
+  wenn seine LAN-Adresse nach einem Upgrade nicht mehr stimmt; der
+  ImageBuilder-Leg zyxel führt es in `PKGS` von `build-imagebuilder.sh`). Skript:
   `.github/ci/build-images.sh`.
 - **Zusatz je Gerät:** `.github/ci/config.<slug>` wird, falls vorhanden, nach
   `config.wwand` angehängt (`$SLUG` = Matrix-Slug, aus dem Workflow gereicht) —
-  heute `config.chateau` mit `kmod-usb-serial-ftdi`, `config.lte3301` mit
-  `lldpd` und `config.nr7101` mit
+  heute `config.chateau` mit `kmod-usb-serial-ftdi`, `config.nbg7815` mit
+  bluez + unsquashfs und `config.nr7101` mit
   `kmod-qmi_wwan_q` + `wwand-datapath-rmnet_nss` (für den hwtest-Schritt
   `vendorqmap`; das Modul lädt nicht beim Booten, ab Werk behält `qmi_wwan`
   das Modem). Weil die Images gegen Feed **stable** bauen, die `config.*`

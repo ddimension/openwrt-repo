@@ -16,6 +16,10 @@ CONFIG_PACKAGE_wwand-esim=y
 CONFIG_PACKAGE_luci-app-wwand=y
 CONFIG_PACKAGE_luci-proto-wwand=y
 CONFIG_PACKAGE_luci=y
+# lldpd: the test devices sit in the test network without a console (no serial
+# on most without opening the case); over LLDP a device still announces itself
+# to the switch when its LAN address no longer matches after an upgrade.
+CONFIG_PACKAGE_lldpd=y
 CONFIG_PACKAGE_umbim=y
 CONFIG_PACKAGE_mbim-utils=y
 CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y

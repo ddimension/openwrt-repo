@@ -1,7 +1,0 @@
-# Addition for the lte3301 leg only (Zyxel LTE3301-M209/Q222), base master.
-# Appended to .config after config.wwand (build-images.sh, via $SLUG).
-#
-# lldpd: the devices sit in the test network without a console (no serial
-# without opening the case); over LLDP a device still announces itself to the
-# switch when its LAN address no longer matches after an upgrade.
-CONFIG_PACKAGE_lldpd=y

@@ -52,7 +52,7 @@ PKGS="wwand wwand-qmi wwand-mbim wwand-ncm wwand-mhi wwand-esim wwand-lpac \
 luci-app-wwand luci-proto-wwand \
 ddimension-feed \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
-kmod-usb-serial-option kmod-vrf luci"
+kmod-usb-serial-option kmod-vrf luci lldpd"
 
 # 3) je Geraet ein Image (Signaturpruefung aktiv)
 #
