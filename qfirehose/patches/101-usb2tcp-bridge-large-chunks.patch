@@ -1,0 +1,29 @@
+--- a/usb2tcp.c
++++ b/usb2tcp.c
+@@ -44,7 +44,12 @@
+ #define MIN(a, b) ((a) < (b) ? (a) : (b))
+ 
+ #define MAX_USBFS_BULK_IN_SIZE (4 * 1024)
+-#define MAX_USBFS_BULK_OUT_SIZE (16 * 1024)
++/* Must be >= the largest single client->USB transfer the TLV framing can carry.
++ * The 16K default overflowed pbuf: the Sahara loader upload requests up to
++ * len=0x7000 (28K) and firehose image programming sends ~1M chunks, so a 16K
++ * malloc was read past its end and the target got garbage, stalling the flash
++ * (HW-observed on the RG650E usb2tcp bridge, 2026-11-14). */
++#define MAX_USBFS_BULK_OUT_SIZE (2 * 1024 * 1024)
+ 
+ static uint32_t cpu_to_le32(uint32_t v32)
+ {
+@@ -347,6 +352,12 @@
+                 }
+ 
+                 size = le32_to_cpu(tlv.length);
++                if (size < 0 || size > MAX_USBFS_BULK_OUT_SIZE)
++                {
++                    dprintf("%s TLV size %d exceeds buffer %d — hanging up to avoid overflow\n",
++                            __func__, size, MAX_USBFS_BULK_OUT_SIZE);
++                    goto _hangup;
++                }
+                 if (size != noblock_full_read(client_fd, pbuf, size))
+                 {
+                     goto _hangup;

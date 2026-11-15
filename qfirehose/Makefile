@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qfirehose
 PKG_VERSION:=1.4.21
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 # License: Quectel NOTICE in the source tree — binary redistribution to
 # Quectel customers permitted; source disclosure restricted by Quectel.
 PKG_LICENSE:=Quectel-Proprietary
@@ -35,6 +35,16 @@ define Package/qfirehose
   DEPENDS:=+libpthread
 endef
 
+# Local patch 101 fixes QFirehose's usb2tcp BRIDGE mode (`QFirehose -p <port>`
+# on the USB host, client `-f <pkg> -p <host>:<port>`): the relay buffer was a
+# fixed 16K, but firehose image programming streams ~1M chunks and the Sahara
+# loader upload asks for len=0x7000, so the buffer was read past its end and the
+# target got garbage (HW-observed on the RG650E over the bridge, 2026-11-14).
+# NOTE the companion runtime requirement: stream with `-z 0` on BOTH ends.
+# QFirehose chunks a read into wMaxPacketSize-aligned pieces, and the default
+# per-piece ZLP is seen by the loader as end-of-transfer mid-chunk — the flash
+# stalls at the first 0x7000 request. `-z 0` (qusb_zlp_mode=0) keeps the chunk
+# contiguous. This is an operational flag, not a code change.
 define Package/qfirehose/description
   QFirehose firmware update tool for Quectel devices (sahara/firehose protocol)
 endef
