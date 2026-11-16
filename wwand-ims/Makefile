@@ -4,10 +4,10 @@
 # (wwand plugins.uc) plus a SIP daemon, kept out of the wwand sources on
 # purpose: it is NOT meant for upstream.
 #
-# Sources live in https://github.com/ddimension/wwand-ims (branch main, no
-# vX.Y.Z-dev marker scheme yet — it is pinned by commit like wwand-ipa, not via
-# bump-source.sh). After a PKG_SOURCE_VERSION bump run
-# `scripts/update-hashes.sh wwand-ims` to fill PKG_MIRROR_HASH from the SDK.
+# Sources live in https://github.com/ddimension/wwand-ims, two lines like
+# wwand: feed main pins its `main` (vX.Y.0-dev marker -> X.Y.0_preN), feed
+# stable its release tags. Pin with `scripts/bump-source.sh wwand-ims <ref>`.
+# A new module under sipd/ or ue/ needs its install line below.
 #
 # GPL-2.0-only, and pure ucode + scripts (no compiled code): the NETLINK_XFRM
 # binding sec-agree needs lives in wwand's own native module (wwand_io.so,
@@ -21,13 +21,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand-ims
-PKG_VERSION:=0.1.0
+PKG_VERSION:=0.2.0_pre3
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand-ims.git
-PKG_SOURCE_VERSION:=1ec70fa685404c54e060c53f3d13db0dad5ebaeb
-PKG_MIRROR_HASH:=0fb4384c19053738a22f52006587c6f8fc4aa6ff795d95c47305919a1597e437
+PKG_SOURCE_VERSION:=58b626743f5f7ca5cf1093ad6daad2ac53113833
+PKG_MIRROR_HASH:=e1553c7639ee14678b51fd6dd6da118a598fff6b7eef2cd94cbb3ae67e9c36d9
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -89,10 +89,12 @@ define Package/wwand-ims/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/sipd/sip.uc      $(1)$(IMSLIB)/sipd_sip.uc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/sipd/line_ue.uc  $(1)$(IMSLIB)/sipd_line_ue.uc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/sipd/relay.uc    $(1)$(IMSLIB)/sipd_relay.uc
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/sipd/profile.uc  $(1)$(IMSLIB)/sipd_profile.uc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ue/aka.uc        $(1)$(IMSLIB)/ue_aka.uc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ue/secagree.uc   $(1)$(IMSLIB)/ue_secagree.uc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ue/reg.uc        $(1)$(IMSLIB)/ue_reg.uc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ue/call.uc       $(1)$(IMSLIB)/ue_call.uc
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ue/regevent.uc   $(1)$(IMSLIB)/ue_regevent.uc
 	# the proven UE driver, run by `wwandctl ims [modem] call <number>`
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/tools/ims-register.uc $(1)$(IMSLIB)/ims-register.uc
 	# init, setup helper, example config, l3mdev hotplug
