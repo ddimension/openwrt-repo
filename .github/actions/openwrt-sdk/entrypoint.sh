@@ -113,7 +113,11 @@ group "feeds update -a"
 endgroup
 
 # EXTRA_CONFIG: build-time symbols the caller wants set, one "CONFIG_X=y" per
-# whitespace-separated word.
+# whitespace-separated word, or "CONFIG_X=n" to keep one OUT of the build.
+# defconfig writes an =n back as "# CONFIG_X is not set", and that line is
+# what is verified: a symbol defconfig dropped (unknown, renamed upstream, its
+# package not in the tree) fails like any other, rather than passing as "not
+# built" while the thing stays on under another name.
 #
 # Called AFTER the feeds are installed, never before: a package's Kconfig only
 # exists once its feed is in the tree, so both CONFIG_PACKAGE_<pkg> and any
@@ -136,7 +140,12 @@ apply_extra_config() {
 	# that fails, because the result looks correct and is not.
 	MISSING=""
 	for OPT in $EXTRA_CONFIG; do
-		grep -qxF "$OPT" .config || MISSING="$MISSING $OPT"
+		case "$OPT" in
+		*=n)
+			grep -qxF "# ${OPT%=n} is not set" .config || MISSING="$MISSING $OPT" ;;
+		*)
+			grep -qxF "$OPT" .config || MISSING="$MISSING $OPT" ;;
+		esac
 	done
 
 	if [ -n "$MISSING" ]; then

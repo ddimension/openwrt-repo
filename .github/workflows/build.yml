@@ -196,9 +196,18 @@ jobs:
           # unconditionally, and the cmake capability probe ships source rather
           # than failing if that compiler cannot emit bytecode.
           #
-          # EXTRA_CONFIG stays wired (and is verified after `feeds install`)
-          # for whatever needs it next; it is deliberately empty.
-          EXTRA_CONFIG: ''
+          # EXTRA_CONFIG is applied and verified after `feeds install`
+          # (entrypoint.sh apply_extra_config).
+          #
+          # collectd-mod-write-prometheus OFF: nothing of ours ships it, and it
+          # is the only reason protobuf is built at all —
+          # luci-app-wwand-statistics -> luci-app-statistics -> collectd, whose
+          # Prometheus plugin needs protobuf-c, which needs protobuf. protobuf
+          # 29.5 does not build on MIPS with the snapshot SDK's GCC 15.3
+          # ("cannot tail-call", generated_message_tctable_full.cc:57; run
+          # 44683844622, 2026-11-20 — GCC 14.4 the day before built it), which
+          # turned the snapshot mips_24kc and mipsel_24kc legs red.
+          EXTRA_CONFIG: 'CONFIG_PACKAGE_collectd-mod-write-prometheus=n'
           # PACKAGES comes from the "Package list" step (GITHUB_ENV) — do not
           # set it here, a step env would override it.
           INDEX: 1
