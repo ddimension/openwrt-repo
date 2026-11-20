@@ -263,6 +263,29 @@ run_watched() {
 	return "$rc"
 }
 
+# show_failed_logs <tag>: the end of every package log a failed stage names.
+# With BUILD_LOG=1 a package's compiler output goes to logs/<path>/*.txt, and
+# stdout says only "ERROR: package/utils/ucode failed to build." — the cause
+# stays in the persistent volume of the runner the job happened to run on,
+# where nobody looks (nr7101 master, run 44822275035, 2026-11-20). One group
+# per package, so the job log carries the reason with the failure.
+show_failed_logs() {
+	local tag="$1" pkg f
+
+	# under set -euo pipefail a grep without a match (or without the log:
+	# world-j1 exists only after a hang) must not end the script here
+	{ grep -oE 'ERROR: package/[^ ]+ failed to build' "/tmp/stage-${tag}.log" 2>/dev/null || true; } |
+		sed 's/^ERROR: //; s/ failed to build$//' | sort -u |
+	while read -r pkg; do
+		for f in "logs/${pkg}"/*.txt; do
+			[ -f "$f" ] || continue
+			echo "::group::${f} (the last 80 lines)"
+			tail -n 80 "$f"
+			echo "::endgroup::"
+		done
+	done
+}
+
 echo "::group::build"
 # MAKE_JOBS = vom Runner-CT freigegebene Kerne (im Workflow aus der cgroup-Quota
 # ermittelt). Fallback auf nproc, wenn nicht gesetzt -- ACHTUNG: nproc meldet im
@@ -305,7 +328,12 @@ if [ "$rc" = 124 ]; then
 	rc=0
 	run_watched world-j1 make -j1 BUILD_LOG=1 || rc=$?
 fi
-[ "$rc" = 0 ] || exit "$rc"
+if [ "$rc" != 0 ]; then
+	echo "::endgroup::"
+	show_failed_logs world || true
+	show_failed_logs world-j1 || true
+	exit "$rc"
+fi
 echo "::endgroup::"
 
 # Artefakte einsammeln
