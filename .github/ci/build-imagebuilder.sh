@@ -48,11 +48,17 @@ echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
 # only ships the lpac binary.
 # ddimension-feed comes from the same stable tree and names it: the flashed
 # device follows this feed's stable channel, key included, with no bootstrap.
+# What wwand-ims needs (IPsec, the null cipher, ip-full, ucode-mod-socket) and
+# the bench tools: as config.wwand, where the reasons are — wwand-ims itself
+# stays out there too. The ImageBuilder resolves the kmods from the image's
+# own release.
 PKGS="wwand wwand-qmi wwand-mbim wwand-ncm wwand-mhi wwand-esim wwand-lpac \
 luci-app-wwand luci-proto-wwand \
 ddimension-feed \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
-kmod-usb-serial-option kmod-vrf luci lldpd"
+kmod-usb-serial-option kmod-vrf luci lldpd \
+kmod-ipsec kmod-ipsec4 kmod-ipsec6 kmod-crypto-null ip-full ucode-mod-socket \
+tcpdump pciutils usbutils"
 
 # 3) je Geraet ein Image (Signaturpruefung aktiv)
 #
