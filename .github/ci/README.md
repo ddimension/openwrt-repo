@@ -43,6 +43,14 @@ Beide schreiben gh-pages **ausschließlich** über `.github/ci/publish-pages.sh`
 
 - **Nie privilegiert.** `--unprivileged 1` immer. Docker im CT braucht
   `--docker` → `nesting=1,keyctl=1`.
+- **Ein abgebrochener Job baut weiter.** GitHub beendet den Job, der
+  SDK-Container (`docker run` im dockerd des Runners) kompiliert weiter. Mehrere
+  davon pro Runner hielten am 2026-11-21 alle Runner stundenlang belegt (Lauf
+  44912239746 1 h 15 min `queued`, n401 Last 20 mit drei `make` abgebrochener
+  Läufe). Deshalb stoppt jeder Job in `build.yml` als ersten Schritt alle noch
+  laufenden Container (*Stop containers of earlier jobs*) — ein Runner fährt
+  nur einen Job zugleich, alles Laufende ist ein Rest. Von Hand:
+  `qm guest exec <vmid> -- docker exec openwrt-runner docker ps`.
 - **ulimit:** Der SysV-Docker-Init (`/etc/init.d/docker`) setzt `ulimit -u/-p
   unlimited` → im unprivilegierten LXC „Operation not permitted", Service bricht ab.
   Fix im `openwrt-runner`-Image: alle `ulimit`-Zeilen nicht-fatal machen; zusätzlich

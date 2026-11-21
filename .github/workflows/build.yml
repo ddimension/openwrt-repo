@@ -118,6 +118,21 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # A cancelled job does not stop its build: GitHub ends the job, but the
+      # SDK container it started (docker run inside this runner's own
+      # dockerd) keeps compiling. Two to four of them per runner kept every
+      # runner busy for hours and starved the next run (2026-11-21: run
+      # 44912239746 queued 1 h 15 min, n401 at load 20 with three makes of
+      # cancelled runs, 1-5 h old). A runner runs one job at a time, so every
+      # container still running when a job starts is such a leftover.
+      - name: Stop containers of earlier jobs
+        shell: bash
+        run: |
+          if [ -n "$(docker ps -q)" ]; then
+            echo "left over from earlier jobs:"
+            docker ps --format '  {{.ID}} {{.Image}} running {{.RunningFor}}'
+            docker ps -q | xargs -r docker kill >/dev/null || true
+          fi
       - uses: actions/checkout@v4
 
       # No docker.io login any more: the SDK action builds its image with plain
@@ -293,6 +308,16 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # the same runners: a cancelled build's container would slow the publish
+      # (and the next job) as much as a build (see the build job)
+      - name: Stop containers of earlier jobs
+        shell: bash
+        run: |
+          if [ -n "$(docker ps -q)" ]; then
+            echo "left over from earlier jobs:"
+            docker ps --format '  {{.ID}} {{.Image}} running {{.RunningFor}}'
+            docker ps -q | xargs -r docker kill >/dev/null || true
+          fi
       # No stored credentials: publish-pages.sh brings its own, and a second
       # Authorization header makes GitHub answer 400 "Duplicate header".
       - uses: actions/checkout@v4
