@@ -9,7 +9,9 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=strongswan
 PKG_VERSION:=6.0.7
-PKG_RELEASE:=13
+# ddimension: upstream's PKG_RELEASE + 100, so apk prefers this build over
+# the one of the packages feed when both are configured (same version)
+PKG_RELEASE:=113
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://download.strongswan.org/ https://download2.strongswan.org/
@@ -41,12 +43,17 @@ PKG_MOD_AVAILABLE:= \
 	dnskey \
 	drbg \
 	duplicheck \
+	eap-aka \
+	eap-aka-3gpp \
 	eap-dynamic \
 	eap-identity \
 	eap-md5 \
 	$(if $(CONFIG_STRONGSWAN_INCLUDE_INSECURE),eap-mschapv2,) \
 	eap-radius \
+	eap-simaka-pseudonym \
+	eap-simaka-reauth \
 	eap-tls \
+	ext-aka \
 	farp \
 	fips-prf \
 	forecast \
@@ -68,6 +75,7 @@ PKG_MOD_AVAILABLE:= \
 	mgf1 \
 	mysql \
 	openssl \
+	p-cscf \
 	pem \
 	pgp \
 	pkcs1 \
@@ -171,12 +179,17 @@ $(call Package/strongswan/Default)
 	+strongswan-mod-dnskey \
 	+strongswan-mod-drbg \
 	+strongswan-mod-duplicheck \
+	+strongswan-mod-eap-aka \
+	+strongswan-mod-eap-aka-3gpp \
 	+strongswan-mod-eap-dynamic \
 	+strongswan-mod-eap-identity \
 	+strongswan-mod-eap-md5 \
 	+STRONGSWAN_INCLUDE_INSECURE:strongswan-mod-eap-mschapv2 \
 	+strongswan-mod-eap-radius \
+	+strongswan-mod-eap-simaka-pseudonym \
+	+strongswan-mod-eap-simaka-reauth \
 	+strongswan-mod-eap-tls \
+	+strongswan-mod-ext-aka \
 	+strongswan-mod-farp \
 	+strongswan-mod-fips-prf \
 	+strongswan-mod-forecast \
@@ -196,6 +209,7 @@ $(call Package/strongswan/Default)
 	+strongswan-mod-mgf1 \
 	+strongswan-mod-mysql \
 	+strongswan-mod-openssl \
+	+strongswan-mod-p-cscf \
 	+strongswan-mod-pem \
 	+strongswan-mod-pgp \
 	+strongswan-mod-pkcs1 \
@@ -406,6 +420,20 @@ $(call Package/strongswan/description/Default)
  This package contains the X.509 certificate generation utility.
 endef
 
+# ddimension: libsimaka, the EAP-SIM/AKA helper library eap-aka and the
+# eap-simaka-* plugins link against (built by --enable-eap-aka)
+define Package/strongswan-libsimaka
+$(call Package/strongswan/Default)
+  TITLE+= libsimaka
+  DEPENDS:= strongswan
+endef
+
+define Package/strongswan-libsimaka/description
+$(call Package/strongswan/description/Default)
+ This package contains libsimaka for the strongSwan plugins eap-aka,
+ eap-simaka-pseudonym and eap-simaka-reauth.
+endef
+
 define Package/strongswan-libtls
 $(call Package/strongswan/Default)
   TITLE+= libtls
@@ -578,6 +606,11 @@ define Package/strongswan-gencerts/install
 	$(INSTALL_BIN) ./files/gencerts.sh $(1)/usr/bin/gencerts
 endef
 
+define Package/strongswan-libsimaka/install
+	$(INSTALL_DIR) $(1)/usr/lib/ipsec
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/ipsec/libsimaka.so.* $(1)/usr/lib/ipsec/
+endef
+
 define Package/strongswan-libtls/install
 	$(INSTALL_DIR) $(1)/usr/lib/ipsec
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/ipsec/libtls.so.* $(1)/usr/lib/ipsec/
@@ -645,6 +678,7 @@ $(eval $(call BuildPackage,strongswan-ipsec))
 $(eval $(call BuildPackage,strongswan-pki))
 $(eval $(call BuildPackage,strongswan-swanctl))
 $(eval $(call BuildPackage,strongswan-gencerts))
+$(eval $(call BuildPackage,strongswan-libsimaka))
 $(eval $(call BuildPackage,strongswan-libtls))
 $(eval $(call BuildPlugin,addrblock,RFC 3779 address block constraint support,))
 $(eval $(call BuildPlugin,aes,AES crypto,))
@@ -666,12 +700,17 @@ $(eval $(call BuildPlugin,dhcp,DHCP based attribute provider,))
 $(eval $(call BuildPlugin,dnskey,DNS RR key decoding,))
 $(eval $(call BuildPlugin,drbg,Deterministic random bit generator,,))
 $(eval $(call BuildPlugin,duplicheck,advanced duplicate checking,))
+$(eval $(call BuildPlugin,eap-aka,EAP-AKA auth (RFC 4187),+strongswan-libsimaka))
+$(eval $(call BuildPlugin,eap-aka-3gpp,EAP-AKA 3GPP Milenage card/provider (software K/OPc),+strongswan-libsimaka))
 $(eval $(call BuildPlugin,eap-dynamic,EAP dynamic selector,))
 $(eval $(call BuildPlugin,eap-identity,EAP identity helper,))
 $(eval $(call BuildPlugin,eap-md5,EAP MD5 (CHAP) EAP auth,))
 $(eval $(call BuildPlugin,eap-mschapv2,EAP MS-CHAPv2 EAP auth,+strongswan-mod-md4 +strongswan-mod-des))
 $(eval $(call BuildPlugin,eap-radius,EAP RADIUS auth,))
+$(eval $(call BuildPlugin,eap-simaka-pseudonym,EAP-SIM/AKA in-memory pseudonym storage,+strongswan-libsimaka))
+$(eval $(call BuildPlugin,eap-simaka-reauth,EAP-SIM/AKA in-memory reauthentication storage,+strongswan-libsimaka))
 $(eval $(call BuildPlugin,eap-tls,EAP TLS auth,+strongswan-libtls))
+$(eval $(call BuildPlugin,ext-aka,EAP-AKA card backed by an external program (a USIM elsewhere),+strongswan-libsimaka))
 $(eval $(call BuildPlugin,farp,fake arp respsonses,))
 $(eval $(call BuildPlugin,fips-prf,FIPS PRF crypto,+strongswan-mod-sha1))
 $(eval $(call BuildPlugin,forecast,forward multi/broadcast traffic,+libip4tc +kmod-ipt-conntrack-extra))
@@ -693,6 +732,7 @@ $(eval $(call BuildPlugin,md5,MD5 crypto,))
 $(eval $(call BuildPlugin,mgf1,MGF1 crypto,))
 $(eval $(call BuildPlugin,mysql,MySQL database interface,+strongswan-mod-sql +PACKAGE_strongswan-mod-mysql:libmysqlclient-r))
 $(eval $(call BuildPlugin,openssl,OpenSSL crypto,+PACKAGE_strongswan-mod-openssl:libopenssl))
+$(eval $(call BuildPlugin,p-cscf,P-CSCF server address requests (RFC 7651),))
 $(eval $(call BuildPlugin,pem,PEM decoding,))
 $(eval $(call BuildPlugin,pgp,PGP key decoding,))
 $(eval $(call BuildPlugin,pkcs1,PKCS1 key decoding,))
