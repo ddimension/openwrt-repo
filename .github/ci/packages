@@ -31,6 +31,7 @@ wwand-ipad
 wwand-ipa
 wwand-qlog
 wwand-rsim
+wwand-esim-transfer
 wwand-ims
 # strongSwan with the EAP-AKA and p-cscf plugins (VoWiFi, wwand-ims-vowifi);
 # strongswan/README.md
