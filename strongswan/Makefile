@@ -11,7 +11,7 @@ PKG_NAME:=strongswan
 PKG_VERSION:=6.0.7
 # ddimension: upstream's PKG_RELEASE + 100, so apk prefers this build over
 # the one of the packages feed when both are configured (same version)
-PKG_RELEASE:=114
+PKG_RELEASE:=117
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://download.strongswan.org/ https://download2.strongswan.org/
@@ -43,6 +43,7 @@ PKG_MOD_AVAILABLE:= \
 	dnskey \
 	drbg \
 	duplicheck \
+	epdg-idr \
 	eap-aka \
 	eap-aka-3gpp \
 	eap-dynamic \
@@ -190,6 +191,7 @@ $(call Package/strongswan/Default)
 	+strongswan-mod-eap-simaka-reauth \
 	+strongswan-mod-eap-tls \
 	+strongswan-mod-ext-aka \
+	+strongswan-mod-epdg-idr \
 	+strongswan-mod-farp \
 	+strongswan-mod-fips-prf \
 	+strongswan-mod-forecast \
@@ -711,6 +713,7 @@ $(eval $(call BuildPlugin,eap-simaka-pseudonym,EAP-SIM/AKA in-memory pseudonym s
 $(eval $(call BuildPlugin,eap-simaka-reauth,EAP-SIM/AKA in-memory reauthentication storage,+strongswan-libsimaka))
 $(eval $(call BuildPlugin,eap-tls,EAP TLS auth,+strongswan-libtls))
 $(eval $(call BuildPlugin,ext-aka,EAP-AKA card backed by an external program (a USIM elsewhere),+strongswan-libsimaka))
+$(eval $(call BuildPlugin,epdg-idr,accept the IKEv2 responder identity an ePDG answers with (EAP-only),))
 $(eval $(call BuildPlugin,farp,fake arp respsonses,))
 $(eval $(call BuildPlugin,fips-prf,FIPS PRF crypto,+strongswan-mod-sha1))
 $(eval $(call BuildPlugin,forecast,forward multi/broadcast traffic,+libip4tc +kmod-ipt-conntrack-extra))

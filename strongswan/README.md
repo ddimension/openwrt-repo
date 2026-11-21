@@ -17,6 +17,15 @@ VoWiFi on a router needs and the packages feed does not build:
   (one per line, hex) or `AUTS` on a synchronisation failure, and exits 0.
   wwand-ims-vowifi installs that program; it reaches the USIM in the modem
   over wwand's APDU channel;
+- `epdg-idr` (patches/1001-epdg-idr-plugin.patch, new): for the connections
+  in `charon.plugins.epdg-idr.connections` whose remote side authenticates
+  by EAP only, accepts the ePDG's own IKEv2 responder identity although the
+  configured one (the APN, TS 24.302 7.2.2) was sent as IDr — charon
+  otherwise requires the IDr it sent. A listener: on the decrypted IKE_AUTH
+  response it relaxes the peer config's remote identity to `%any`, for the
+  lifetime of that peer config (load the connection again before a new
+  attempt, as wwand-ims does). Needed for Vodafone DE's ePDG (wwand-ims
+  docs/strongswan-idr.md);
 - all of them in `strongswan-full` as well.
 
 `eap-aka` alone authenticates nothing: it needs a card or a provider.
