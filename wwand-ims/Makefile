@@ -30,13 +30,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwand-ims
-PKG_VERSION:=0.2.0_pre18
+PKG_VERSION:=0.2.0_pre19
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ddimension/wwand-ims.git
-PKG_SOURCE_VERSION:=2a869298f0fa94a90ee81f2daad5df6297e6656b
-PKG_MIRROR_HASH:=0082c7479cb9ffcfaf8468a78da78e08827a3ffa76845abaa83fd27b1ff407db
+PKG_SOURCE_VERSION:=034730aa816904726f4b249ba2a961def892d238
+PKG_MIRROR_HASH:=d510800b491f5f21eca00ded3b3f3865adbf6051aeb8bb44bd501379fb56810d
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=
@@ -179,10 +179,13 @@ define Package/wwand-ims-vowifi/install
 	$(INSTALL_DIR) $(1)/etc/strongswan.d/charon
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/vowifi-strongswan.conf \
 		$(1)/etc/strongswan.d/charon/wwand-ims-vowifi.conf
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/vowifi-strongswan-ike.conf \
+		$(1)/etc/strongswan.d/wwand-ims-vowifi-ike.conf
 endef
 
 define Package/wwand-ims-vowifi/conffiles
 /etc/strongswan.d/charon/wwand-ims-vowifi.conf
+/etc/strongswan.d/wwand-ims-vowifi-ike.conf
 endef
 
 # named, not globbed (the rule luci-app-wwand follows)
