@@ -93,6 +93,9 @@ CONFIG_PACKAGE_strongswan-mod-pem=y
 CONFIG_PACKAGE_strongswan-mod-constraints=y
 CONFIG_PACKAGE_strongswan-mod-eap-identity=y
 CONFIG_PACKAGE_strongswan-mod-eap-aka=y
+# eap-aka's crypto (libsimaka) needs the FIPS PRF; without it charon has no
+# EAP-AKA method at all ("EAP method not supported", HW 2026-11-21)
+CONFIG_PACKAGE_strongswan-mod-fips-prf=y
 CONFIG_PACKAGE_strongswan-mod-ext-aka=y
 CONFIG_PACKAGE_strongswan-mod-eap-simaka-pseudonym=y
 CONFIG_PACKAGE_strongswan-mod-eap-simaka-reauth=y
