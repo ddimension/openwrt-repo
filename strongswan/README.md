@@ -6,7 +6,8 @@ VoWiFi on a router needs and the packages feed does not build:
 
 - the EAP-AKA plugins `eap-aka`, `eap-aka-3gpp`, `eap-simaka-pseudonym`,
   `eap-simaka-reauth`, and `strongswan-libsimaka`, the library they link
-  against;
+  against; `eap-aka` depends on `fips-prf` (libsimaka's PRF, without it
+  charon has no EAP-AKA method);
 - `p-cscf`, the RFC 7651 P-CSCF address request in IKEv2 (the ePDG hands
   out the IMS P-CSCF that way, TS 24.302);
 - `ext-aka` (patches/1000-ext-aka-plugin.patch, new): an EAP-AKA card that

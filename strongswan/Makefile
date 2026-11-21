@@ -11,7 +11,7 @@ PKG_NAME:=strongswan
 PKG_VERSION:=6.0.7
 # ddimension: upstream's PKG_RELEASE + 100, so apk prefers this build over
 # the one of the packages feed when both are configured (same version)
-PKG_RELEASE:=113
+PKG_RELEASE:=114
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://download.strongswan.org/ https://download2.strongswan.org/
@@ -700,7 +700,7 @@ $(eval $(call BuildPlugin,dhcp,DHCP based attribute provider,))
 $(eval $(call BuildPlugin,dnskey,DNS RR key decoding,))
 $(eval $(call BuildPlugin,drbg,Deterministic random bit generator,,))
 $(eval $(call BuildPlugin,duplicheck,advanced duplicate checking,))
-$(eval $(call BuildPlugin,eap-aka,EAP-AKA auth (RFC 4187),+strongswan-libsimaka))
+$(eval $(call BuildPlugin,eap-aka,EAP-AKA auth (RFC 4187),+strongswan-libsimaka +strongswan-mod-fips-prf))
 $(eval $(call BuildPlugin,eap-aka-3gpp,EAP-AKA 3GPP Milenage card/provider (software K/OPc),+strongswan-libsimaka))
 $(eval $(call BuildPlugin,eap-dynamic,EAP dynamic selector,))
 $(eval $(call BuildPlugin,eap-identity,EAP identity helper,))

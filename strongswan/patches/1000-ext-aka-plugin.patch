@@ -421,7 +421,7 @@
 +/**
 + * See header
 + */
-+plugin_t *ext_aka_plugin_create()
++PLUGIN_DEFINE(ext_aka)
 +{
 +	private_ext_aka_plugin_t *this;
 +
