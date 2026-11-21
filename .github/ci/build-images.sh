@@ -74,6 +74,11 @@ esac
 echo "::group::feeds"
 ./scripts/feeds update -a
 ./scripts/feeds install -a
+# Packages this feed carries in place of another feed's of the same name:
+# `install -a` takes the first feed in feeds.conf (packages), so these are
+# forced from ours (strongswan: strongswan/README.md).
+FEED_OVERRIDES="strongswan"
+./scripts/feeds install -f -p wwand $FEED_OVERRIDES
 echo "::endgroup::"
 
 # Ein Geraet oder mehrere? Mehrere gehen NICHT ueber die Profil-Symbole:
@@ -129,6 +134,15 @@ for d in $DEVICES; do
 		|| { echo "FEHLER: Geraet ${d} nach defconfig nicht selektiert (${sym})"; exit 3; }
 done
 grep -q '^CONFIG_PACKAGE_wwand=y' .config || { echo "FEHLER: wwand nicht selektiert (Feed ok?)"; exit 3; }
+# strongSwan aus DIESEM Feed (FEED_OVERRIDES oben): nur dessen Kopie kennt
+# eap-aka und p-cscf. Die des packages-Feeds liesse defconfig die Symbole
+# still verwerfen -- dann fehlten sie im Image, ohne dass der Bau scheitert.
+for sym in CONFIG_PACKAGE_strongswan-mod-eap-aka=y CONFIG_PACKAGE_strongswan-mod-ext-aka=y \
+	CONFIG_PACKAGE_strongswan-mod-p-cscf=y \
+	CONFIG_PACKAGE_strongswan-mod-vici=y; do
+	grep -q "^${sym}$" .config \
+		|| { echo "FEHLER: ${sym} nach defconfig nicht gesetzt (strongswan aus dem wwand-Feed?)"; exit 3; }
+done
 # CONFIG_TESTING_KERNEL haengt an HAS_TESTING_KERNEL, das nur gesetzt ist, wenn
 # das Target ein KERNEL_TESTING_PATCHVER hat (include/target.mk). Fehlt das,
 # wirft defconfig das Symbol still weg und der Leg baut den Default-Kernel --

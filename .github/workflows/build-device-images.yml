@@ -37,6 +37,10 @@ on:
         description: 'Nur diesen Leg bauen (Matrix-Slug: chateau, nbg7815, nr7101, lte3301 oder zyxel); leer = alle. Publiziert wird dann nur dessen Images-Verzeichnis.'
         type: string
         default: ''
+      feed_ref:
+        description: 'Gegen diesen Feed-Stand bauen statt gegen das neueste Release: ein Branch (main) oder ein Commit. Dann nur die Voll-Build-Legs; der zyxel-Leg (ImageBuilder) braucht den signierten stable-Baum und entfaellt. Leer = neuestes Release.'
+        type: string
+        default: ''
   # Nach jedem erfolgreichen Feed-Lauf eines RELEASE-TAGS automatisch Images
   # bauen, damit ein frisches Release direkt in Images landet. Bei einem
   # Tag-Lauf ist head_branch der Tag-Name, daher das Datumsmuster. Pushes auf
@@ -76,8 +80,23 @@ jobs:
         env:
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           RUN_TAG: ${{ github.event.workflow_run.head_branch }}
+          FEED_REF: ${{ github.event.inputs.feed_ref }}
         run: |
           sha="$RUN_SHA"
+          # Von Hand mit feed_ref: genau dieser Feed-Stand (ein Commit, oder die
+          # Spitze eines Branches zum Startzeitpunkt), kein Release-Tag.
+          if [ -n "$FEED_REF" ]; then
+            if printf '%s' "$FEED_REF" | grep -Eq '^[0-9a-f]{40}$'; then
+              sha="$FEED_REF"
+            else
+              sha="$(git ls-remote "$FEED_GIT" "refs/heads/$FEED_REF" | cut -f1)"
+              [ -n "$sha" ] || { echo "::error::feed_ref $FEED_REF: kein Branch in $FEED_GIT"; exit 1; }
+            fi
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "Feed: $FEED_REF @ $sha (kein Release)"
+            exit 0
+          fi
           # Der Tag des Releases, gegen das gebaut wird: bei workflow_run ist
           # head_branch der Tag-Name, von Hand suchen wir den neuesten. Er geht
           # als Output weiter, damit publish-images die fertigen Images an
@@ -286,7 +305,8 @@ jobs:
   zyxel:
     needs: feed
     # Ein Testkernel betrifft nur Voll-Builds; der ImageBuilder bringt seinen Kernel mit.
-    if: ${{ github.event.inputs.testing_kernel != 'true' && (github.event.inputs.only == '' || github.event.inputs.only == 'zyxel') }}
+    # Gegen feed_ref gibt es keinen signierten stable-Baum dieses Stands.
+    if: ${{ github.event.inputs.testing_kernel != 'true' && github.event.inputs.feed_ref == '' && (github.event.inputs.only == '' || github.event.inputs.only == 'zyxel') }}
     runs-on: [self-hosted, openwrt]
     timeout-minutes: 120
     strategy:
@@ -407,6 +427,7 @@ jobs:
           PAGES_STAMP_SHA: ${{ needs.feed.outputs.sha }}
           # und sein Release-Tag, an dessen GitHub-Release die Images gehen
           RELEASE_TAG: ${{ needs.feed.outputs.tag }}
+          FEED_REF: ${{ github.event.inputs.feed_ref }}
         run: |
           pairs=()
           for art in dl/images-*/; do
@@ -428,9 +449,11 @@ jobs:
             echo "no image artifacts"
             exit 0
           fi
+          # gegen feed_ref gebaut: der Stempel nennt diesen Stand, nicht stable
+          ch="${FEED_REF:-$FEED_CHANNEL}"
           .github/ci/publish-pages.sh \
-            -m "images @ $PAGES_STAMP_SHA ($FEED_CHANNEL)" \
-            --channel "$FEED_CHANNEL" \
+            -m "images @ $PAGES_STAMP_SHA ($ch)" \
+            --channel "$ch" \
             "${pairs[@]}"
           # …and the same images onto the GitHub release of that feed release.
           # Release assets do not count against the 1 GB of a Pages site, they

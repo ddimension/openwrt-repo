@@ -57,3 +57,42 @@ CONFIG_PACKAGE_ddimension-feed=y
 # the wwand feed as .../packages/<arch>/wwand/ on downloads.openwrt.org, which
 # does not exist, and every `apk update` on the device would say so.
 # CONFIG_FEED_wwand is not set
+# VoWiFi (wwand-ims-vowifi): an IKEv2 tunnel to the operator's ePDG with
+# EAP-AKA through the USIM, P-CSCF from the ePDG, the tunnel as an XFRM
+# interface in the IMS VRF. strongSwan from THIS feed (strongswan/README.md:
+# the packages feed builds no eap-aka and no p-cscf; build-images.sh forces
+# this feed's copy). Picked by plugin, not strongswan-minimal: that one pulls
+# stroke and updown, and with them iptables. charon is driven over its vici
+# interface only (connections, keys and the card all at run time from
+# wwand-ims-vowifi), no configuration of its own. swanctl is in for debugging
+# (swanctl --list-sas, --log); its init starts an idle charon at boot (no
+# connections from an empty /etc/config/ipsec, IKE ports 500/4500 open, the
+# WAN firewall drops them).
+CONFIG_PACKAGE_strongswan-charon=y
+CONFIG_PACKAGE_strongswan-mod-vici=y
+CONFIG_PACKAGE_strongswan-swanctl=y
+CONFIG_PACKAGE_strongswan-mod-kernel-netlink=y
+CONFIG_PACKAGE_strongswan-mod-socket-default=y
+CONFIG_PACKAGE_strongswan-mod-random=y
+CONFIG_PACKAGE_strongswan-mod-kdf=y
+CONFIG_PACKAGE_strongswan-mod-aes=y
+CONFIG_PACKAGE_strongswan-mod-gcm=y
+CONFIG_PACKAGE_strongswan-mod-sha1=y
+CONFIG_PACKAGE_strongswan-mod-sha2=y
+CONFIG_PACKAGE_strongswan-mod-hmac=y
+CONFIG_PACKAGE_strongswan-mod-mgf1=y
+CONFIG_PACKAGE_strongswan-mod-gmp=y
+CONFIG_PACKAGE_strongswan-mod-curve25519=y
+CONFIG_PACKAGE_strongswan-mod-x509=y
+CONFIG_PACKAGE_strongswan-mod-pubkey=y
+CONFIG_PACKAGE_strongswan-mod-pkcs1=y
+CONFIG_PACKAGE_strongswan-mod-pem=y
+CONFIG_PACKAGE_strongswan-mod-constraints=y
+CONFIG_PACKAGE_strongswan-mod-eap-identity=y
+CONFIG_PACKAGE_strongswan-mod-eap-aka=y
+CONFIG_PACKAGE_strongswan-mod-ext-aka=y
+CONFIG_PACKAGE_strongswan-mod-eap-simaka-pseudonym=y
+CONFIG_PACKAGE_strongswan-mod-eap-simaka-reauth=y
+CONFIG_PACKAGE_strongswan-mod-p-cscf=y
+CONFIG_PACKAGE_kmod-xfrm-interface=y
+CONFIG_PACKAGE_kmod-crypto-gcm=y

@@ -32,5 +32,8 @@ wwand-ipa
 wwand-qlog
 wwand-rsim
 wwand-ims
+# strongSwan with the EAP-AKA and p-cscf plugins (VoWiFi, wwand-ims-vowifi);
+# strongswan/README.md
+strongswan
 luci-app-wwand
 luci-proto-wwand
