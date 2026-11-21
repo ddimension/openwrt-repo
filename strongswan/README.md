@@ -10,26 +10,19 @@ VoWiFi on a router needs and the packages feed does not build:
   charon has no EAP-AKA method);
 - `p-cscf`, the RFC 7651 P-CSCF address request in IKEv2 (the ePDG hands
   out the IMS P-CSCF that way, TS 24.302);
-- `ext-aka` (patches/1000-ext-aka-plugin.patch, new): an EAP-AKA card that
-  runs the algorithm in an external program,
-  `charon.plugins.ext-aka.program` (default `/usr/libexec/strongswan/ext-aka`):
-  `<program> aka <identity> <RAND hex> <AUTN hex>` prints `RES`, `CK`, `IK`
-  (one per line, hex) or `AUTS` on a synchronisation failure, and exits 0.
-  wwand-ims-vowifi installs that program; it reaches the USIM in the modem
-  over wwand's APDU channel;
-- `epdg-idr` (patches/1001-epdg-idr-plugin.patch, new): for the connections
-  in `charon.plugins.epdg-idr.connections` whose remote side authenticates
-  by EAP only, accepts the ePDG's own IKEv2 responder identity although the
-  configured one (the APN, TS 24.302 7.2.2) was sent as IDr — charon
-  otherwise requires the IDr it sent. A listener: on the decrypted IKE_AUTH
-  response it relaxes the peer config's remote identity to `%any`, for the
-  lifetime of that peer config (load the connection again before a new
-  attempt, as wwand-ims does). Needed for Vodafone DE's ePDG (wwand-ims
-  docs/strongswan-idr.md);
-- all of them in `strongswan-full` as well.
+- `Build/InstallDev`: the headers of libstrongswan, libcharon and libsimaka
+  and this build's `config.h` under `/usr/include/strongswan`, libsimaka
+  under `/usr/lib/ipsec`, for charon plugins built OUT of this tree.
+  wwand-ims builds its two that way (its `src/strongswan`, packaged there as
+  `strongswan-mod-ext-aka` and `strongswan-mod-epdg-idr`, pinned to this
+  version and release): `ext-aka`, an EAP-AKA card running the AKA in an
+  external program, and `epdg-idr`, accepting an ePDG's own IDr. They were
+  patches here (1000, 1001) until 6.0.7-r118; bump wwand-ims's `SW_ABI`
+  with this package's version or release;
+- all of them (but the two of wwand-ims) in `strongswan-full` as well.
 
 `eap-aka` alone authenticates nothing: it needs a card or a provider.
-`ext-aka` is the card for a USIM elsewhere; `eap-aka-3gpp` is the software
+`ext-aka` (wwand-ims) is the card for a USIM elsewhere; `eap-aka-3gpp` is the software
 one (K/OPc in the configuration), useful for tests only.
 
 `PKG_RELEASE` is upstream's + 100, so apk on a device that has both feeds

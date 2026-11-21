@@ -11,7 +11,7 @@ PKG_NAME:=strongswan
 PKG_VERSION:=6.0.7
 # ddimension: upstream's PKG_RELEASE + 100, so apk prefers this build over
 # the one of the packages feed when both are configured (same version)
-PKG_RELEASE:=117
+PKG_RELEASE:=118
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://download.strongswan.org/ https://download2.strongswan.org/
@@ -43,7 +43,6 @@ PKG_MOD_AVAILABLE:= \
 	dnskey \
 	drbg \
 	duplicheck \
-	epdg-idr \
 	eap-aka \
 	eap-aka-3gpp \
 	eap-dynamic \
@@ -54,7 +53,6 @@ PKG_MOD_AVAILABLE:= \
 	eap-simaka-pseudonym \
 	eap-simaka-reauth \
 	eap-tls \
-	ext-aka \
 	farp \
 	fips-prf \
 	forecast \
@@ -190,8 +188,6 @@ $(call Package/strongswan/Default)
 	+strongswan-mod-eap-simaka-pseudonym \
 	+strongswan-mod-eap-simaka-reauth \
 	+strongswan-mod-eap-tls \
-	+strongswan-mod-ext-aka \
-	+strongswan-mod-epdg-idr \
 	+strongswan-mod-farp \
 	+strongswan-mod-fips-prf \
 	+strongswan-mod-forecast \
@@ -472,6 +468,25 @@ endef
   $$(eval $$(call BuildPackage,strongswan-mod-$(1)))
 endef
 
+# The headers and config.h of this build, and libsimaka, for charon plugins
+# built out of this tree (load_modular): wwand-ims builds ext-aka and
+# epdg-idr this way (PKG_BUILD_DEPENDS:=strongswan) instead of as patches
+# here. 6.0.7's --with-dev-headers installs libstrongswan's alone, so the
+# headers of libstrongswan, libcharon and libsimaka are copied from the
+# source tree as they are (a plugin includes them by their paths there).
+define Build/InstallDev
+	$(INSTALL_DIR) $(1)/usr/include/strongswan $(1)/usr/lib/ipsec
+	$(CP) $(PKG_BUILD_DIR)/config.h $(1)/usr/include/strongswan/
+	for l in libstrongswan libcharon libsimaka; do \
+		( cd $(PKG_BUILD_DIR)/src && find $$$$l -name '*.h' -not -path '*/tests/*' ) | \
+		while read h; do \
+			$(INSTALL_DIR) $(1)/usr/include/strongswan/$$$$(dirname $$$$h); \
+			$(CP) $(PKG_BUILD_DIR)/src/$$$$h $(1)/usr/include/strongswan/$$$$h; \
+		done; \
+	done
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/ipsec/libsimaka.so* $(1)/usr/lib/ipsec/
+endef
+
 CONFIGURE_ARGS+= \
 	--disable-scripts \
 	--disable-static \
@@ -712,8 +727,6 @@ $(eval $(call BuildPlugin,eap-radius,EAP RADIUS auth,))
 $(eval $(call BuildPlugin,eap-simaka-pseudonym,EAP-SIM/AKA in-memory pseudonym storage,+strongswan-libsimaka))
 $(eval $(call BuildPlugin,eap-simaka-reauth,EAP-SIM/AKA in-memory reauthentication storage,+strongswan-libsimaka))
 $(eval $(call BuildPlugin,eap-tls,EAP TLS auth,+strongswan-libtls))
-$(eval $(call BuildPlugin,ext-aka,EAP-AKA card backed by an external program (a USIM elsewhere),+strongswan-libsimaka))
-$(eval $(call BuildPlugin,epdg-idr,accept the IKEv2 responder identity an ePDG answers with (EAP-only),))
 $(eval $(call BuildPlugin,farp,fake arp respsonses,))
 $(eval $(call BuildPlugin,fips-prf,FIPS PRF crypto,+strongswan-mod-sha1))
 $(eval $(call BuildPlugin,forecast,forward multi/broadcast traffic,+libip4tc +kmod-ipt-conntrack-extra))
