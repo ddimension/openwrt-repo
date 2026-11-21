@@ -47,7 +47,7 @@ Beide schreiben gh-pages **ausschließlich** über `.github/ci/publish-pages.sh`
   SDK-Container (`docker run` im dockerd des Runners) kompiliert weiter. Mehrere
   davon pro Runner hielten am 2026-11-21 alle Runner stundenlang belegt (Lauf
   44912239746 1 h 15 min `queued`, n401 Last 20 mit drei `make` abgebrochener
-  Läufe). Deshalb stoppt jeder Job in `build.yml` als ersten Schritt alle noch
+  Läufe). Deshalb stoppt jeder Job in `build.yml` und `build-device-images.yml` als ersten Schritt alle noch
   laufenden Container (*Stop containers of earlier jobs*) — ein Runner fährt
   nur einen Job zugleich, alles Laufende ist ein Rest. Von Hand:
   `qm guest exec <vmid> -- docker exec openwrt-runner docker ps`.

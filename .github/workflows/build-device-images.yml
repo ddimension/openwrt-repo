@@ -76,6 +76,17 @@ jobs:
       sha: ${{ steps.sha.outputs.sha }}
       tag: ${{ steps.sha.outputs.tag }}
     steps:
+      # as in build.yml: a cancelled job's container keeps building inside
+      # this runner's dockerd and holds the runner for hours; a runner runs
+      # one job at a time, so whatever still runs now is such a leftover
+      - name: Stop containers of earlier jobs
+        shell: bash
+        run: |
+          if [ -n "$(docker ps -q)" ]; then
+            echo "left over from earlier jobs:"
+            docker ps --format '  {{.ID}} {{.Image}} running {{.RunningFor}}'
+            docker ps -q | xargs -r docker kill >/dev/null || true
+          fi
       - id: sha
         env:
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -214,6 +225,17 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # as in build.yml: a cancelled job's container keeps building inside
+      # this runner's dockerd and holds the runner for hours; a runner runs
+      # one job at a time, so whatever still runs now is such a leftover
+      - name: Stop containers of earlier jobs
+        shell: bash
+        run: |
+          if [ -n "$(docker ps -q)" ]; then
+            echo "left over from earlier jobs:"
+            docker ps --format '  {{.ID}} {{.Image}} running {{.RunningFor}}'
+            docker ps -q | xargs -r docker kill >/dev/null || true
+          fi
       - uses: actions/checkout@v4
 
       - name: Prepare volumes + output
@@ -325,6 +347,17 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # as in build.yml: a cancelled job's container keeps building inside
+      # this runner's dockerd and holds the runner for hours; a runner runs
+      # one job at a time, so whatever still runs now is such a leftover
+      - name: Stop containers of earlier jobs
+        shell: bash
+        run: |
+          if [ -n "$(docker ps -q)" ]; then
+            echo "left over from earlier jobs:"
+            docker ps --format '  {{.ID}} {{.Image}} running {{.RunningFor}}'
+            docker ps -q | xargs -r docker kill >/dev/null || true
+          fi
       - uses: actions/checkout@v4
 
       - name: Prepare output + IB volume
@@ -409,6 +442,17 @@ jobs:
         run: |
           shopt -s dotglob nullglob
           rm -rf "${GITHUB_WORKSPACE:?}"/*
+      # as in build.yml: a cancelled job's container keeps building inside
+      # this runner's dockerd and holds the runner for hours; a runner runs
+      # one job at a time, so whatever still runs now is such a leftover
+      - name: Stop containers of earlier jobs
+        shell: bash
+        run: |
+          if [ -n "$(docker ps -q)" ]; then
+            echo "left over from earlier jobs:"
+            docker ps --format '  {{.ID}} {{.Image}} running {{.RunningFor}}'
+            docker ps -q | xargs -r docker kill >/dev/null || true
+          fi
       # No stored credentials: publish-pages.sh brings its own, and a second
       # Authorization header makes GitHub answer 400 "Duplicate header".
       - uses: actions/checkout@v4
