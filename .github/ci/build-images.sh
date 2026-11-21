@@ -146,7 +146,7 @@ grep -q '^CONFIG_PACKAGE_wwand=y' .config || { echo "FEHLER: wwand nicht selekti
 # eap-aka und p-cscf. Die des packages-Feeds liesse defconfig die Symbole
 # still verwerfen -- dann fehlten sie im Image, ohne dass der Bau scheitert.
 for sym in CONFIG_PACKAGE_strongswan-mod-eap-aka=y CONFIG_PACKAGE_strongswan-mod-ext-aka=y \
-	CONFIG_PACKAGE_strongswan-mod-p-cscf=y \
+	CONFIG_PACKAGE_strongswan-mod-p-cscf=y CONFIG_PACKAGE_strongswan-mod-epdg-idr=y \
 	CONFIG_PACKAGE_strongswan-mod-vici=y; do
 	grep -q "^${sym}$" .config \
 		|| { echo "FEHLER: ${sym} nach defconfig nicht gesetzt (strongswan aus dem wwand-Feed?)"; exit 3; }

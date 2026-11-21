@@ -48,16 +48,28 @@ echo "signierter Feed: ${FEED}/packages.adb (Key: keys/ddimension.pem)"
 # only ships the lpac binary.
 # ddimension-feed comes from the same stable tree and names it: the flashed
 # device follows this feed's stable channel, key included, with no bootstrap.
-# What wwand-ims needs (IPsec, the null cipher, ip-full, ucode-mod-socket) and
-# the bench tools: as config.wwand, where the reasons are — wwand-ims itself
-# stays out there too. The ImageBuilder resolves the kmods from the image's
-# own release.
+# What wwand-ims needs (IPsec, the null cipher, ip-full, ucode-mod-socket),
+# VoWiFi's strongSwan (charon over vici, EAP-AKA with ext-aka, p-cscf,
+# epdg-idr; the feed's copy, its r1xx sorts above the release's) with the
+# XFRM interface (kmod-xfrm-interface, xfrm), and the bench tools: as
+# config.wwand, where the reasons are — wwand-ims itself stays out there
+# too. The ImageBuilder resolves the kmods from the image's own release.
 PKGS="wwand wwand-qmi wwand-mbim wwand-ncm wwand-mhi wwand-esim wwand-lpac \
 luci-app-wwand luci-proto-wwand \
 ddimension-feed \
 umbim mbim-utils kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-rmnet \
 kmod-usb-serial-option kmod-vrf luci lldpd \
 kmod-ipsec kmod-ipsec4 kmod-ipsec6 kmod-crypto-null ip-full ucode-mod-socket \
+strongswan strongswan-charon strongswan-mod-vici strongswan-swanctl \
+strongswan-mod-kernel-netlink strongswan-mod-socket-default strongswan-mod-random \
+strongswan-mod-kdf strongswan-mod-aes strongswan-mod-gcm strongswan-mod-sha1 \
+strongswan-mod-sha2 strongswan-mod-hmac strongswan-mod-mgf1 strongswan-mod-gmp \
+strongswan-mod-curve25519 strongswan-mod-x509 strongswan-mod-pubkey \
+strongswan-mod-pkcs1 strongswan-mod-pem strongswan-mod-constraints \
+strongswan-mod-eap-identity strongswan-mod-eap-aka strongswan-mod-fips-prf \
+strongswan-mod-ext-aka strongswan-mod-eap-simaka-pseudonym \
+strongswan-mod-eap-simaka-reauth strongswan-mod-p-cscf strongswan-mod-epdg-idr \
+kmod-xfrm-interface kmod-crypto-gcm xfrm \
 tcpdump pciutils usbutils"
 
 # 3) je Geraet ein Image (Signaturpruefung aktiv)
