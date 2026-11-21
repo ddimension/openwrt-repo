@@ -73,12 +73,20 @@ case "$WWAND_FEED" in
 esac
 echo "::group::feeds"
 ./scripts/feeds update -a
-./scripts/feeds install -a
-# Packages this feed carries in place of another feed's of the same name:
-# `install -a` takes the first feed in feeds.conf (packages), so these are
-# forced from ours (strongswan: strongswan/README.md).
+# Packages this feed carries in place of another feed's of the same name
+# (strongswan: strongswan/README.md). `install -a` takes the first feed in
+# feeds.conf (packages) for a name not installed yet, and `-f` only
+# overrides OpenWrt's own package/ tree, not another feed — so these are
+# taken out (a persistent tree has them from packages) and installed from
+# ours BEFORE `install -a`, which then leaves them alone.
 FEED_OVERRIDES="strongswan"
-./scripts/feeds install -f -p wwand $FEED_OVERRIDES
+./scripts/feeds uninstall $FEED_OVERRIDES
+./scripts/feeds install -p wwand $FEED_OVERRIDES
+./scripts/feeds install -a
+for p in $FEED_OVERRIDES; do
+	readlink "package/feeds/wwand/$p" >/dev/null \
+		|| { echo "FEHLER: $p nicht aus dem wwand-Feed installiert"; exit 3; }
+done
 echo "::endgroup::"
 
 # Ein Geraet oder mehrere? Mehrere gehen NICHT ueber die Profil-Symbole:
