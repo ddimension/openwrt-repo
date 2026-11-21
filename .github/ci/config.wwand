@@ -68,6 +68,9 @@ CONFIG_PACKAGE_ddimension-feed=y
 # (swanctl --list-sas, --log); its init starts an idle charon at boot (no
 # connections from an empty /etc/config/ipsec, IKE ports 500/4500 open, the
 # WAN firewall drops them).
+# the base package first: every strongswan-* has a plain `DEPENDS:= strongswan`
+# (no +), so without it defconfig drops them all (SDK, 2026-11-21)
+CONFIG_PACKAGE_strongswan=y
 CONFIG_PACKAGE_strongswan-charon=y
 CONFIG_PACKAGE_strongswan-mod-vici=y
 CONFIG_PACKAGE_strongswan-swanctl=y
