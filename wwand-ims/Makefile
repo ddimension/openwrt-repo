@@ -59,7 +59,16 @@ CMAKE_OPTIONS += \
 # the charon plugins (src/strongswan) are built against this strongSwan's
 # headers (its Build/InstallDev) and tied to its ABI: bump with the feed's
 # strongswan PKG_VERSION/PKG_RELEASE
-SW_ABI:=6.0.7-r118
+SW_VERSION:=6.0.7
+SW_RELEASE:=118
+SW_ABI:=$(SW_VERSION)-r$(SW_RELEASE)
+# The plugin packages' own version: strongSwan's with its release as a 4th
+# component, so it stays above the 6.0.7-r117 they had when the strongswan
+# package built them (apk: 6.0.7.118 > 6.0.7) and follows each strongSwan
+# bump. SW_PLUGIN_REL counts changes of the plugins' sources in between —
+# raise it then, or devices keep the older build.
+SW_PLUGIN_REL:=1
+SW_PLUGIN_VERSION:=$(SW_VERSION).$(SW_RELEASE)-r$(SW_PLUGIN_REL)
 
 UCDIR:=/usr/share/ucode/wwand
 IMSLIB:=/usr/share/wwand-ims
@@ -134,6 +143,7 @@ define Package/strongswan-mod-ext-aka
   TITLE:=StrongSwan EAP-AKA card backed by an external program (a USIM elsewhere) plugin
   DEPENDS:=+strongswan-charon +strongswan-libsimaka
   EXTRA_DEPENDS:=strongswan-charon (=$(SW_ABI))
+  VERSION:=$(SW_PLUGIN_VERSION)
 endef
 
 define Package/strongswan-mod-ext-aka/description
@@ -149,6 +159,7 @@ define Package/strongswan-mod-epdg-idr
   TITLE:=StrongSwan plugin accepting the IKEv2 responder identity an ePDG answers with
   DEPENDS:=+strongswan-charon
   EXTRA_DEPENDS:=strongswan-charon (=$(SW_ABI))
+  VERSION:=$(SW_PLUGIN_VERSION)
 endef
 
 define Package/strongswan-mod-epdg-idr/description

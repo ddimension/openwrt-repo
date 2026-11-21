@@ -17,7 +17,7 @@ VoWiFi on a router needs and the packages feed does not build:
   `strongswan-mod-ext-aka` and `strongswan-mod-epdg-idr`, pinned to this
   version and release): `ext-aka`, an EAP-AKA card running the AKA in an
   external program, and `epdg-idr`, accepting an ePDG's own IDr. They were
-  patches here (1000, 1001) until 6.0.7-r118; bump wwand-ims's `SW_ABI`
+  patches here (1000, 1001) until 6.0.7-r118; bump wwand-ims's `SW_VERSION`/`SW_RELEASE`
   with this package's version or release;
 - all of them (but the two of wwand-ims) in `strongswan-full` as well.
 
