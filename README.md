@@ -33,7 +33,7 @@ build throws its SDK tree away on every run.
 
 | Package | What it is | Binary packages | Source | CI |
 |---|---|---|---|---|
-| `wwand` | event-driven cellular connection manager (QMI, MBIM, NCM, PCIe/MHI), eSIM, scheduled APN tests | `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-mhi`, `wwand-esim`, `wwand-gps`, `wwand-apntest`, `wwand-datapath-rmnet_nss`, `wwand-datapath-rmnet_nss_mhi` | [ddimension/wwand](https://github.com/ddimension/wwand) | ✓ |
+| `wwand` | event-driven cellular connection manager (QMI, MBIM, NCM, PCIe/MHI), eSIM, scheduled APN tests | `wwand`, `wwand-qmi`, `wwand-mbim`, `wwand-ncm`, `wwand-mhi`, `wwand-qrtr`, `wwand-esim`, `wwand-gps`, `wwand-apntest`, `wwand-datapath-rmnet_nss`, `wwand-datapath-rmnet_nss_mhi` | [ddimension/wwand](https://github.com/ddimension/wwand) | ✓ |
 | `luci-app-wwand` | LuCI modem status page, modem editor, live settings; the signal/statistics graphs as a separate package | `luci-app-wwand`, `luci-app-wwand-statistics` | [ddimension/luci-app-wwand](https://github.com/ddimension/luci-app-wwand) | ✓ |
 | `luci-proto-wwand` | LuCI protocol handler for `proto wwand` interfaces | same | [ddimension/luci-proto-wwand](https://github.com/ddimension/luci-proto-wwand) | ✓ |
 | `wwand-lpac` | lpac for eSIM profile management, static wolfSSL/curl; `wwand-lpac-curl` is the curl tool of the same static build (`/usr/libexec/wwand/curl`, HTTPS only, no shared libraries) for wwand's own HTTPS clients | `wwand-lpac`, `wwand-lpac-curl` | upstream [estkme-group/lpac](https://github.com/estkme-group/lpac) | ✓ |
