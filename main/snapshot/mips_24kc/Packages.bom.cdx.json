@@ -1,0 +1,1753 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:4ad440b1-23eb-5016-a908-e5ec8029a135",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-25T21:22:26Z"
+  },
+  "components": [
+    {
+      "name": "ddimension-feed",
+      "version": "1-r4",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand",
+      "version": "1.10.0_pre9-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-esim-transfer",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-ims",
+      "version": "0.2.0_pre21-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-ipa",
+      "version": "0.2.0_p3-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-rsim",
+      "version": "0.1.1_p2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-app-wwand-statistics",
+      "version": "1.10.0_pre9-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-i18n-wwand-pl",
+      "version": "1.10.0_pre9-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "luci-proto-wwand",
+      "version": "1.9.0_pre4-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qfirehose",
+      "version": "1.4.21-r3",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Proprietary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qflash",
+      "version": "2.0-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Proprietary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qlog",
+      "version": "1.5.8-r2",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "Quectel-Customer-Use"
+          }
+        }
+      ]
+    },
+    {
+      "name": "qrtr-lookup",
+      "version": "1.2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rsim-card",
+      "version": "0.1.1_p2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rsim-card-pcsc",
+      "version": "0.1.1_p2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-charon",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-charon-cmd",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-default",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-full",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-gencerts",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-ipsec",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-isakmp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-libsimaka",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-libtls",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-minimal",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-addrblock",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-aes",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-agent",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-attr",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-attr-sql",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-blowfish",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-ccm",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-chapoly",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-cmac",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-connmark",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-constraints",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-coupling",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-ctr",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-curl",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-curve25519",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-des",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-dhcp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-dnskey",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-drbg",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-duplicheck",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-aka",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-aka-3gpp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-dynamic",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-identity",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-md5",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-mschapv2",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-radius",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-simaka-pseudonym",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-simaka-reauth",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-eap-tls",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-epdg-idr",
+      "version": "6.0.7.118-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-ext-aka",
+      "version": "6.0.7.118-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-farp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-fips-prf",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-forecast",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-gcm",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-gcrypt",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-gmp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-gmpdh",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-ha",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-hmac",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-kdf",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-kernel-libipsec",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-kernel-netlink",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-ldap",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-led",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-load-tester",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-lookip",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-md4",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-md5",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-mgf1",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-mysql",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-openssl",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-p-cscf",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pem",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pgp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pkcs1",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pkcs11",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pkcs12",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pkcs7",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pkcs8",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-pubkey",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-random",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-rc2",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-resolve",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-revocation",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-sha1",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-sha2",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-sha3",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-smp",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-socket-default",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-socket-dynamic",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-sql",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-sqlite",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-sshkey",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-stroke",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-test-vectors",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-unity",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-updown",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-vici",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-whitelist",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-wolfssl",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-x509",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-xauth-eap",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-xauth-generic",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-mod-xcbc",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-pki",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "strongswan-swanctl",
+      "version": "6.0.7-r118",
+      "cpe": "cpe:/a:strongswan:strongswan",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-apntest",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-datapath-rmnet_nss",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-datapath-rmnet_nss_mhi",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-esim",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-esim-transfer",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-gps",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ims",
+      "version": "0.2.0_pre21-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ims-vowifi",
+      "version": "0.2.0_pre21-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ipa",
+      "version": "0.2.0_p3-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ipad",
+      "version": "0.2.0_p2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-lpac",
+      "version": "2.3.0-r5",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "AGPL-3.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "GPL-3.0-or-later"
+          }
+        },
+        {
+          "license": {
+            "name": "curl"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-lpac-curl",
+      "version": "2.3.0-r5",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "AGPL-3.0-only"
+          }
+        },
+        {
+          "license": {
+            "name": "GPL-3.0-or-later"
+          }
+        },
+        {
+          "license": {
+            "name": "curl"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-mbim",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-mhi",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-ncm",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qlog",
+      "version": "0.1.0-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qmi",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-qrtr",
+      "version": "1.10.0_pre35-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-rsim",
+      "version": "0.1.1_p2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wwand-rsim-provider",
+      "version": "0.1.1_p2-r1",
+      "type": "application",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-only"
+          }
+        }
+      ]
+    }
+  ]
+}
